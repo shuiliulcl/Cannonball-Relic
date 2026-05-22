@@ -42,4 +42,4 @@
 - [x] Add LAN dev server script.
 - [x] Start LAN-accessible dev server.
 - [x] Initialize standalone project git repository.
-- [ ] Push to GitHub repository.
+- [x] Push to GitHub repository.
