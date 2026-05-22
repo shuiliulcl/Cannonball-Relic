@@ -105,3 +105,10 @@
 - [x] Add bounce-point rings and an endpoint reticle.
 - [x] Make aim VFX react to charge strength.
 - [x] Screenshot verify and push aim VFX pass.
+
+## Phase 13 - Upgrade UI Polish
+
+- [x] Reduce upgrade card visual weight and improve hierarchy.
+- [x] Tighten card title, icon, description, and action button spacing.
+- [x] Prevent top HUD overlap on medium-width screens.
+- [x] Screenshot verify and push upgrade UI polish.
