@@ -11,7 +11,7 @@
         <div id="sceneRoot" class="scene-root"></div>
         <section class="game-hud" aria-label="Game status">
           <div class="hp-panel">
-            <div class="heart">♥</div>
+            <div class="heart">HP</div>
             <div class="hp-frame">
               <div id="hpFill" class="hp-fill"></div>
               <strong id="hp">5/5</strong>
@@ -19,11 +19,11 @@
           </div>
 
           <div class="progress-panel">
-            <span class="progress-node current">★</span>
+            <span class="progress-node current">S</span>
             <div class="progress-track">
               <div id="progressFill" class="progress-fill"></div>
             </div>
-            <span class="progress-node">☠</span>
+            <span class="progress-node">B</span>
             <span class="progress-wave">Wave <strong id="wave">1</strong></span>
           </div>
 
@@ -43,7 +43,7 @@
 
           <div class="buff-panel">
             <span class="panel-title">Buff</span>
-            <div class="buff-icon">●</div>
+            <div class="buff-icon">M</div>
             <div class="buff-meter">
               <div id="chargeFill" class="charge-fill"></div>
               <strong id="charge">0%</strong>
@@ -60,11 +60,17 @@
           <p>WASD move. Hold left mouse to aim, release to fire. Right mouse recalls the marble.</p>
           <button id="startButton" type="button">Start</button>
         </div>
-      </section>
+        <div id="resultOverlay" class="overlay result-overlay" hidden>
+          <span id="resultKicker" class="result-kicker">Run Complete</span>
+          <h1 id="resultTitle">Victory</h1>
+          <p id="resultSummary">Score 0</p>
+          <button id="restartButton" type="button">Restart</button>
+        </div>
 
-      <section id="upgradePanel" class="upgrade-panel" hidden>
-        <h2>Choose Upgrade</h2>
-        <div id="upgradeChoices" class="upgrade-choices"></div>
+        <section id="upgradePanel" class="upgrade-panel" hidden>
+          <h2>Choose Upgrade</h2>
+          <div id="upgradeChoices" class="upgrade-choices"></div>
+        </section>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>

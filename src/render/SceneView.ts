@@ -88,6 +88,14 @@ export class SceneView {
     }
   }
 
+  clearTransientObjects(): void {
+    for (const mesh of this.monsterMeshes.values()) {
+      this.scene.remove(mesh);
+    }
+    this.monsterMeshes.clear();
+    this.hideTrajectory();
+  }
+
   showTrajectory(points: Vec2[]): void {
     const vertices = points.map((point) => new THREE.Vector3(point.x, 0.16, point.z));
     this.trajectoryLine.geometry.dispose();
@@ -133,7 +141,7 @@ export class SceneView {
   }
 
   private setupCamera(): void {
-    this.camera.position.set(0, 9.5, 8.5);
+    this.camera.position.set(0, 8.2, 7.2);
     this.camera.lookAt(0, 0, 0);
     this.camera.near = 0.1;
     this.camera.far = 100;

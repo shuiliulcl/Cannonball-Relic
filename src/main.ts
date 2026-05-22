@@ -6,21 +6,30 @@ import { Hud } from "./ui/Hud";
 
 const sceneRoot = document.querySelector<HTMLDivElement>("#sceneRoot");
 const startButton = document.querySelector<HTMLButtonElement>("#startButton");
+const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
 const startOverlay = document.querySelector<HTMLDivElement>("#startOverlay");
+const resultOverlay = document.querySelector<HTMLDivElement>("#resultOverlay");
 const upgradePanel = document.querySelector<HTMLElement>("#upgradePanel");
 const upgradeChoices = document.querySelector<HTMLDivElement>("#upgradeChoices");
 
-if (!sceneRoot || !startButton || !startOverlay || !upgradePanel || !upgradeChoices) {
+if (!sceneRoot || !startButton || !restartButton || !startOverlay || !resultOverlay || !upgradePanel || !upgradeChoices) {
   throw new Error("Missing required DOM nodes.");
 }
 
 const input = new Input(sceneRoot);
 const view = new SceneView(sceneRoot);
-const hud = new Hud(upgradePanel, upgradeChoices);
+const hud = new Hud(upgradePanel, upgradeChoices, resultOverlay);
 const game = new Game(input, view, hud);
 
 startButton.addEventListener("click", () => {
   startOverlay.hidden = true;
+  resultOverlay.hidden = true;
+  game.start();
+});
+
+restartButton.addEventListener("click", () => {
+  startOverlay.hidden = true;
+  resultOverlay.hidden = true;
   game.start();
 });
 

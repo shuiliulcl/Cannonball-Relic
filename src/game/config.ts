@@ -37,7 +37,11 @@ export const MONSTER = {
 };
 
 export const CAMERA = {
-  size: 9.5,
+  size: 6.25,
+};
+
+export const RUN = {
+  maxWaves: 5,
 };
 
 export const OBSTACLES = [

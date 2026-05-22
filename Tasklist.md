@@ -61,3 +61,11 @@
 - [x] Add HP bar, wave progress bar, controls panel, and buff meter.
 - [x] Bind HP, charge, and wave progress to game state.
 - [x] Build, verify, and push HUD pass.
+
+## Phase 7 - Framing And Run Flow
+
+- [x] Enlarge arena framing so the map dominates the viewport.
+- [x] Move upgrade choices into the stage overlay so they do not resize the map.
+- [x] Add dedicated victory/defeat result overlay.
+- [x] Add restart flow from result overlay.
+- [x] Build, verify, and push framing/run-flow pass.

@@ -38,26 +38,29 @@ button:focus-visible {
 
 #app {
   min-height: 100vh;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 8px;
-  padding: 12px;
+  padding: 0;
 }
 
 .upgrade-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  width: min(760px, calc(100vw - 44px));
+  transform: translateX(-50%);
   border: 2px solid #5b351e;
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(92, 51, 30, 0.95), rgba(42, 25, 20, 0.95));
   box-shadow: inset 0 0 0 1px rgba(255, 219, 154, 0.2), 0 8px 24px rgba(0, 0, 0, 0.35);
-  padding: 10px 12px;
+  padding: 12px 14px;
+  pointer-events: auto;
 }
 
 .stage-shell {
   position: relative;
   min-height: 0;
   overflow: hidden;
-  border: 3px solid #4c2d1b;
-  border-radius: 8px;
+  border: 2px solid #4c2d1b;
+  border-radius: 0;
   background: #1c1b22;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
@@ -88,12 +91,12 @@ button:focus-visible {
 }
 
 .hp-panel {
-  top: 14px;
-  left: 14px;
-  width: min(340px, calc(100vw - 28px));
-  height: 54px;
+  top: 16px;
+  left: 16px;
+  width: min(300px, calc(100vw - 32px));
+  height: 46px;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
@@ -101,9 +104,10 @@ button:focus-visible {
 
 .heart {
   color: #d62922;
-  font-size: 31px;
+  font-size: 18px;
   line-height: 1;
-  -webkit-text-stroke: 2px #6b2a1b;
+  text-align: center;
+  -webkit-text-stroke: 1px #6b2a1b;
 }
 
 .hp-frame,
@@ -116,7 +120,7 @@ button:focus-visible {
 }
 
 .hp-frame {
-  height: 28px;
+  height: 24px;
 }
 
 .hp-fill {
@@ -139,10 +143,10 @@ button:focus-visible {
 }
 
 .progress-panel {
-  top: 14px;
+  top: 16px;
   left: 50%;
-  width: min(650px, 45vw);
-  height: 54px;
+  width: min(650px, 46vw);
+  height: 46px;
   transform: translateX(-50%);
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 34px auto;
@@ -185,32 +189,32 @@ button:focus-visible {
 }
 
 .controls-panel {
-  left: 20px;
-  bottom: 20px;
-  width: 310px;
-  padding: 14px 16px;
+  left: 18px;
+  bottom: 18px;
+  width: 260px;
+  padding: 10px 14px;
 }
 
 .panel-title {
   display: block;
   margin-bottom: 8px;
   color: #6b7eff;
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1;
   -webkit-text-stroke: 1px #eef0ff;
 }
 
 .control-grid {
   display: grid;
-  grid-template-columns: 88px 1fr;
-  gap: 5px 10px;
-  font-size: 12px;
+  grid-template-columns: 76px 1fr;
+  gap: 4px 8px;
+  font-size: 11px;
 }
 
 .control-grid span:nth-child(odd) {
   display: grid;
   place-items: center;
-  min-height: 24px;
+  min-height: 20px;
   border: 2px solid #75502d;
   background: #caa06a;
   color: #3e2416;
@@ -219,15 +223,15 @@ button:focus-visible {
 
 .buff-panel {
   left: 50%;
-  bottom: 20px;
-  width: min(540px, 42vw);
-  min-height: 90px;
+  bottom: 18px;
+  width: min(500px, 40vw);
+  min-height: 78px;
   transform: translateX(-50%);
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-columns: 40px minmax(0, 1fr);
   grid-template-rows: auto auto;
   gap: 7px 10px;
-  padding: 12px 16px;
+  padding: 10px 14px;
 }
 
 .buff-panel .panel-title {
@@ -240,8 +244,8 @@ button:focus-visible {
 .buff-icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border: 3px solid #6b3f25;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #7ee98e, #27793e 70%);
@@ -249,7 +253,7 @@ button:focus-visible {
 }
 
 .buff-meter {
-  height: 32px;
+  height: 28px;
   background: #b78c51;
 }
 
@@ -315,8 +319,20 @@ button:focus-visible {
   color: #f2dcc0;
 }
 
+.result-overlay {
+  background: rgba(15, 12, 15, 0.78);
+  z-index: 6;
+}
+
+.result-kicker {
+  color: #ffd875;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .upgrade-panel {
-  z-index: 4;
+  z-index: 5;
 }
 
 .upgrade-panel h2 {

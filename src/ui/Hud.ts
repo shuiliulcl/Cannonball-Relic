@@ -12,11 +12,15 @@ export class Hud {
   private readonly progressFill = document.querySelector<HTMLElement>("#progressFill");
   private readonly marbleState = document.querySelector<HTMLElement>("#marbleState");
   private readonly damageScale = document.querySelector<HTMLElement>("#damageScale");
+  private readonly resultKicker = document.querySelector<HTMLElement>("#resultKicker");
+  private readonly resultTitle = document.querySelector<HTMLElement>("#resultTitle");
+  private readonly resultSummary = document.querySelector<HTMLElement>("#resultSummary");
   private upgradeHandler: UpgradeHandler | undefined;
 
   constructor(
     private readonly upgradePanel: HTMLElement,
     private readonly upgradeChoices: HTMLElement,
+    private readonly resultOverlay: HTMLElement,
   ) {
     upgradeChoices.addEventListener("click", (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-upgrade]");
@@ -75,13 +79,22 @@ export class Hud {
     this.upgradePanel.hidden = true;
   }
 
-  showGameOver(score: number, restart: () => void): void {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = `Game Over - Score ${Math.floor(score)} - Restart`;
-    button.addEventListener("click", restart, { once: true });
-    this.upgradeChoices.replaceChildren(button);
-    this.upgradePanel.hidden = false;
+  showResult(kind: "victory" | "defeat", score: number, wave: number): void {
+    this.hideUpgrades();
+    if (this.resultKicker) {
+      this.resultKicker.textContent = kind === "victory" ? "Run Complete" : "Run Failed";
+    }
+    if (this.resultTitle) {
+      this.resultTitle.textContent = kind === "victory" ? "Victory" : "Defeat";
+    }
+    if (this.resultSummary) {
+      this.resultSummary.textContent = `Score ${Math.floor(score)} / Wave ${wave}`;
+    }
+    this.resultOverlay.hidden = false;
+  }
+
+  hideResult(): void {
+    this.resultOverlay.hidden = true;
   }
 
   onUpgrade(handler: UpgradeHandler): void {

@@ -1,4 +1,4 @@
-import { HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER } from "./config";
+import { HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./config";
 import { draftUpgrades } from "./upgrades";
 import { add, bounceCircleFromObstacle, bounceInArena, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
 import type { Marble, Monster, Player, UpgradeId, Vec2 } from "./types";
@@ -23,6 +23,7 @@ export class Game {
   private score = 0;
   private wave = 1;
   private lastTime = 0;
+  private rafId = 0;
   private nextMonsterId = 1;
   private stats: UpgradeStats = {
     bounceBonusDamage: MARBLE.bounceBonusDamage,
@@ -41,6 +42,7 @@ export class Game {
     this.player = this.createPlayer();
     this.marble = this.createMarble();
     this.monsters = [];
+    this.view.clearTransientObjects();
     this.score = 0;
     this.wave = 1;
     this.nextMonsterId = 1;
@@ -55,8 +57,10 @@ export class Game {
     this.pausedForUpgrade = false;
     this.gameOver = false;
     this.hud.hideUpgrades();
+    this.hud.hideResult();
     this.lastTime = performance.now();
-    requestAnimationFrame((time) => this.loop(time));
+    cancelAnimationFrame(this.rafId);
+    this.rafId = requestAnimationFrame((time) => this.loop(time));
   }
 
   renderIdle(): void {
@@ -104,7 +108,7 @@ export class Game {
     this.view.updateEffects(dt);
     this.view.render();
     if (this.running) {
-      requestAnimationFrame((nextTime) => this.loop(nextTime));
+      this.rafId = requestAnimationFrame((nextTime) => this.loop(nextTime));
     }
   }
 
@@ -115,6 +119,10 @@ export class Game {
     this.handleHits();
 
     if (this.monsters.length === 0) {
+      if (this.wave >= RUN.maxWaves) {
+        this.endRun("victory");
+        return;
+      }
       this.pausedForUpgrade = true;
       this.hud.showUpgrades(draftUpgrades(3, this.wave));
     }
@@ -230,7 +238,7 @@ export class Game {
         this.view.damageText("-1", this.player.position);
         this.view.spark(this.player.position, 0xff4f4f, 16);
         if (this.player.hp <= 0) {
-          this.endGame();
+          this.endRun("defeat");
         }
       }
     }
@@ -413,13 +421,14 @@ export class Game {
     };
   }
 
-  private endGame(): void {
+  private endRun(kind: "victory" | "defeat"): void {
     if (this.gameOver) {
       return;
     }
     this.gameOver = true;
     this.running = false;
     this.pausedForUpgrade = false;
-    this.hud.showGameOver(this.score, () => this.start());
+    this.view.hideTrajectory();
+    this.hud.showResult(kind, this.score, this.wave);
   }
 }
