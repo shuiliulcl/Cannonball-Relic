@@ -2,6 +2,20 @@ import type { GameSnapshot, Upgrade, UpgradeId } from "../game/types";
 
 type UpgradeHandler = (upgradeId: UpgradeId) => void;
 
+const MARBLE_STATE_LABEL: Record<GameSnapshot["marbleState"], string> = {
+  ready: "待发射",
+  charging: "蓄力中",
+  flying: "飞行中",
+  recalling: "回收中",
+  cannon: "人间大炮",
+};
+
+const RARITY_LABEL: Record<Upgrade["rarity"], string> = {
+  common: "普通",
+  rare: "稀有",
+  special: "特殊",
+};
+
 export class Hud {
   private readonly score = document.querySelector<HTMLElement>("#score");
   private readonly wave = document.querySelector<HTMLElement>("#wave");
@@ -55,7 +69,7 @@ export class Hud {
       this.progressFill.style.width = `${Math.round(snapshot.waveProgress * 100)}%`;
     }
     if (this.marbleState) {
-      this.marbleState.textContent = snapshot.marbleState;
+      this.marbleState.textContent = MARBLE_STATE_LABEL[snapshot.marbleState];
     }
     if (this.damageScale) {
       this.damageScale.textContent = `x${snapshot.damageScale}`;
@@ -69,7 +83,7 @@ export class Hud {
         button.type = "button";
         button.dataset.upgrade = upgrade.id;
         button.dataset.rarity = upgrade.rarity;
-        button.innerHTML = `<em>${upgrade.rarity}</em><strong>${upgrade.title}</strong><span>${upgrade.description}</span>`;
+        button.innerHTML = `<em>${RARITY_LABEL[upgrade.rarity]}</em><strong>${upgrade.title}</strong><span>${upgrade.description}</span>`;
         return button;
       }),
     );
@@ -87,13 +101,13 @@ export class Hud {
   showResult(kind: "victory" | "defeat", score: number, wave: number): void {
     this.hideUpgrades();
     if (this.resultKicker) {
-      this.resultKicker.textContent = kind === "victory" ? "Run Complete" : "Run Failed";
+      this.resultKicker.textContent = kind === "victory" ? "通关成功" : "本局失败";
     }
     if (this.resultTitle) {
-      this.resultTitle.textContent = kind === "victory" ? "Victory" : "Defeat";
+      this.resultTitle.textContent = kind === "victory" ? "胜利" : "失败";
     }
     if (this.resultSummary) {
-      this.resultSummary.textContent = `Score ${Math.floor(score)} / Wave ${wave}`;
+      this.resultSummary.textContent = `分数 ${Math.floor(score)} / 第 ${wave} 波`;
     }
     this.stageShell.classList.add("modal-open");
     this.resultOverlay.hidden = false;

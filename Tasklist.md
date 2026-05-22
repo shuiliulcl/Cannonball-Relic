@@ -69,3 +69,10 @@
 - [x] Add dedicated victory/defeat result overlay.
 - [x] Add restart flow from result overlay.
 - [x] Build, verify, and push framing/run-flow pass.
+
+## Phase 8 - Chinese UI Pass
+
+- [x] Replace in-game visible text with Chinese labels.
+- [x] Localize card names, descriptions, rarity, and marble state.
+- [x] Fix controls panel text overlap with Chinese font and spacing.
+- [x] Build, verify, and push Chinese UI pass.

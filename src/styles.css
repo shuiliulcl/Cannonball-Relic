@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", Arial, sans-serif;
   background: #111114;
   color: #f8efe0;
 }
@@ -206,8 +206,8 @@ button:focus-visible {
 .controls-panel {
   left: 18px;
   bottom: 18px;
-  width: 260px;
-  padding: 10px 14px;
+  width: 270px;
+  padding: 12px 14px;
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
@@ -216,24 +216,36 @@ button:focus-visible {
   margin-bottom: 8px;
   color: #6b7eff;
   font-size: 20px;
-  line-height: 1;
-  -webkit-text-stroke: 1px #eef0ff;
+  line-height: 1.25;
+  text-shadow:
+    1px 0 #eef0ff,
+    -1px 0 #eef0ff,
+    0 1px #eef0ff,
+    0 -1px #eef0ff;
 }
 
 .control-grid {
   display: grid;
-  grid-template-columns: 76px 1fr;
-  gap: 4px 8px;
-  font-size: 11px;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 6px 10px;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .control-grid span:nth-child(odd) {
   display: grid;
   place-items: center;
-  min-height: 20px;
+  min-height: 24px;
   border: 2px solid #75502d;
   background: #caa06a;
   color: #3e2416;
+  text-shadow: none;
+}
+
+.control-grid span:nth-child(even) {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
   text-shadow: none;
 }
 
@@ -255,7 +267,11 @@ button:focus-visible {
   grid-column: 1 / -1;
   margin: 0;
   color: #ffd84a;
-  -webkit-text-stroke: 1px #7e5119;
+  text-shadow:
+    1px 0 #7e5119,
+    -1px 0 #7e5119,
+    0 1px #7e5119,
+    0 -1px #7e5119;
 }
 
 .buff-icon {
@@ -290,7 +306,6 @@ button:focus-visible {
   color: #5b351e;
   font-size: 12px;
   text-shadow: none;
-  text-transform: uppercase;
 }
 
 .scene-root {
