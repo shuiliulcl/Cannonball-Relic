@@ -91,3 +91,10 @@
 - [x] Write required development standards for teammates and AI agents.
 - [x] Add renderer support for `?skin=<skin-id>` runtime switching.
 - [x] Build, verify, and push art skin pipeline.
+
+## Phase 11 - Arena Skin Coverage
+
+- [x] Add wall border, side pillar, and brazier skin slots.
+- [x] Generate first-pass pixel assets for arena edges and props.
+- [x] Replace original wall, pillar, and brazier visuals with skin-driven assets.
+- [x] Build, screenshot verify, and push arena skin coverage.

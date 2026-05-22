@@ -21,3 +21,15 @@ Single obstacle game sprite, pixel art, 2.5D top-down isometric view, square car
 ## Floor
 
 Seamless tileable pixel art ground texture, top-down ancient desert ruin arena floor, sand stone slabs, subtle cracks, warm ochre and muted lavender shadows, no characters, no text, no UI, perfectly tileable square texture, game asset.
+
+## Wall Border
+
+Single seamless horizontal arena wall border texture, pixel art, 2.5D top-down ancient ruin stone parapet, chunky sandstone blocks with dark outline, warm ochre and muted purple shadows, designed as a long repeating wall cap strip, no characters, no text, no UI, game asset.
+
+## Pillar
+
+Isolated single side-wall pillar sprite, transparent PNG background, pixel art, 2.5D top-down isometric view, ancient ruin stone column attached to arena wall, chunky sandstone blocks, muted lavender shadow, bold dark outline, no floor, no scenery, no text, centered, readable game asset.
+
+## Brazier
+
+Isolated single lit brazier torch sprite, transparent PNG background, pixel art, 2.5D top-down isometric view, ancient ruin bronze stone brazier with bright orange flame, bold dark outline, warm glow, no floor, no scenery, no text, centered, readable at 64 pixels, game asset.

@@ -197,8 +197,7 @@ export class SceneView {
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    const wallMaterial = makeToonMaterial(0x4f5368);
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(ARENA.halfWidth * 2 + 1, ARENA.wallHeight, 0.35), wallMaterial);
+    const backWall = this.createTexturedBox(ARENA.halfWidth * 2 + 1, ARENA.wallHeight, 0.35, this.skin.wallBorder, 4, 1);
     backWall.position.set(0, ARENA.wallHeight / 2, -ARENA.halfDepth - 0.2);
     this.scene.add(backWall);
 
@@ -206,8 +205,7 @@ export class SceneView {
     frontWall.position.z = ARENA.halfDepth + 0.2;
     this.scene.add(frontWall);
 
-    const sideWallGeometry = new THREE.BoxGeometry(0.35, ARENA.wallHeight, ARENA.halfDepth * 2 + 1);
-    const leftWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
+    const leftWall = this.createTexturedBox(0.35, ARENA.wallHeight, ARENA.halfDepth * 2 + 1, this.skin.wallBorder, 1, 4);
     leftWall.position.set(-ARENA.halfWidth - 0.2, ARENA.wallHeight / 2, 0);
     this.scene.add(leftWall);
 
@@ -217,22 +215,17 @@ export class SceneView {
 
     for (const x of [-ARENA.halfWidth - 0.45, ARENA.halfWidth + 0.45]) {
       for (const z of [-4, 0, 4]) {
-        const pillar = makeCylinder(0.34, 2.3, 0x64687b);
-        pillar.position.set(x, 1.15, z);
+        const pillar = this.createSprite(this.skin.pillar, 1.0, 1.9);
+        pillar.position.set(x, 1.05, z);
         this.scene.add(pillar);
       }
     }
 
     for (const x of [-7.2, 7.2]) {
       for (const z of [-5.1, 5.1]) {
-        const brazier = makeCylinder(0.22, 0.42, 0x5b351e);
-        brazier.position.set(x, 0.22, z);
-        const flame = new THREE.Mesh(
-          new THREE.SphereGeometry(0.18, 12, 8),
-          new THREE.MeshStandardMaterial({ color: 0xffa23a, emissive: 0xff6a00, emissiveIntensity: 1.6 }),
-        );
-        flame.position.set(x, 0.6, z);
-        this.scene.add(brazier, flame);
+        const brazier = this.createSprite(this.skin.brazier, 0.85, 1.0);
+        brazier.position.set(x, 0.65, z);
+        this.scene.add(brazier);
       }
     }
   }
@@ -259,6 +252,18 @@ export class SceneView {
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(width, height, 1);
     return sprite;
+  }
+
+  private createTexturedBox(width: number, height: number, depth: number, path: string, repeatX: number, repeatY: number): THREE.Mesh {
+    const texture = preparePixelTexture(this.textureLoader.load(path));
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeatX, repeatY);
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
   }
 
   private resize(): void {

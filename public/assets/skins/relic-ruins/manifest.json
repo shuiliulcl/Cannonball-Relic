@@ -7,7 +7,10 @@
     "marble": "sprites/marble.png",
     "enemyGrunt": "sprites/enemy-grunt.png",
     "obstacleCrate": "sprites/obstacle-crate.png",
-    "floor": "textures/floor.png"
+    "pillar": "sprites/pillar.png",
+    "brazier": "sprites/brazier.png",
+    "floor": "textures/floor.png",
+    "wallBorder": "textures/wall-border.png"
   },
   "notes": [
     "Runtime code expects the same slot filenames for every skin.",

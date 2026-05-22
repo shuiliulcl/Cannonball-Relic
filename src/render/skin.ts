@@ -15,7 +15,10 @@ export interface SkinAssets {
   readonly marble: string;
   readonly enemyGrunt: string;
   readonly obstacleCrate: string;
+  readonly pillar: string;
+  readonly brazier: string;
   readonly floor: string;
+  readonly wallBorder: string;
 }
 
 export function resolveSkinAssets(): SkinAssets {
@@ -27,7 +30,10 @@ export function resolveSkinAssets(): SkinAssets {
     marble: `${base}/sprites/marble.png`,
     enemyGrunt: `${base}/sprites/enemy-grunt.png`,
     obstacleCrate: `${base}/sprites/obstacle-crate.png`,
+    pillar: `${base}/sprites/pillar.png`,
+    brazier: `${base}/sprites/brazier.png`,
     floor: `${base}/textures/floor.png`,
+    wallBorder: `${base}/textures/wall-border.png`,
   };
 }
 
