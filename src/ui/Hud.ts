@@ -36,6 +36,7 @@ export class Hud {
     private readonly upgradePanel: HTMLElement,
     private readonly upgradeChoices: HTMLElement,
     private readonly resultOverlay: HTMLElement,
+    private readonly pauseOverlay: HTMLElement,
   ) {
     upgradeChoices.addEventListener("click", (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-upgrade]");
@@ -121,7 +122,19 @@ export class Hud {
 
   hideResult(): void {
     this.resultOverlay.hidden = true;
-    if (this.upgradePanel.hidden) {
+    if (this.upgradePanel.hidden && this.pauseOverlay.hidden) {
+      this.stageShell.classList.remove("modal-open");
+    }
+  }
+
+  showPause(): void {
+    this.stageShell.classList.add("modal-open");
+    this.pauseOverlay.hidden = false;
+  }
+
+  hidePause(): void {
+    this.pauseOverlay.hidden = true;
+    if (this.upgradePanel.hidden && this.resultOverlay.hidden) {
       this.stageShell.classList.remove("modal-open");
     }
   }

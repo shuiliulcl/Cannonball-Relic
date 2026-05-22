@@ -356,6 +356,18 @@ button:focus-visible {
   z-index: 6;
 }
 
+.pause-overlay {
+  background: rgba(15, 12, 15, 0.72);
+  z-index: 6;
+}
+
+.pause-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .result-kicker {
   color: #ffd875;
   font-weight: 900;

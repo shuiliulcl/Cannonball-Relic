@@ -18,6 +18,7 @@ export class Game {
   private marble: Marble = this.createMarble();
   private monsters: Monster[] = [];
   private running = false;
+  private paused = false;
   private pausedForUpgrade = false;
   private gameOver = false;
   private score = 0;
@@ -54,10 +55,12 @@ export class Game {
     };
     this.spawnWave();
     this.running = true;
+    this.paused = false;
     this.pausedForUpgrade = false;
     this.gameOver = false;
     this.hud.hideUpgrades();
     this.hud.hideResult();
+    this.hud.hidePause();
     this.lastTime = performance.now();
     cancelAnimationFrame(this.rafId);
     this.rafId = requestAnimationFrame((time) => this.loop(time));
@@ -101,7 +104,10 @@ export class Game {
   private loop(time: number): void {
     const dt = Math.min((time - this.lastTime) / 1000, 0.033);
     this.lastTime = time;
-    if (this.running && !this.pausedForUpgrade) {
+    if (this.running && this.input.consumePausePress()) {
+      this.togglePause();
+    }
+    if (this.running && !this.paused && !this.pausedForUpgrade) {
       this.update(dt);
     }
     this.sync();
@@ -110,6 +116,28 @@ export class Game {
     if (this.running) {
       this.rafId = requestAnimationFrame((nextTime) => this.loop(nextTime));
     }
+  }
+
+  resume(): void {
+    if (!this.running || this.gameOver || this.pausedForUpgrade) {
+      return;
+    }
+    this.paused = false;
+    this.hud.hidePause();
+    this.lastTime = performance.now();
+  }
+
+  togglePause(): void {
+    if (!this.running || this.gameOver || this.pausedForUpgrade) {
+      return;
+    }
+    if (this.paused) {
+      this.resume();
+      return;
+    }
+    this.paused = true;
+    this.cancelCharge();
+    this.hud.showPause();
   }
 
   private update(dt: number): void {
@@ -409,6 +437,15 @@ export class Game {
     this.view.spark(this.player.position, 0xffa23a, 24);
   }
 
+  private cancelCharge(): void {
+    if (this.marble.state === "charging") {
+      this.marble.state = "ready";
+      this.input.chargeSeconds = 0;
+      this.view.hideTrajectory();
+    }
+    this.input.clearPointerActions();
+  }
+
   private createMarble(): Marble {
     return {
       position: { ...this.player.position },
@@ -427,8 +464,10 @@ export class Game {
     }
     this.gameOver = true;
     this.running = false;
+    this.paused = false;
     this.pausedForUpgrade = false;
     this.view.hideTrajectory();
+    this.hud.hidePause();
     this.hud.showResult(kind, this.score, this.wave);
   }
 }

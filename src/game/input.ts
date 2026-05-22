@@ -7,12 +7,20 @@ export class Input {
   leftDown = false;
   rightPressed = false;
   leftReleased = false;
+  pausePressed = false;
   chargeSeconds = 0;
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener("keydown", (event) => {
-      this.keys.add(event.key.toLowerCase());
-      if (["w", "a", "s", "d", " "].includes(event.key.toLowerCase())) {
+      const key = event.key.toLowerCase();
+      this.keys.add(key);
+      if (key === "escape" || key === "p") {
+        if (!event.repeat) {
+          this.pausePressed = true;
+        }
+        event.preventDefault();
+      }
+      if (["w", "a", "s", "d", " "].includes(key)) {
         event.preventDefault();
       }
     });
@@ -64,5 +72,17 @@ export class Input {
     const pressed = this.rightPressed;
     this.rightPressed = false;
     return pressed;
+  }
+
+  consumePausePress(): boolean {
+    const pressed = this.pausePressed;
+    this.pausePressed = false;
+    return pressed;
+  }
+
+  clearPointerActions(): void {
+    this.leftDown = false;
+    this.leftReleased = false;
+    this.rightPressed = false;
   }
 }

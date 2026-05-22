@@ -38,6 +38,8 @@
               <span>发射</span>
               <span>右键</span>
               <span>回收</span>
+              <span>P / Esc</span>
+              <span>暂停</span>
             </div>
           </div>
 
@@ -65,6 +67,15 @@
           <h1 id="resultTitle">胜利</h1>
           <p id="resultSummary">分数 0</p>
           <button id="restartButton" type="button">重新开始</button>
+        </div>
+        <div id="pauseOverlay" class="overlay pause-overlay" hidden>
+          <span class="result-kicker">暂停中</span>
+          <h1>暂停</h1>
+          <p>P / Esc 继续游戏，也可以从这里重新开始本局。</p>
+          <div class="pause-actions">
+            <button id="resumeButton" type="button">继续游戏</button>
+            <button id="pauseRestartButton" type="button">重新开始</button>
+          </div>
         </div>
 
         <section id="upgradePanel" class="upgrade-panel" hidden>

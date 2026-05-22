@@ -112,3 +112,10 @@
 - [x] Tighten card title, icon, description, and action button spacing.
 - [x] Prevent top HUD overlap on medium-width screens.
 - [x] Screenshot verify and push upgrade UI polish.
+
+## Phase 14 - Pause Flow
+
+- [x] Add P / Esc pause toggle.
+- [x] Add pause overlay with continue and restart actions.
+- [x] Cancel charging safely when pausing.
+- [x] Build, interaction verify, and push pause flow.
