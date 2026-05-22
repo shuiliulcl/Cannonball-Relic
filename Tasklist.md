@@ -53,3 +53,11 @@
 - [x] Improve card UI for rarity and descriptions.
 - [x] Update docs for card authoring.
 - [x] Build, verify, and push Phase 5.
+
+## Phase 6 - HUD Pass
+
+- [x] Reference pixel/hand-drawn HUD layout.
+- [x] Move HUD into overlay regions.
+- [x] Add HP bar, wave progress bar, controls panel, and buff meter.
+- [x] Bind HP, charge, and wave progress to game state.
+- [x] Build, verify, and push HUD pass.

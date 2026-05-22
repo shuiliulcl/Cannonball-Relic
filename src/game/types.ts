@@ -54,6 +54,8 @@ export type GameSnapshot = {
   damageScale: number;
   chargeRatio: number;
   hp: number;
+  maxHp: number;
+  waveProgress: number;
 };
 
 export type UpgradeId =

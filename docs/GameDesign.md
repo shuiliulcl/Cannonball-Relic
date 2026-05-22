@@ -64,6 +64,16 @@
 
 Cards are drafted after wave clear from a weighted pool. The default game remains marble firing and recall. Special cards may bend rules temporarily, but they should not silently redefine the baseline control scheme.
 
+## HUD Direction
+
+UI should read like an in-game HUD rather than a web dashboard:
+
+- Top-left HP bar with icon and numeric health.
+- Top-center wave/progress bar.
+- Bottom-left compact control reference.
+- Bottom-center buff/marble status meter.
+- Keep gameplay canvas full-screen behind the HUD.
+
 ## Out Of Scope For First Slice
 
 - Full art pipeline.

@@ -336,6 +336,8 @@ export class Game {
       damageScale: MARBLE.baseDamage + this.marble.bounces * this.stats.bounceBonusDamage,
       chargeRatio: this.marble.state === "charging" ? this.input.chargeSeconds / MARBLE.maxChargeSeconds : 0,
       hp: this.player.hp,
+      maxHp: this.stats.maxHp,
+      waveProgress: this.waveProgress(),
     });
   }
 
@@ -362,6 +364,11 @@ export class Game {
       });
       this.nextMonsterId += 1;
     }
+  }
+
+  private waveProgress(): number {
+    const startingCount = 4 + this.wave * 2;
+    return Math.max(0, Math.min(1, 1 - this.monsters.length / startingCount));
   }
 
   private createPlayer(): Player {

@@ -6,7 +6,10 @@ export class Hud {
   private readonly score = document.querySelector<HTMLElement>("#score");
   private readonly wave = document.querySelector<HTMLElement>("#wave");
   private readonly hp = document.querySelector<HTMLElement>("#hp");
+  private readonly hpFill = document.querySelector<HTMLElement>("#hpFill");
   private readonly charge = document.querySelector<HTMLElement>("#charge");
+  private readonly chargeFill = document.querySelector<HTMLElement>("#chargeFill");
+  private readonly progressFill = document.querySelector<HTMLElement>("#progressFill");
   private readonly marbleState = document.querySelector<HTMLElement>("#marbleState");
   private readonly damageScale = document.querySelector<HTMLElement>("#damageScale");
   private upgradeHandler: UpgradeHandler | undefined;
@@ -32,10 +35,19 @@ export class Hud {
       this.wave.textContent = snapshot.wave.toString();
     }
     if (this.hp) {
-      this.hp.textContent = snapshot.hp.toString();
+      this.hp.textContent = `${snapshot.hp}/${snapshot.maxHp}`;
+    }
+    if (this.hpFill) {
+      this.hpFill.style.width = `${Math.max(0, Math.min(100, (snapshot.hp / snapshot.maxHp) * 100))}%`;
     }
     if (this.charge) {
       this.charge.textContent = `${Math.round(snapshot.chargeRatio * 100)}%`;
+    }
+    if (this.chargeFill) {
+      this.chargeFill.style.width = `${Math.round(snapshot.chargeRatio * 100)}%`;
+    }
+    if (this.progressFill) {
+      this.progressFill.style.width = `${Math.round(snapshot.waveProgress * 100)}%`;
     }
     if (this.marbleState) {
       this.marbleState.textContent = snapshot.marbleState;

@@ -56,6 +56,8 @@ The contest HTML5 package should come from the generated `dist` folder.
 - `src/ui/Hud.ts`: HUD and upgrade panel binding.
 - `src/styles.css`: page and UI styling.
 
+HUD direction: keep important combat information as a game overlay. HP belongs top-left, wave progress top-center, controls bottom-left, and buff/marble state bottom-center.
+
 ## Collaboration Rules
 
 - Keep core gameplay decisions in `docs/GameDesign.md` before large code changes.

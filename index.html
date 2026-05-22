@@ -7,35 +7,54 @@
   </head>
   <body>
     <main id="app">
-      <section class="hud" aria-label="Game status">
-        <div>
-          <span>Score</span>
-          <strong id="score">0</strong>
-        </div>
-        <div>
-          <span>Wave</span>
-          <strong id="wave">1</strong>
-        </div>
-        <div>
-          <span>HP</span>
-          <strong id="hp">5</strong>
-        </div>
-        <div>
-          <span>Charge</span>
-          <strong id="charge">0%</strong>
-        </div>
-        <div>
-          <span>Marble</span>
-          <strong id="marbleState">Ready</strong>
-        </div>
-        <div>
-          <span>Damage</span>
-          <strong id="damageScale">x1</strong>
-        </div>
-      </section>
-
       <section class="stage-shell">
         <div id="sceneRoot" class="scene-root"></div>
+        <section class="game-hud" aria-label="Game status">
+          <div class="hp-panel">
+            <div class="heart">♥</div>
+            <div class="hp-frame">
+              <div id="hpFill" class="hp-fill"></div>
+              <strong id="hp">5/5</strong>
+            </div>
+          </div>
+
+          <div class="progress-panel">
+            <span class="progress-node current">★</span>
+            <div class="progress-track">
+              <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <span class="progress-node">☠</span>
+            <span class="progress-wave">Wave <strong id="wave">1</strong></span>
+          </div>
+
+          <div class="controls-panel">
+            <span class="panel-title">Controls</span>
+            <div class="control-grid">
+              <span>WASD</span>
+              <span>Move</span>
+              <span>Hold LMB</span>
+              <span>Aim</span>
+              <span>Release</span>
+              <span>Fire</span>
+              <span>RMB</span>
+              <span>Recall</span>
+            </div>
+          </div>
+
+          <div class="buff-panel">
+            <span class="panel-title">Buff</span>
+            <div class="buff-icon">●</div>
+            <div class="buff-meter">
+              <div id="chargeFill" class="charge-fill"></div>
+              <strong id="charge">0%</strong>
+            </div>
+            <div class="buff-readout">
+              <span>Score <strong id="score">0</strong></span>
+              <span id="marbleState">ready</span>
+              <span id="damageScale">x1</span>
+            </div>
+          </div>
+        </section>
         <div id="startOverlay" class="overlay">
           <h1>Cannonball Relic</h1>
           <p>WASD move. Hold left mouse to aim, release to fire. Right mouse recalls the marble.</p>
