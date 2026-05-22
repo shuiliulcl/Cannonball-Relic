@@ -76,3 +76,9 @@
 - [x] Localize card names, descriptions, rarity, and marble state.
 - [x] Fix controls panel text overlap with Chinese font and spacing.
 - [x] Build, verify, and push Chinese UI pass.
+
+## Phase 9 - Card Layout Pass
+
+- [x] Redesign upgrade options as vertical card-game style cards.
+- [x] Add card icon, rarity, title, description, and action areas.
+- [x] Build, verify, and push vertical card layout.

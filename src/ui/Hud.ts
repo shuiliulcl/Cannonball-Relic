@@ -83,7 +83,13 @@ export class Hud {
         button.type = "button";
         button.dataset.upgrade = upgrade.id;
         button.dataset.rarity = upgrade.rarity;
-        button.innerHTML = `<em>${RARITY_LABEL[upgrade.rarity]}</em><strong>${upgrade.title}</strong><span>${upgrade.description}</span>`;
+        button.innerHTML = `
+          <span class="card-rarity">${RARITY_LABEL[upgrade.rarity]}</span>
+          <span class="card-art">${this.cardIcon(upgrade.id)}</span>
+          <strong>${upgrade.title}</strong>
+          <span class="card-desc">${upgrade.description}</span>
+          <span class="card-action">选择</span>
+        `;
         return button;
       }),
     );
@@ -122,5 +128,17 @@ export class Hud {
 
   onUpgrade(handler: UpgradeHandler): void {
     this.upgradeHandler = handler;
+  }
+
+  private cardIcon(upgradeId: UpgradeId): string {
+    const icons: Record<UpgradeId, string> = {
+      extraDamage: "弹",
+      longerRange: "远",
+      recallBlade: "回",
+      quickDash: "闪",
+      vitality: "心",
+      humanCannon: "炮",
+    };
+    return icons[upgradeId];
   }
 }
