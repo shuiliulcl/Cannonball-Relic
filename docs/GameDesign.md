@@ -60,6 +60,10 @@
 - Quick Dash: dash cooldown -20%.
 - Human Cannon: a rare special card that stops firing marbles and launches the player as the projectile for a short high-risk burst.
 
+## Card System Direction
+
+Cards are drafted after wave clear from a weighted pool. The default game remains marble firing and recall. Special cards may bend rules temporarily, but they should not silently redefine the baseline control scheme.
+
 ## Out Of Scope For First Slice
 
 - Full art pipeline.

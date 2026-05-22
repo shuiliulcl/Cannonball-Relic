@@ -43,3 +43,13 @@
 - [x] Start LAN-accessible dev server.
 - [x] Initialize standalone project git repository.
 - [x] Push to GitHub repository.
+
+## Phase 5 - Core Fun And Cards
+
+- [x] Refactor upgrades into a configurable card pool.
+- [x] Add card rarity and weighted draft choices.
+- [x] Add Human Cannon as a rare special card without changing base gameplay.
+- [x] Add Human Cannon runtime state and damage rules.
+- [x] Improve card UI for rarity and descriptions.
+- [x] Update docs for card authoring.
+- [x] Build, verify, and push Phase 5.

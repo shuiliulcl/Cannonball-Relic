@@ -57,6 +57,8 @@ export class SceneView {
 
   syncPlayer(player: Player): void {
     this.playerMesh.position.set(player.position.x, 0.34, player.position.z);
+    const cannonScale = player.mode === "humanCannon" ? 1.35 : 1;
+    this.playerMesh.scale.set(cannonScale, cannonScale, cannonScale);
   }
 
   syncMarble(marble: Marble): void {

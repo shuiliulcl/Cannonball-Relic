@@ -51,7 +51,8 @@ export class Hud {
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.upgrade = upgrade.id;
-        button.innerHTML = `<strong>${upgrade.title}</strong><span>${upgrade.description}</span>`;
+        button.dataset.rarity = upgrade.rarity;
+        button.innerHTML = `<em>${upgrade.rarity}</em><strong>${upgrade.title}</strong><span>${upgrade.description}</span>`;
         return button;
       }),
     );

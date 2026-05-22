@@ -1,5 +1,5 @@
-import { MARBLE, MONSTER, OBSTACLES, PLAYER } from "./config";
-import { UPGRADES } from "./upgrades";
+import { HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER } from "./config";
+import { draftUpgrades } from "./upgrades";
 import { add, bounceCircleFromObstacle, bounceInArena, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
 import type { Marble, Monster, Player, UpgradeId, Vec2 } from "./types";
 import type { Input } from "./input";
@@ -10,6 +10,7 @@ type UpgradeStats = {
   bounceBonusDamage: number;
   rangeMultiplier: number;
   recallDamageBonus: number;
+  maxHp: number;
 };
 
 export class Game {
@@ -27,6 +28,7 @@ export class Game {
     bounceBonusDamage: MARBLE.bounceBonusDamage,
     rangeMultiplier: 1,
     recallDamageBonus: 0,
+    maxHp: PLAYER.hp,
   };
 
   constructor(
@@ -46,6 +48,7 @@ export class Game {
       bounceBonusDamage: MARBLE.bounceBonusDamage,
       rangeMultiplier: 1,
       recallDamageBonus: 0,
+      maxHp: PLAYER.hp,
     };
     this.spawnWave();
     this.running = true;
@@ -72,6 +75,16 @@ export class Game {
     }
     if (upgradeId === "recallBlade") {
       this.stats.recallDamageBonus += 1;
+    }
+    if (upgradeId === "quickDash") {
+      this.player.dashCooldown *= 0.82;
+    }
+    if (upgradeId === "vitality") {
+      this.stats.maxHp += 1;
+      this.player.hp = Math.min(this.stats.maxHp, this.player.hp + 1);
+    }
+    if (upgradeId === "humanCannon") {
+      this.activateHumanCannon();
     }
 
     this.wave += 1;
@@ -103,11 +116,16 @@ export class Game {
 
     if (this.monsters.length === 0) {
       this.pausedForUpgrade = true;
-      this.hud.showUpgrades(UPGRADES);
+      this.hud.showUpgrades(draftUpgrades(3, this.wave));
     }
   }
 
   private updatePlayer(dt: number): void {
+    if (this.player.mode === "humanCannon") {
+      this.updateHumanCannon(dt);
+      return;
+    }
+
     const movement = this.input.movement();
     const delta = scale(movement, this.player.speed * dt);
     this.player.position = clampToArena(add(this.player.position, delta), this.player.radius);
@@ -202,6 +220,7 @@ export class Game {
       const direction = normalize(toPlayer);
       monster.position = add(monster.position, scale(direction, monster.speed * dt));
       if (
+        this.player.mode === "normal" &&
         this.marble.state !== "flying" &&
         this.player.invulnTimer <= 0 &&
         distance(monster.position, this.player.position) <= monster.radius + this.player.radius
@@ -214,6 +233,65 @@ export class Game {
           this.endGame();
         }
       }
+    }
+  }
+
+  private updateHumanCannon(dt: number): void {
+    this.player.cannonTimeLeft -= dt;
+    const step = scale(this.player.velocity, dt);
+    this.player.position = add(this.player.position, step);
+
+    const bounce = bounceInArena(this.player.position, this.player.velocity, this.player.radius + HUMAN_CANNON.radiusBonus);
+    this.player.position = bounce.position;
+    this.player.velocity = bounce.velocity;
+    let didBounce = bounce.bounced;
+
+    for (const obstacle of OBSTACLES) {
+      const obstacleBounce = bounceCircleFromObstacle(
+        this.player.position,
+        this.player.velocity,
+        this.player.radius + HUMAN_CANNON.radiusBonus,
+        obstacle,
+      );
+      if (obstacleBounce.bounced) {
+        this.player.position = obstacleBounce.position;
+        this.player.velocity = obstacleBounce.velocity;
+        didBounce = true;
+        break;
+      }
+    }
+
+    if (didBounce) {
+      this.player.cannonBounces += 1;
+      this.player.cannonHitIds.clear();
+      this.view.spark(this.player.position, 0xffa23a, 18);
+    }
+
+    const damage = HUMAN_CANNON.baseDamage + this.player.cannonBounces * HUMAN_CANNON.bounceBonusDamage;
+    for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
+      const monster = this.monsters[i];
+      if (this.player.cannonHitIds.has(monster.id)) {
+        continue;
+      }
+      if (distance(this.player.position, monster.position) <= this.player.radius + HUMAN_CANNON.radiusBonus + monster.radius) {
+        monster.hp -= damage;
+        this.player.cannonHitIds.add(monster.id);
+        this.view.damageText(String(damage), monster.position);
+        this.view.spark(monster.position, 0xffa23a, 18);
+        if (monster.hp <= 0) {
+          this.score += 18 + this.player.cannonBounces * 8;
+          this.monsters.splice(i, 1);
+        }
+      }
+    }
+
+    if (this.input.consumeRightPress() || this.player.cannonTimeLeft <= 0) {
+      this.player.mode = "normal";
+      this.player.velocity = { x: 0, z: 0 };
+      this.player.cannonTimeLeft = 0;
+      this.player.cannonBounces = 0;
+      this.player.cannonHitIds.clear();
+      this.view.spark(this.player.position, 0xffffff, 12);
     }
   }
 
@@ -254,7 +332,7 @@ export class Game {
     this.hud.update({
       score: this.score,
       wave: this.wave,
-      marbleState: this.marble.state,
+      marbleState: this.player.mode === "humanCannon" ? "cannon" : this.marble.state,
       damageScale: MARBLE.baseDamage + this.marble.bounces * this.stats.bounceBonusDamage,
       chargeRatio: this.marble.state === "charging" ? this.input.chargeSeconds / MARBLE.maxChargeSeconds : 0,
       hp: this.player.hp,
@@ -289,13 +367,31 @@ export class Game {
   private createPlayer(): Player {
     return {
       position: { x: 0, z: 3.9 },
+      velocity: { x: 0, z: 0 },
       radius: PLAYER.radius,
       hp: PLAYER.hp,
+      mode: "normal",
+      cannonTimeLeft: 0,
+      cannonBounces: 0,
+      cannonHitIds: new Set<number>(),
       speed: PLAYER.speed,
       dashCooldown: PLAYER.dashCooldown,
       dashTimer: 0,
       invulnTimer: 0,
     };
+  }
+
+  private activateHumanCannon(): void {
+    const direction = this.aimDirection();
+    const fallback = direction.x === 0 && direction.z === 0 ? { x: 0, z: -1 } : direction;
+    this.player.mode = "humanCannon";
+    this.player.velocity = scale(fallback, HUMAN_CANNON.speed);
+    this.player.cannonTimeLeft = HUMAN_CANNON.duration;
+    this.player.cannonBounces = 0;
+    this.player.cannonHitIds.clear();
+    this.marble = this.createMarble();
+    this.view.hideTrajectory();
+    this.view.spark(this.player.position, 0xffa23a, 24);
   }
 
   private createMarble(): Marble {

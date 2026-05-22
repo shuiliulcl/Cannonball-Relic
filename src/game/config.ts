@@ -12,6 +12,14 @@ export const PLAYER = {
   dashCooldown: 1.2,
 };
 
+export const HUMAN_CANNON = {
+  duration: 3.2,
+  speed: 9.4,
+  radiusBonus: 0.12,
+  baseDamage: 3,
+  bounceBonusDamage: 2,
+};
+
 export const MARBLE = {
   radius: 0.18,
   baseSpeed: 8.4,

@@ -3,7 +3,9 @@ export type Vec2 = {
   z: number;
 };
 
-export type MarbleState = "ready" | "charging" | "flying" | "recalling";
+export type MarbleState = "ready" | "charging" | "flying" | "recalling" | "cannon";
+
+export type PlayerMode = "normal" | "humanCannon";
 
 export type Monster = {
   id: number;
@@ -32,8 +34,13 @@ export type Marble = {
 
 export type Player = {
   position: Vec2;
+  velocity: Vec2;
   radius: number;
   hp: number;
+  mode: PlayerMode;
+  cannonTimeLeft: number;
+  cannonBounces: number;
+  cannonHitIds: Set<number>;
   speed: number;
   dashCooldown: number;
   dashTimer: number;
@@ -49,10 +56,20 @@ export type GameSnapshot = {
   hp: number;
 };
 
-export type UpgradeId = "extraDamage" | "longerRange" | "recallBlade";
+export type UpgradeId =
+  | "extraDamage"
+  | "longerRange"
+  | "recallBlade"
+  | "quickDash"
+  | "vitality"
+  | "humanCannon";
+
+export type UpgradeRarity = "common" | "rare" | "special";
 
 export type Upgrade = {
   id: UpgradeId;
+  rarity: UpgradeRarity;
   title: string;
   description: string;
+  weight: number;
 };

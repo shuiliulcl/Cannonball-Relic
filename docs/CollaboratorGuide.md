@@ -67,8 +67,21 @@ The contest HTML5 package should come from the generated `dist` folder.
 
 ## Good Next Tasks
 
-- Add a real rare-card implementation for Human Cannon.
 - Add more monster types and room layouts.
 - Improve aiming preview with segmented bounce markers.
 - Replace placeholder geometry with generated original art assets.
 - Add sound effects and a short PV capture plan.
+
+## Card Authoring
+
+Cards live in `src/game/upgrades.ts`. Add a unique `id`, `rarity`, `title`, `description`, and `weight`.
+
+- `common`: frequent numeric upgrades.
+- `rare`: stronger build-shaping upgrades.
+- `special`: unusual rule-bending cards. These should preserve the base game unless selected by the player.
+
+After adding a new `UpgradeId`, implement its effect in `Game.chooseUpgrade`.
+
+Current special card:
+
+- `humanCannon`: selected after a wave, then launches the player as a temporary projectile. This is intentionally a card effect, not the default control scheme.
