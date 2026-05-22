@@ -153,7 +153,7 @@ export class Game {
     if (this.marble.state === "charging") {
       this.input.chargeSeconds = Math.min(MARBLE.maxChargeSeconds, this.input.chargeSeconds + dt);
       const direction = this.aimDirection();
-      this.view.showTrajectory(makeTrajectory(this.player.position, direction, 3, OBSTACLES));
+      this.view.showTrajectory(makeTrajectory(this.player.position, direction, 3, OBSTACLES), this.input.chargeSeconds / MARBLE.maxChargeSeconds);
     }
 
     if (this.input.consumeLeftRelease() && this.marble.state === "charging") {

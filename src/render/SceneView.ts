@@ -20,7 +20,9 @@ export class SceneView {
   private readonly marbleSprite = this.createSprite(this.skin.marble, 0.58, 0.58);
   private readonly monsterMeshes = new Map<number, THREE.Group>();
   private readonly obstacleMeshes = new Map<string, THREE.Group>();
-  private readonly trajectoryLine: THREE.Line;
+  private readonly trajectoryGroup = new THREE.Group();
+  private readonly trajectoryPulseItems: Array<{ mesh: THREE.Mesh; baseScale: number; phase: number }> = [];
+  private trajectoryPulseTime = 0;
   private readonly effects: Effects;
 
   constructor(private readonly root: HTMLElement) {
@@ -32,10 +34,8 @@ export class SceneView {
     this.scene.background = new THREE.Color(0x171720);
     this.effects = new Effects(this.scene);
 
-    const lineGeometry = new THREE.BufferGeometry();
-    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x9de7ff, transparent: true, opacity: 0.7 });
-    this.trajectoryLine = new THREE.Line(lineGeometry, lineMaterial);
-    this.scene.add(this.trajectoryLine);
+    this.trajectoryGroup.visible = false;
+    this.scene.add(this.trajectoryGroup);
 
     this.setupCamera();
     this.setupLights();
@@ -62,6 +62,7 @@ export class SceneView {
 
   updateEffects(dt: number): void {
     this.effects.update(dt);
+    this.updateTrajectoryPulse(dt);
   }
 
   syncPlayer(player: Player): void {
@@ -110,15 +111,53 @@ export class SceneView {
     this.hideTrajectory();
   }
 
-  showTrajectory(points: Vec2[]): void {
-    const vertices = points.map((point) => new THREE.Vector3(point.x, 0.16, point.z));
-    this.trajectoryLine.geometry.dispose();
-    this.trajectoryLine.geometry = new THREE.BufferGeometry().setFromPoints(vertices);
-    this.trajectoryLine.visible = points.length > 1;
+  showTrajectory(points: Vec2[], chargeRatio: number): void {
+    this.clearTrajectoryObjects();
+    if (points.length <= 1) {
+      this.trajectoryGroup.visible = false;
+      return;
+    }
+
+    const power = THREE.MathUtils.clamp(chargeRatio, 0, 1);
+    const color = power > 0.72 ? 0xffe38a : 0x8eeaff;
+    const coreColor = power > 0.72 ? 0xff9d42 : 0x55d4ff;
+    const sampleStride = power > 0.7 ? 3 : 4;
+    let index = 0;
+
+    for (let i = 0; i < points.length; i += sampleStride) {
+      const point = points[i];
+      const size = THREE.MathUtils.lerp(0.035, 0.07, power) * (index % 2 === 0 ? 1 : 0.72);
+      const dot = this.createTrajectoryOrb(size, color, 0.3 + power * 0.28);
+      dot.position.set(point.x, 0.22, point.z);
+      this.trajectoryGroup.add(dot);
+      this.trajectoryPulseItems.push({ mesh: dot, baseScale: 1, phase: index * 0.42 });
+      index += 1;
+    }
+
+    for (let i = 2; i < points.length - 2; i += 1) {
+      const before = points[i - 2];
+      const current = points[i];
+      const after = points[i + 2];
+      const a = new THREE.Vector2(current.x - before.x, current.z - before.z).normalize();
+      const b = new THREE.Vector2(after.x - current.x, after.z - current.z).normalize();
+      if (a.dot(b) < 0.82) {
+        this.addTrajectoryRing(current, coreColor, 0.28 + power * 0.14, 0.52);
+        i += 6;
+      }
+    }
+
+    const end = points[points.length - 1];
+    this.addTrajectoryRing(end, coreColor, 0.36 + power * 0.16, 0.75);
+    const glow = this.createTrajectoryOrb(0.12 + power * 0.06, coreColor, 0.34 + power * 0.24);
+    glow.position.set(end.x, 0.26, end.z);
+    this.trajectoryGroup.add(glow);
+    this.trajectoryPulseItems.push({ mesh: glow, baseScale: 1, phase: index * 0.42 });
+    this.trajectoryGroup.visible = true;
   }
 
   hideTrajectory(): void {
-    this.trajectoryLine.visible = false;
+    this.trajectoryGroup.visible = false;
+    this.clearTrajectoryObjects();
   }
 
   damageText(text: string, position: Vec2): void {
@@ -264,6 +303,63 @@ export class SceneView {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     return mesh;
+  }
+
+  private createTrajectoryOrb(radius: number, color: number, opacity: number): THREE.Mesh {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 10, 8),
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    return mesh;
+  }
+
+  private addTrajectoryRing(point: Vec2, color: number, radius: number, opacity: number): void {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(radius, 0.018, 8, 32),
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(point.x, 0.09, point.z);
+    this.trajectoryGroup.add(ring);
+    this.trajectoryPulseItems.push({ mesh: ring, baseScale: 1, phase: this.trajectoryPulseItems.length * 0.5 });
+  }
+
+  private updateTrajectoryPulse(dt: number): void {
+    if (!this.trajectoryGroup.visible) {
+      return;
+    }
+    this.trajectoryPulseTime += dt * 5.5;
+    for (const item of this.trajectoryPulseItems) {
+      const pulse = 1 + Math.sin(this.trajectoryPulseTime - item.phase) * 0.13;
+      item.mesh.scale.setScalar(item.baseScale * pulse);
+      const material = item.mesh.material;
+      if (material instanceof THREE.MeshBasicMaterial) {
+        material.opacity = Math.max(0.18, material.opacity);
+      }
+    }
+  }
+
+  private clearTrajectoryObjects(): void {
+    for (const item of this.trajectoryPulseItems) {
+      this.trajectoryGroup.remove(item.mesh);
+      item.mesh.geometry.dispose();
+      if (item.mesh.material instanceof THREE.Material) {
+        item.mesh.material.dispose();
+      }
+    }
+    this.trajectoryPulseItems.length = 0;
   }
 
   private resize(): void {

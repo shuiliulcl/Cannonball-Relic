@@ -98,3 +98,10 @@
 - [x] Generate first-pass pixel assets for arena edges and props.
 - [x] Replace original wall, pillar, and brazier visuals with skin-driven assets.
 - [x] Build, screenshot verify, and push arena skin coverage.
+
+## Phase 12 - Aim VFX Pass
+
+- [x] Replace the single aim line with segmented energy trajectory markers.
+- [x] Add bounce-point rings and an endpoint reticle.
+- [x] Make aim VFX react to charge strength.
+- [x] Screenshot verify and push aim VFX pass.
