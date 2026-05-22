@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cannonball Relic</title>
+  </head>
+  <body>
+    <main id="app">
+      <section class="hud" aria-label="Game status">
+        <div>
+          <span>Score</span>
+          <strong id="score">0</strong>
+        </div>
+        <div>
+          <span>Wave</span>
+          <strong id="wave">1</strong>
+        </div>
+        <div>
+          <span>HP</span>
+          <strong id="hp">5</strong>
+        </div>
+        <div>
+          <span>Charge</span>
+          <strong id="charge">0%</strong>
+        </div>
+        <div>
+          <span>Marble</span>
+          <strong id="marbleState">Ready</strong>
+        </div>
+        <div>
+          <span>Damage</span>
+          <strong id="damageScale">x1</strong>
+        </div>
+      </section>
+
+      <section class="stage-shell">
+        <div id="sceneRoot" class="scene-root"></div>
+        <div id="startOverlay" class="overlay">
+          <h1>Cannonball Relic</h1>
+          <p>WASD move. Hold left mouse to aim, release to fire. Right mouse recalls the marble.</p>
+          <button id="startButton" type="button">Start</button>
+        </div>
+      </section>
+
+      <section id="upgradePanel" class="upgrade-panel" hidden>
+        <h2>Choose Upgrade</h2>
+        <div id="upgradeChoices" class="upgrade-choices"></div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
