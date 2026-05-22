@@ -18,6 +18,7 @@ export class Hud {
   private upgradeHandler: UpgradeHandler | undefined;
 
   constructor(
+    private readonly stageShell: HTMLElement,
     private readonly upgradePanel: HTMLElement,
     private readonly upgradeChoices: HTMLElement,
     private readonly resultOverlay: HTMLElement,
@@ -72,11 +73,15 @@ export class Hud {
         return button;
       }),
     );
+    this.stageShell.classList.add("modal-open");
     this.upgradePanel.hidden = false;
   }
 
   hideUpgrades(): void {
     this.upgradePanel.hidden = true;
+    if (this.resultOverlay.hidden) {
+      this.stageShell.classList.remove("modal-open");
+    }
   }
 
   showResult(kind: "victory" | "defeat", score: number, wave: number): void {
@@ -90,11 +95,15 @@ export class Hud {
     if (this.resultSummary) {
       this.resultSummary.textContent = `Score ${Math.floor(score)} / Wave ${wave}`;
     }
+    this.stageShell.classList.add("modal-open");
     this.resultOverlay.hidden = false;
   }
 
   hideResult(): void {
     this.resultOverlay.hidden = true;
+    if (this.upgradePanel.hidden) {
+      this.stageShell.classList.remove("modal-open");
+    }
   }
 
   onUpgrade(handler: UpgradeHandler): void {
