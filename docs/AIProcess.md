@@ -19,3 +19,11 @@ Use this file to record AI-assisted creation for competition submission.
   - Purpose: Read competition/game concept docs, choose Three.js 2.5D direction, plan implementation.
   - Output used: Game design, technical plan, initial project scaffold, English title "Cannonball Relic".
   - Human edits: Pending review.
+
+- 2026-05-22
+  - Tool: Nano Banana Pro / Gemini 3 Pro Image through Codex.
+  - Purpose: Generate a first-pass pixel-art skin and prove the project can swap visual skins.
+  - Input summary: 2.5D top-down pixel-art player, marble, enemy, obstacle, and ancient ruin floor prompts.
+  - Output used: `public/assets/skins/relic-ruins/` runtime sprites and texture.
+  - Human edits: Codex processed generated preview backgrounds into alpha sprites and organized files into skin slots.
+  - Screenshot or artifact: `public/assets/skins/relic-ruins/source/prompts.md`.

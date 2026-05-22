@@ -1,0 +1,17 @@
+{
+  "id": "relic-ruins",
+  "name": "Relic Ruins",
+  "style": "2.5D pixel art, ancient ruin arena, warm sandstone floor, bold dark sprite outlines",
+  "slots": {
+    "player": "sprites/player.png",
+    "marble": "sprites/marble.png",
+    "enemyGrunt": "sprites/enemy-grunt.png",
+    "obstacleCrate": "sprites/obstacle-crate.png",
+    "floor": "textures/floor.png"
+  },
+  "notes": [
+    "Runtime code expects the same slot filenames for every skin.",
+    "The source/raw folder keeps unprocessed AI outputs for review and regeneration.",
+    "Sprites should have real alpha transparency. If an AI returns a checkerboard background, remove it before using the sprite slot."
+  ]
+}

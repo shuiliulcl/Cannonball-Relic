@@ -82,3 +82,12 @@
 - [x] Redesign upgrade options as vertical card-game style cards.
 - [x] Add card icon, rarity, title, description, and action areas.
 - [x] Build, verify, and push vertical card layout.
+
+## Phase 10 - Art Skin Pipeline
+
+- [x] Generate first-pass pixel art assets with Nano Banana Pro.
+- [x] Organize generated assets into a switchable skin folder.
+- [x] Add skin manifest, prompt notes, and raw source archive.
+- [x] Write required development standards for teammates and AI agents.
+- [x] Add renderer support for `?skin=<skin-id>` runtime switching.
+- [x] Build, verify, and push art skin pipeline.

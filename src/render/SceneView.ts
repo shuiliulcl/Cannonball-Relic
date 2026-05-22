@@ -3,18 +3,23 @@ import { ARENA, CAMERA, OBSTACLES } from "../game/config";
 import type { Marble, Monster, Obstacle, Player, Vec2 } from "../game/types";
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
 import { Effects } from "./effects";
+import { preparePixelTexture, resolveSkinAssets } from "./skin";
 
 export class SceneView {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera();
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true });
+  private readonly textureLoader = new THREE.TextureLoader();
+  private readonly skin = resolveSkinAssets();
   private readonly playerMesh = makeCylinder(0.34, 0.65, 0x346c86);
+  private readonly playerSprite = this.createSprite(this.skin.player, 1.25, 1.1);
   private readonly marbleMesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.2, 24, 16),
     new THREE.MeshStandardMaterial({ color: 0x9de7ff, emissive: 0x55d4ff, emissiveIntensity: 1.1 }),
   );
+  private readonly marbleSprite = this.createSprite(this.skin.marble, 0.58, 0.58);
   private readonly monsterMeshes = new Map<number, THREE.Group>();
-  private readonly obstacleMeshes = new Map<string, THREE.Mesh>();
+  private readonly obstacleMeshes = new Map<string, THREE.Group>();
   private readonly trajectoryLine: THREE.Line;
   private readonly effects: Effects;
 
@@ -38,10 +43,14 @@ export class SceneView {
     this.syncObstacles(OBSTACLES);
 
     this.playerMesh.position.y = 0.34;
+    this.playerMesh.visible = false;
     this.scene.add(this.playerMesh);
+    this.scene.add(this.playerSprite);
 
     this.marbleMesh.position.y = 0.28;
+    this.marbleMesh.scale.setScalar(0.55);
     this.scene.add(this.marbleMesh);
+    this.scene.add(this.marbleSprite);
 
     window.addEventListener("resize", () => this.resize());
     this.resize();
@@ -57,13 +66,18 @@ export class SceneView {
 
   syncPlayer(player: Player): void {
     this.playerMesh.position.set(player.position.x, 0.34, player.position.z);
+    this.playerSprite.position.set(player.position.x, 0.9, player.position.z);
     const cannonScale = player.mode === "humanCannon" ? 1.35 : 1;
     this.playerMesh.scale.set(cannonScale, cannonScale, cannonScale);
+    this.playerSprite.scale.set(1.25 * cannonScale, 1.1 * cannonScale, 1);
   }
 
   syncMarble(marble: Marble): void {
-    this.marbleMesh.visible = marble.state !== "ready" && marble.state !== "charging";
+    const visible = marble.state !== "ready" && marble.state !== "charging";
+    this.marbleMesh.visible = visible;
+    this.marbleSprite.visible = visible;
     this.marbleMesh.position.set(marble.position.x, 0.28, marble.position.z);
+    this.marbleSprite.position.set(marble.position.x, 0.52, marble.position.z);
   }
 
   syncMonsters(monsters: Monster[]): void {
@@ -120,14 +134,25 @@ export class SceneView {
       if (this.obstacleMeshes.has(obstacle.id)) {
         continue;
       }
+      const group = new THREE.Group();
+      group.position.set(obstacle.position.x, 0, obstacle.position.z);
+
       const mesh = makeBox(obstacle.halfSize.x * 2, 0.72, obstacle.halfSize.z * 2, 0x9a6431);
-      mesh.position.set(obstacle.position.x, 0.36, obstacle.position.z);
-      this.obstacleMeshes.set(obstacle.id, mesh);
-      this.scene.add(mesh);
+      mesh.position.y = 0.36;
+      mesh.visible = false;
+      group.add(mesh);
 
       const cap = makeBox(obstacle.halfSize.x * 2 + 0.08, 0.08, obstacle.halfSize.z * 2 + 0.08, 0xd4a15a);
-      cap.position.set(obstacle.position.x, 0.76, obstacle.position.z);
-      this.scene.add(cap);
+      cap.position.y = 0.76;
+      cap.visible = false;
+      group.add(cap);
+
+      const crate = this.createSprite(this.skin.obstacleCrate, obstacle.halfSize.x * 2.2, 1.25);
+      crate.position.y = 0.85;
+      group.add(crate);
+
+      this.obstacleMeshes.set(obstacle.id, group);
+      this.scene.add(group);
     }
   }
 
@@ -159,17 +184,18 @@ export class SceneView {
   }
 
   private buildArena(): void {
-    const floorGroup = new THREE.Group();
-    const tileSize = 1;
-    for (let x = -ARENA.halfWidth; x < ARENA.halfWidth; x += tileSize) {
-      for (let z = -ARENA.halfDepth; z < ARENA.halfDepth; z += tileSize) {
-        const isDark = (Math.round(x + ARENA.halfWidth) + Math.round(z + ARENA.halfDepth)) % 2 === 0;
-        const tile = makeBox(tileSize, 0.08, tileSize, isDark ? 0x687085 : 0xaab0c4);
-        tile.position.set(x + tileSize / 2, -0.04, z + tileSize / 2);
-        floorGroup.add(tile);
-      }
-    }
-    this.scene.add(floorGroup);
+    const floorTexture = preparePixelTexture(this.textureLoader.load(this.skin.floor));
+    floorTexture.wrapS = THREE.RepeatWrapping;
+    floorTexture.wrapT = THREE.RepeatWrapping;
+    floorTexture.repeat.set(5, 4);
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(ARENA.halfWidth * 2, ARENA.halfDepth * 2),
+      new THREE.MeshBasicMaterial({ map: floorTexture, side: THREE.DoubleSide }),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.04;
+    floor.receiveShadow = true;
+    this.scene.add(floor);
 
     const wallMaterial = makeToonMaterial(0x4f5368);
     const backWall = new THREE.Mesh(new THREE.BoxGeometry(ARENA.halfWidth * 2 + 1, ARENA.wallHeight, 0.35), wallMaterial);
@@ -213,14 +239,26 @@ export class SceneView {
 
   private createMonsterMesh(): THREE.Group {
     const group = new THREE.Group();
-    const body = makeCylinder(0.36, 0.7, 0xc47a34);
-    body.position.y = 0.36;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 18, 12), makeToonMaterial(0xf2d6a2));
-    head.position.y = 0.9;
-    const hat = makeCylinder(0.25, 0.18, 0x26212b);
-    hat.position.y = 1.14;
-    group.add(body, head, hat);
+    const shadow = makeCylinder(0.38, 0.04, 0x2a1b16);
+    shadow.position.y = 0.03;
+    shadow.scale.z = 0.72;
+    const sprite = this.createSprite(this.skin.enemyGrunt, 1.08, 1.35);
+    sprite.position.y = 0.92;
+    group.add(shadow, sprite);
     return group;
+  }
+
+  private createSprite(path: string, width: number, height: number): THREE.Sprite {
+    const texture = preparePixelTexture(this.textureLoader.load(path));
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      alphaTest: 0.08,
+      depthWrite: false,
+    });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(width, height, 1);
+    return sprite;
   }
 
   private resize(): void {

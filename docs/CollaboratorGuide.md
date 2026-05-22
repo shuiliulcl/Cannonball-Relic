@@ -8,6 +8,8 @@ Cannonball Relic is a PC browser game prototype for the internal game creation c
 
 Important design note: **Human Cannon is a later rare/special card, not the default core mechanic.** Do not convert the base game into "launch the player" without explicit team approval.
 
+Before changing the project, read `docs/DevelopmentStandards.md`. It defines the required work order, art skin structure, UI rules, and handoff expectations for teammates and AI agents.
+
 ## Current Stack
 
 - Vite
@@ -55,17 +57,27 @@ The contest HTML5 package should come from the generated `dist` folder.
 - `src/render/effects.ts`: floating damage text and spark particles.
 - `src/ui/Hud.ts`: HUD and upgrade panel binding.
 - `src/styles.css`: page and UI styling.
+- `public/assets/skins/`: switchable art skin packs.
 
 HUD direction: keep important combat information as a game overlay. HP belongs top-left, wave progress top-center, controls bottom-left, and buff/marble state bottom-center.
 
 ## Collaboration Rules
 
+- Read `docs/DevelopmentStandards.md` before implementation.
 - Keep core gameplay decisions in `docs/GameDesign.md` before large code changes.
 - Put tunable values in `src/game/config.ts`.
 - Keep renderer code out of score/damage/wave decisions.
 - Avoid commercial or internal IP assets. Use original placeholders or generated assets with clear provenance.
 - Update `docs/AIProcess.md` when AI materially contributes code, art, copy, tuning, or video planning.
 - Update `Tasklist.md` as tasks change.
+
+## Art Skins
+
+The active art pack is loaded from `public/assets/skins/<skin-id>/`. Use `?skin=relic-ruins` in the browser to force a skin. New skins should keep the same required slot filenames documented in `public/assets/skins/README.md`.
+
+Current default skin:
+
+- `relic-ruins`: first-pass Nano Banana Pro pixel-art skin with player, marble, enemy, obstacle, and floor slots.
 
 ## Good Next Tasks
 

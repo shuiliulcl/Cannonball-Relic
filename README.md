@@ -27,6 +27,7 @@ Submit the generated `dist` folder as the HTML5 resource package after final pol
 
 ## Important Docs
 
+- `docs/DevelopmentStandards.md`: required development rules for teammates and AI agents.
 - `docs/GameDesign.md`: gameplay and visual direction.
 - `docs/TechPlan.md`: architecture, module ownership, and handoff notes.
 - `docs/AIProcess.md`: AI-assisted creation notes for competition submission.
