@@ -47,6 +47,8 @@ export type RuntimeSpawn = {
 
 export type RuntimeLevel = {
   name: string;
+  grid: LevelDefinition["grid"];
+  floors: FloorMaterial[];
   obstacles: Obstacle[];
   spawns: RuntimeSpawn[];
 };

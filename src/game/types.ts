@@ -20,6 +20,7 @@ export type Obstacle = {
   id: string;
   position: Vec2;
   halfSize: Vec2;
+  material?: "wood" | "stone" | "metal";
 };
 
 export type Marble = {

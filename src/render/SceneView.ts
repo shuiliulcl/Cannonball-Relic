@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { ARENA, CAMERA, OBSTACLES } from "../game/config";
 import type { Marble, Monster, Obstacle, Player, Vec2 } from "../game/types";
+import type { FloorMaterial, ObstacleMaterial, RuntimeLevel } from "../levels/types";
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
 import { Effects } from "./effects";
 import { preparePixelTexture, resolveSkinAssets } from "./skin";
@@ -28,6 +29,7 @@ export class SceneView {
   constructor(
     private readonly root: HTMLElement,
     initialObstacles: readonly Obstacle[] = OBSTACLES,
+    private readonly runtimeLevel?: RuntimeLevel,
   ) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x171720);
@@ -43,6 +45,7 @@ export class SceneView {
     this.setupCamera();
     this.setupLights();
     this.buildArena();
+    this.applyLevelFloors();
     this.setObstacles(initialObstacles);
 
     this.playerMesh.position.y = 0.34;
@@ -179,19 +182,26 @@ export class SceneView {
       const group = new THREE.Group();
       group.position.set(obstacle.position.x, 0, obstacle.position.z);
 
-      const mesh = makeBox(obstacle.halfSize.x * 2, 0.72, obstacle.halfSize.z * 2, 0x9a6431);
+      const material = obstacle.material ?? "wood";
+      const mesh = makeBox(obstacle.halfSize.x * 2, 0.72, obstacle.halfSize.z * 2, this.obstacleBaseColor(material));
       mesh.position.y = 0.36;
-      mesh.visible = false;
+      mesh.visible = material !== "wood";
       group.add(mesh);
 
-      const cap = makeBox(obstacle.halfSize.x * 2 + 0.08, 0.08, obstacle.halfSize.z * 2 + 0.08, 0xd4a15a);
+      const cap = makeBox(obstacle.halfSize.x * 2 + 0.08, 0.08, obstacle.halfSize.z * 2 + 0.08, this.obstacleCapColor(material));
       cap.position.y = 0.76;
-      cap.visible = false;
+      cap.visible = material !== "wood";
       group.add(cap);
 
-      const crate = this.createSprite(this.skin.obstacleCrate, obstacle.halfSize.x * 2.2, 1.25);
-      crate.position.y = 0.85;
-      group.add(crate);
+      if (material === "wood") {
+        const crate = this.createSprite(this.skin.obstacleCrate, obstacle.halfSize.x * 2.2, 1.25);
+        crate.position.y = 0.85;
+        group.add(crate);
+      } else {
+        const badge = this.createObstacleBadge(material);
+        badge.position.y = 1.04;
+        group.add(badge);
+      }
 
       this.obstacleMeshes.set(obstacle.id, group);
       this.scene.add(group);
@@ -280,6 +290,39 @@ export class SceneView {
     }
   }
 
+  private applyLevelFloors(): void {
+    if (!this.runtimeLevel) {
+      return;
+    }
+    const { grid, floors } = this.runtimeLevel;
+    const cellSize = grid.cellSize || 1;
+    const originX = -ARENA.halfWidth + cellSize / 2;
+    const originZ = -ARENA.halfDepth + cellSize / 2;
+    const materials = new Map<FloorMaterial, THREE.MeshBasicMaterial>();
+    for (let y = 0; y < grid.height; y += 1) {
+      for (let x = 0; x < grid.width; x += 1) {
+        const materialName = floors[y * grid.width + x] ?? "sandstone";
+        if (materialName === "sandstone") {
+          continue;
+        }
+        let material = materials.get(materialName);
+        if (!material) {
+          material = new THREE.MeshBasicMaterial({
+            color: this.floorColor(materialName),
+            transparent: true,
+            opacity: 0.72,
+            side: THREE.DoubleSide,
+          });
+          materials.set(materialName, material);
+        }
+        const tile = new THREE.Mesh(new THREE.PlaneGeometry(cellSize * 0.96, cellSize * 0.96), material);
+        tile.rotation.x = -Math.PI / 2;
+        tile.position.set(originX + x * cellSize, -0.025, originZ + y * cellSize);
+        this.scene.add(tile);
+      }
+    }
+  }
+
   private createMonsterMesh(): THREE.Group {
     const group = new THREE.Group();
     const shadow = makeCylinder(0.38, 0.04, 0x2a1b16);
@@ -314,6 +357,75 @@ export class SceneView {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     return mesh;
+  }
+
+  private createObstacleBadge(material: ObstacleMaterial): THREE.Sprite {
+    const canvas = document.createElement("canvas");
+    canvas.width = 96;
+    canvas.height = 96;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = this.obstacleBadgeColor(material);
+      ctx.strokeStyle = "#2e1b12";
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.roundRect(12, 12, 72, 72, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#fff4ce";
+      ctx.font = "900 34px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(material === "stone" ? "柱" : "砧", 48, 50);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
+    sprite.scale.set(0.62, 0.62, 1);
+    return sprite;
+  }
+
+  private floorColor(material: FloorMaterial): number {
+    if (material === "cracked") {
+      return 0x8f7580;
+    }
+    if (material === "moss") {
+      return 0x6e9d5f;
+    }
+    if (material === "danger") {
+      return 0xc4523d;
+    }
+    return 0xd9a76a;
+  }
+
+  private obstacleBaseColor(material: ObstacleMaterial): number {
+    if (material === "stone") {
+      return 0x6d6878;
+    }
+    if (material === "metal") {
+      return 0x536979;
+    }
+    return 0x9a6431;
+  }
+
+  private obstacleCapColor(material: ObstacleMaterial): number {
+    if (material === "stone") {
+      return 0x91899a;
+    }
+    if (material === "metal") {
+      return 0x8ea5b0;
+    }
+    return 0xd4a15a;
+  }
+
+  private obstacleBadgeColor(material: ObstacleMaterial): string {
+    if (material === "stone") {
+      return "#686070";
+    }
+    if (material === "metal") {
+      return "#5f7180";
+    }
+    return "#9a6431";
   }
 
   private createTrajectoryOrb(radius: number, color: number, opacity: number): THREE.Mesh {

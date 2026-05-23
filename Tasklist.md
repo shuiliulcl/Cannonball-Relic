@@ -147,3 +147,10 @@
 - [x] Add icon badges for monster spawn types.
 - [x] Improve grid readability for floor, obstacle, and spawn cells.
 - [x] Build, screenshot verify, and push editor material icons.
+
+## Phase 18 - Runtime Level Material Display
+
+- [x] Preserve editor floor and obstacle materials in runtime level data.
+- [x] Render non-default floor materials in game validation mode.
+- [x] Render stone and metal obstacles differently from wood obstacles.
+- [x] Build, screenshot verify, and push runtime material display.

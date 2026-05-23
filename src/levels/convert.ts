@@ -8,8 +8,11 @@ export function levelToRuntime(level: LevelDefinition): RuntimeLevel {
 
   return {
     name: level.name,
+    grid: level.grid,
+    floors: level.floors,
     obstacles: level.obstacles.map((item) => ({
       id: item.id,
+      material: item.material,
       position: {
         x: originX + (item.x + item.w / 2 - 0.5) * cellSize,
         z: originZ + (item.z + item.h / 2 - 0.5) * cellSize,

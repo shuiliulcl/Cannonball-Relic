@@ -46,7 +46,7 @@ if (
 const runtimeLevel = new URLSearchParams(window.location.search).get("level") === "local" ? loadLocalLevel() : undefined;
 const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
 const input = new Input(sceneRoot);
-const view = new SceneView(sceneRoot, convertedLevel?.obstacles);
+const view = new SceneView(sceneRoot, convertedLevel?.obstacles, convertedLevel);
 const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay);
 const game = new Game(input, view, hud, convertedLevel);
 
