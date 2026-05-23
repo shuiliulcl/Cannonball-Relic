@@ -31,6 +31,44 @@ Rules:
 - If the pull fails because the branch diverged or the workspace is dirty, stop and report the exact status before continuing.
 - After syncing, note the latest commit hash when handing work to another person or AI agent.
 
+### 2.1 Pre-Change Execution Plan
+
+Recent long-running changes exposed several avoidable slowdowns: broad feature scope, parallel-agent overlap, large mixed diffs, fragile patching around mojibake text, and late discovery of runtime/UI risks. Use the following rules before starting work.
+
+Required planning note before substantial changes:
+
+- State the exact files or modules you expect to touch.
+- Identify files that may also be owned by another teammate/AI agent.
+- Split the task into the smallest shippable slices.
+- Name the verification command or manual check for each slice.
+- Decide whether the change should be one commit or multiple focused commits.
+
+Scope rules:
+
+- Prefer one behavioral slice per commit. Good examples: "monster health bar anchor", "Buff panel UI", "diamond card draft filtering".
+- If a request spans `game`, `render`, `ui`, `styles`, and `docs`, implement and verify in phases instead of one large patch.
+- For mixed code and documentation work, finish code verification first, then update docs and Tasklist.
+- Do not bundle unrelated cleanup, encoding fixes, formatting, or refactors into feature commits.
+
+Parallel-work rules:
+
+- If another teammate/AI agent has uncommitted changes in a file you must edit, pause and call that out before editing.
+- If the user explicitly authorizes committing the whole workspace, still summarize which changes came from the current task and which were pre-existing.
+- Avoid patching by matching long text blocks that contain garbled terminal output. Prefer small line-range edits or rewriting a narrow function/component.
+
+Verification rules:
+
+- Run `npm run build` before handoff for any code or CSS change.
+- For UI/runtime changes, also verify the page starts and the relevant DOM nodes or interaction path exist.
+- If browser automation is unavailable, state that limitation and use the best available fallback: dev server response, DOM-node checks, targeted static checks, and build.
+- For cloud-document sync, prefer simple headings, paragraphs, and lists unless rich XML is necessary. If an update returns partial success or warnings, retry with a simpler format and record the final successful revision.
+
+Timebox rule:
+
+- If a single change session exceeds 30 minutes, pause before final handoff and write a short self-retrospective.
+- The retrospective must include: what caused the delay, what was completed, what remains risky, and how the next similar task should be split or verified.
+- If the long session is still in progress, send the user a concise status update before continuing.
+
 Before implementation:
 
 1. Read `README.md`, `docs/GameDesign.md`, `docs/CollaboratorGuide.md`, and this file.

@@ -187,3 +187,8 @@
 - [x] Replace instant dash with 0.5 second invincible roll movement.
 - [x] Add lower HUD roll cooldown display.
 - [x] Build verify supplemental feature implementation.
+
+## Phase 23 - Development Process Retrospective
+
+- [x] Summarize why recent changes took longer than expected.
+- [x] Add pre-change planning, scope-splitting, parallel-work, patching, verification, and cloud-doc sync rules to the required development standards.
