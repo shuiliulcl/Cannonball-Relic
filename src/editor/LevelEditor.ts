@@ -22,6 +22,25 @@ const MONSTER_LABEL: Record<MonsterType, string> = {
   tank: "重甲怪",
 };
 
+const FLOOR_ICON: Record<FloorMaterial, string> = {
+  sandstone: "砂",
+  cracked: "裂",
+  moss: "苔",
+  danger: "危",
+};
+
+const OBSTACLE_ICON: Record<ObstacleMaterial, string> = {
+  wood: "箱",
+  stone: "柱",
+  metal: "砧",
+};
+
+const MONSTER_ICON: Record<MonsterType, string> = {
+  grunt: "兵",
+  runner: "疾",
+  tank: "甲",
+};
+
 export class LevelEditor {
   private readonly level: LevelDefinition = this.createInitialLevel();
   private tool: Tool = "floor";
@@ -183,12 +202,19 @@ export class LevelEditor {
         if (obstacle) {
           cell.classList.add("has-obstacle", `obstacle-${obstacle.material}`);
           cell.dataset.objectId = obstacle.id;
-          cell.innerHTML = `<span>${OBSTACLE_LABEL[obstacle.material]}</span>`;
+          cell.innerHTML = `
+            <i class="editor-cell-icon material-obstacle-${obstacle.material}">${OBSTACLE_ICON[obstacle.material]}</i>
+            <span>${OBSTACLE_LABEL[obstacle.material]}</span>
+          `;
         }
         if (spawn) {
           cell.classList.add("has-spawn", `spawn-${spawn.monsterType}`);
           cell.dataset.objectId = spawn.id;
-          cell.innerHTML = `<span>${MONSTER_LABEL[spawn.monsterType]}</span><em>第${spawn.wave}波 x${spawn.count}</em>`;
+          cell.innerHTML = `
+            <i class="editor-cell-icon material-spawn-${spawn.monsterType}">${MONSTER_ICON[spawn.monsterType]}</i>
+            <span>${MONSTER_LABEL[spawn.monsterType]}</span>
+            <em>第${spawn.wave}波 x${spawn.count}</em>
+          `;
         }
         cell.classList.toggle("is-selected", Boolean(cell.dataset.objectId && cell.dataset.objectId === this.selectedId));
         cell.addEventListener("click", () => this.paintCell(x, y));
@@ -210,13 +236,13 @@ export class LevelEditor {
       <section class="editor-panel">
         <h2>地面材质</h2>
         <div class="editor-segments" data-control="floorMaterial">
-          ${this.optionButtons(FLOOR_LABEL, this.floorMaterial)}
+          ${this.optionButtons(FLOOR_LABEL, this.floorMaterial, "floor")}
         </div>
       </section>
       <section class="editor-panel">
         <h2>障碍材质</h2>
         <div class="editor-segments" data-control="obstacleMaterial">
-          ${this.optionButtons(OBSTACLE_LABEL, this.obstacleMaterial)}
+          ${this.optionButtons(OBSTACLE_LABEL, this.obstacleMaterial, "obstacle")}
         </div>
       </section>
       <section class="editor-panel">
@@ -305,9 +331,17 @@ export class LevelEditor {
     this.render();
   }
 
-  private optionButtons<T extends string>(labels: Record<T, string>, active: T): string {
+  private optionButtons<T extends FloorMaterial | ObstacleMaterial>(labels: Record<T, string>, active: T, kind: "floor" | "obstacle"): string {
     return Object.entries(labels)
-      .map(([value, label]) => `<button type="button" data-option="${value}" class="${value === active ? "is-active" : ""}">${label}</button>`)
+      .map(([value, label]) => {
+        const icon = kind === "floor" ? FLOOR_ICON[value as FloorMaterial] : OBSTACLE_ICON[value as ObstacleMaterial];
+        return `
+          <button type="button" data-option="${value}" class="editor-material-button ${value === active ? "is-active" : ""}">
+            <i class="editor-material-icon material-${kind}-${value}">${icon}</i>
+            <span>${label}</span>
+          </button>
+        `;
+      })
       .join("");
   }
 

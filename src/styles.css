@@ -639,7 +639,7 @@ button:focus-visible {
 .editor-top-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   overflow-x: auto;
   padding: 4px;
 }
@@ -649,7 +649,7 @@ button:focus-visible {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  padding: 0 16px;
+  padding: 0 14px;
   border-radius: 8px;
   color: #2b170e;
   background: #fff4ce;
@@ -676,8 +676,92 @@ button:focus-visible {
   font-size: 13px;
 }
 
+.editor-material-button {
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.editor-material-icon,
+.editor-cell-icon {
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  color: #fff4ce;
+  text-shadow: 0 1px 0 #2e1b12;
+}
+
+.editor-material-icon {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(61, 34, 20, 0.72);
+  border-radius: 5px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.25),
+    0 2px 0 rgba(61, 34, 20, 0.45);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.material-floor-sandstone {
+  background:
+    linear-gradient(135deg, rgba(255, 238, 177, 0.45), transparent 40%),
+    #d9a76a;
+}
+
+.material-floor-cracked {
+  background:
+    linear-gradient(135deg, transparent 42%, #6d4e58 43%, #6d4e58 48%, transparent 49%),
+    linear-gradient(45deg, transparent 48%, #6d4e58 49%, #6d4e58 54%, transparent 55%),
+    #a98682;
+}
+
+.material-floor-moss {
+  background:
+    radial-gradient(circle at 30% 35%, #b9d787 0 18%, transparent 19%),
+    radial-gradient(circle at 72% 66%, #5f8a51 0 18%, transparent 19%),
+    #80a66a;
+}
+
+.material-floor-danger {
+  background:
+    repeating-linear-gradient(45deg, #8d2f25 0 7px, #d86a3e 8px 14px);
+}
+
+.material-obstacle-wood {
+  background:
+    linear-gradient(90deg, rgba(77, 42, 21, 0.38) 0 12%, transparent 13% 42%, rgba(77, 42, 21, 0.38) 43% 54%, transparent 55%),
+    #9a6431;
+}
+
+.material-obstacle-stone {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 32%),
+    #686070;
+}
+
+.material-obstacle-metal {
+  background:
+    linear-gradient(135deg, #d5e2e6 0 12%, transparent 13%),
+    linear-gradient(180deg, #7c92a1, #435462);
+}
+
+.material-spawn-grunt {
+  background: radial-gradient(circle, #e6a14b 0 55%, #6b3f25 57%);
+}
+
+.material-spawn-runner {
+  background: radial-gradient(circle, #67d8ec 0 52%, #246c7b 54%);
+}
+
+.material-spawn-tank {
+  background: radial-gradient(circle, #b9a0ff 0 52%, #4b3678 54%);
+}
+
 .editor-top-actions button {
   flex: 0 0 auto;
+  padding-inline: 14px;
   white-space: nowrap;
 }
 
@@ -719,6 +803,7 @@ button:focus-visible {
   position: relative;
   min-height: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   place-items: center;
   padding: 2px;
   border: 1px solid rgba(71, 42, 27, 0.42);
@@ -730,20 +815,54 @@ button:focus-visible {
   text-shadow: 0 1px 0 #2e1b12;
 }
 
+.editor-cell::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 2px;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
 .editor-cell.floor-sandstone {
   background: #d9a76a;
+}
+
+.editor-cell.floor-sandstone::before {
+  background:
+    linear-gradient(135deg, rgba(255, 238, 177, 0.8), transparent 38%),
+    linear-gradient(90deg, transparent 0 48%, rgba(113, 70, 43, 0.45) 49% 52%, transparent 53%);
 }
 
 .editor-cell.floor-cracked {
   background: #a98682;
 }
 
+.editor-cell.floor-cracked::before {
+  background:
+    linear-gradient(135deg, transparent 42%, #6d4e58 43%, #6d4e58 50%, transparent 51%),
+    linear-gradient(45deg, transparent 45%, #6d4e58 46%, #6d4e58 52%, transparent 53%);
+  opacity: 0.58;
+}
+
 .editor-cell.floor-moss {
   background: #80a66a;
 }
 
+.editor-cell.floor-moss::before {
+  background:
+    radial-gradient(circle at 28% 32%, #c5e19b 0 18%, transparent 19%),
+    radial-gradient(circle at 70% 70%, #5a8d4d 0 22%, transparent 23%);
+  opacity: 0.6;
+}
+
 .editor-cell.floor-danger {
   background: #b74f39;
+}
+
+.editor-cell.floor-danger::before {
+  background: repeating-linear-gradient(45deg, rgba(255, 222, 116, 0.8) 0 5px, rgba(90, 32, 22, 0.8) 6px 10px);
+  opacity: 0.5;
 }
 
 .editor-cell.has-obstacle {
@@ -787,12 +906,24 @@ button:focus-visible {
 
 .editor-cell span,
 .editor-cell em {
+  position: relative;
   display: block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-style: normal;
+}
+
+.editor-cell-icon {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  align-self: end;
+  border: 2px solid rgba(46, 27, 18, 0.72);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .editor-hint {

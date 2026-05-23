@@ -139,3 +139,11 @@
 - [x] Convert editor spawn points into runtime wave spawn queues.
 - [x] Rewrite level editor documentation in Chinese with GitHub submission workflow.
 - [x] Build, interaction verify, and push collaboration workflow.
+
+## Phase 17 - Editor Material Icons
+
+- [x] Add visual swatches for floor materials.
+- [x] Add icon badges for obstacle materials.
+- [x] Add icon badges for monster spawn types.
+- [x] Improve grid readability for floor, obstacle, and spawn cells.
+- [x] Build, screenshot verify, and push editor material icons.
