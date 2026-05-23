@@ -136,7 +136,9 @@ Rules:
 
 ## 4. Visual Direction
 
-- Target style: readable 2.5D pixel art / hand-painted indie game, top-down arena, strong silhouettes, warm ancient ruin or experimental themed skins.
+- Target style: readable pixel art / hand-painted indie game, top-down arena, strong silhouettes, warm ancient ruin or experimental themed skins.
+- View mode switching must stay available while the team compares art direction: default / `?view=2d` uses the experimental pure 2D map and camera, while `?view=2.5d` preserves the earlier 2.5D arena and props.
+- Any change to floor, obstacle, wall, prop, camera, or health-bar presentation must be checked in both view modes.
 - Gameplay readability wins over decorative detail.
 - Player, marble, enemy, obstacle, and floor must remain visually distinct at normal camera zoom.
 - Avoid copyrighted, trademarked, or internal IP assets. Use original generated or team-created art only.

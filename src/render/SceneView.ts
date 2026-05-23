@@ -7,12 +7,20 @@ import { Effects } from "./effects";
 import { TrajectoryView } from "./TrajectoryView";
 import { preparePixelTexture, resolveSkinAssets } from "./skin";
 
+type ViewMode = "2d" | "2.5d";
+
+function resolveViewMode(): ViewMode {
+  const value = new URLSearchParams(window.location.search).get("view");
+  return value === "2.5d" ? "2.5d" : "2d";
+}
+
 export class SceneView {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera();
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true });
   private readonly textureLoader = new THREE.TextureLoader();
   private readonly skin = resolveSkinAssets();
+  private readonly viewMode = resolveViewMode();
   private readonly playerMesh = makeCylinder(0.34, 0.65, 0x346c86);
   private readonly playerSprite = this.createSprite(this.skin.player, 1.25, 1.1);
   private readonly marbleMesh = new THREE.Mesh(
@@ -44,7 +52,11 @@ export class SceneView {
 
     this.setupCamera();
     this.setupLights();
-    this.buildArena();
+    if (this.viewMode === "2d") {
+      this.buildTopDownArena();
+    } else {
+      this.buildArena();
+    }
     this.applyLevelFloors();
     this.setObstacles(initialObstacles);
 
@@ -148,18 +160,22 @@ export class SceneView {
       group.position.set(obstacle.position.x, 0, obstacle.position.z);
 
       const material = obstacle.material ?? "wood";
-      const mesh = makeBox(obstacle.halfSize.x * 2, 0.72, obstacle.halfSize.z * 2, 0x9a6431);
-      mesh.position.y = 0.36;
-      mesh.visible = false;
-      group.add(mesh);
-
-      if (material === "wood") {
-        const crate = this.createSprite(this.skin.obstacleCrate, obstacle.halfSize.x * 2.2, 1.25);
-        crate.position.y = 0.85;
-        group.add(crate);
+      if (this.viewMode === "2d") {
+        group.add(this.createTopDownObstacle(material, obstacle));
       } else {
-        const sprite = this.createObstacleSprite(material, obstacle);
-        group.add(sprite);
+        const mesh = makeBox(obstacle.halfSize.x * 2, 0.72, obstacle.halfSize.z * 2, 0x9a6431);
+        mesh.position.y = 0.36;
+        mesh.visible = false;
+        group.add(mesh);
+
+        if (material === "wood") {
+          const crate = this.createSprite(this.skin.obstacleCrate, obstacle.halfSize.x * 2.2, 1.25);
+          crate.position.y = 0.85;
+          group.add(crate);
+        } else {
+          const sprite = this.createObstacleSprite(material, obstacle);
+          group.add(sprite);
+        }
       }
 
       this.obstacleMeshes.set(obstacle.id, group);
@@ -182,7 +198,13 @@ export class SceneView {
   }
 
   private setupCamera(): void {
-    this.camera.position.set(0, 8.2, 7.2);
+    if (this.viewMode === "2d") {
+      this.camera.up.set(0, 0, -1);
+      this.camera.position.set(0, 12.8, 0.001);
+    } else {
+      this.camera.up.set(0, 1, 0);
+      this.camera.position.set(0, 8.2, 7.2);
+    }
     this.camera.lookAt(0, 0, 0);
     this.camera.near = 0.1;
     this.camera.far = 100;
@@ -244,6 +266,70 @@ export class SceneView {
         this.scene.add(brazier);
       }
     }
+  }
+
+  private buildTopDownArena(): void {
+    const floorTexture = preparePixelTexture(this.textureLoader.load(this.skin.floor));
+    floorTexture.wrapS = THREE.RepeatWrapping;
+    floorTexture.wrapT = THREE.RepeatWrapping;
+    floorTexture.repeat.set(9, 7);
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(ARENA.halfWidth * 2, ARENA.halfDepth * 2),
+      new THREE.MeshBasicMaterial({ map: floorTexture, side: THREE.DoubleSide }),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.04;
+    this.scene.add(floor);
+
+    const grid = new THREE.GridHelper(
+      Math.max(ARENA.halfWidth * 2, ARENA.halfDepth * 2),
+      Math.max(12, Math.round(ARENA.halfWidth * 2)),
+      0x7b6155,
+      0x7b6155,
+    );
+    grid.position.y = 0.012;
+    const gridMaterial = grid.material as THREE.Material;
+    gridMaterial.transparent = true;
+    gridMaterial.opacity = 0.18;
+    this.scene.add(grid);
+
+    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x55475c });
+    const lipMaterial = new THREE.MeshBasicMaterial({ color: 0x2f2638 });
+    const frontBackWidth = ARENA.halfWidth * 2 + 0.55;
+    const sideDepth = ARENA.halfDepth * 2 + 0.55;
+    const wallThickness = 0.28;
+
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(frontBackWidth, 0.2, wallThickness), wallMaterial);
+    backWall.position.set(0, 0.08, -ARENA.halfDepth - wallThickness / 2);
+    this.scene.add(backWall);
+
+    const frontWall = backWall.clone();
+    frontWall.position.z = ARENA.halfDepth + wallThickness / 2;
+    this.scene.add(frontWall);
+
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, 0.2, sideDepth), wallMaterial);
+    leftWall.position.set(-ARENA.halfWidth - wallThickness / 2, 0.08, 0);
+    this.scene.add(leftWall);
+
+    const rightWall = leftWall.clone();
+    rightWall.position.x = ARENA.halfWidth + wallThickness / 2;
+    this.scene.add(rightWall);
+
+    const topLip = new THREE.Mesh(new THREE.BoxGeometry(frontBackWidth, 0.06, 0.08), lipMaterial);
+    topLip.position.set(0, 0.16, -ARENA.halfDepth - 0.08);
+    this.scene.add(topLip);
+
+    const bottomLip = topLip.clone();
+    bottomLip.position.z = ARENA.halfDepth + 0.08;
+    this.scene.add(bottomLip);
+
+    const leftLip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, sideDepth), lipMaterial);
+    leftLip.position.set(-ARENA.halfWidth - 0.08, 0.16, 0);
+    this.scene.add(leftLip);
+
+    const rightLip = leftLip.clone();
+    rightLip.position.x = ARENA.halfWidth + 0.08;
+    this.scene.add(rightLip);
   }
 
   private applyLevelFloors(): void {
@@ -310,7 +396,11 @@ export class SceneView {
 
   private createMonsterHealthBar(spriteHeight: number): THREE.Group {
     const group = new THREE.Group();
-    group.position.y = spriteHeight + 0.34;
+    if (this.viewMode === "2d") {
+      group.position.set(0, 0.36, -spriteHeight * 0.42);
+    } else {
+      group.position.y = spriteHeight + 0.34;
+    }
 
     const back = new THREE.Mesh(
       new THREE.PlaneGeometry(0.82, 0.1),
@@ -324,6 +414,14 @@ export class SceneView {
     );
     fill.name = "hp-fill";
     fill.position.set(0, 0, 0.02);
+
+    if (this.viewMode === "2d") {
+      back.rotation.x = -Math.PI / 2;
+      fill.rotation.x = -Math.PI / 2;
+      back.position.y = 0.01;
+      fill.position.y = 0.02;
+      fill.position.z = 0;
+    }
 
     group.add(back, fill);
     return group;
@@ -363,6 +461,39 @@ export class SceneView {
     const metal = this.createSprite(this.skin.obstacleMetal, obstacle.halfSize.x * 2.45, 1.18);
     metal.position.y = 0.78;
     return metal;
+  }
+
+  private createTopDownObstacle(material: ObstacleMaterial, obstacle: Obstacle): THREE.Group {
+    const group = new THREE.Group();
+    const width = obstacle.halfSize.x * 2;
+    const depth = obstacle.halfSize.z * 2;
+    const colors = material === "stone"
+      ? { side: 0x7d7069, top: 0xa38f7f, edge: 0x4f4643 }
+      : material === "metal"
+      ? { side: 0x4f6972, top: 0x77929a, edge: 0x2d4148 }
+      : { side: 0x8b5a2b, top: 0xc68a3c, edge: 0x5a351d };
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.2, depth),
+      new THREE.MeshBasicMaterial({ color: colors.side }),
+    );
+    body.position.y = 0.1;
+
+    const top = new THREE.Mesh(
+      new THREE.PlaneGeometry(width * 0.92, depth * 0.88),
+      new THREE.MeshBasicMaterial({ color: colors.top, side: THREE.DoubleSide }),
+    );
+    top.rotation.x = -Math.PI / 2;
+    top.position.y = 0.205;
+
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(width, 0.2, depth)),
+      new THREE.LineBasicMaterial({ color: colors.edge }),
+    );
+    edges.position.y = 0.1;
+
+    group.add(body, top, edges);
+    return group;
   }
 
   private floorTexturePath(material: FloorMaterial): string {

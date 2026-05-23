@@ -192,3 +192,11 @@
 
 - [x] Summarize why recent changes took longer than expected.
 - [x] Add pre-change planning, scope-splitting, parallel-work, patching, verification, and cloud-doc sync rules to the required development standards.
+
+## Phase 24 - 2D View Experiment
+
+- [x] Keep the original 2.5D arena, sprite obstacles, and camera available.
+- [x] Add a separate default 2D arena map, flat obstacle visuals, and top-down camera.
+- [x] Add URL switching: default / `?view=2d` for 2D, `?view=2.5d` for the preserved 2.5D view.
+- [x] Make monster health bars readable in the 2D top-down view.
+- [x] Build and Playwright screenshot verify both view modes.

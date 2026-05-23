@@ -1,6 +1,6 @@
 # Cannonball Relic
 
-2.5D Three.js prototype for a top-down rogue-lite marble game.
+Three.js prototype for a top-down rogue-lite marble game.
 
 ## Run
 
@@ -16,6 +16,11 @@ npm run build
 ```
 
 Submit the generated `dist` folder as the HTML5 resource package after final polishing.
+
+## View Modes
+
+- Default / `?view=2d`: experimental pure 2D top-down arena, flat obstacle visuals, and top-down camera.
+- `?view=2.5d`: preserved 2.5D arena, walls, props, and sprite obstacle presentation.
 
 ## Controls
 

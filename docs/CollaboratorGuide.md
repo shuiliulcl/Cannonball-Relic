@@ -4,7 +4,7 @@ This guide is for teammates and AI coding agents joining the Cannonball Relic pr
 
 ## Project Intent
 
-Cannonball Relic is a PC browser game prototype for the internal game creation contest. The base game is a 2.5D top-down rogue-lite where the player moves a character, fires a marble, uses wall and obstacle bounces to stack damage, recalls the marble, clears waves, and chooses upgrades.
+Cannonball Relic is a PC browser game prototype for the internal game creation contest. The base game is a top-down rogue-lite where the player moves a character, fires a marble, uses wall and obstacle bounces to stack damage, recalls the marble, clears waves, and chooses upgrades.
 
 Important design note: **Human Cannon is a later rare/special card, not the default core mechanic.** Do not convert the base game into "launch the player" without explicit team approval.
 
@@ -37,6 +37,15 @@ npm run build
 ```
 
 The contest HTML5 package should come from the generated `dist` folder.
+
+## View Modes
+
+The current default view is the experimental 2D presentation:
+
+- Default / `?view=2d`: pure top-down map, flat obstacle visuals, and a vertical camera.
+- `?view=2.5d`: preserved 2.5D arena, side props, wall sprites, and original obstacle presentation.
+
+When changing camera framing, map art, or obstacle presentation, verify both URLs so the team can compare styles.
 
 ## Controls
 
