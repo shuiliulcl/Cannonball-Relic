@@ -108,7 +108,9 @@ export class SceneView {
       group.scale.setScalar(0.85 + healthScale * 0.25);
       const hpFill = group.getObjectByName("hp-fill");
       if (hpFill) {
-        hpFill.scale.x = Math.max(0, monster.hp / monster.maxHp);
+        const hpRatio = Math.max(0, monster.hp / monster.maxHp);
+        hpFill.scale.x = hpRatio;
+        hpFill.position.x = -0.39 * (1 - hpRatio);
       }
     }
   }
@@ -321,7 +323,7 @@ export class SceneView {
       new THREE.MeshBasicMaterial({ color: 0xe33b2f, side: THREE.DoubleSide }),
     );
     fill.name = "hp-fill";
-    fill.position.z = 0.02;
+    fill.position.set(0, 0, 0.02);
 
     group.add(back, fill);
     return group;
