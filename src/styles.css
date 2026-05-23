@@ -576,3 +576,300 @@ button:focus-visible {
     min-height: 210px;
   }
 }
+
+.editor-app {
+  min-height: 100vh;
+  height: 100vh;
+  background: #171720;
+  color: #3c2114;
+}
+
+.editor-shell {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 120px minmax(560px, 1fr) 360px;
+  grid-template-rows: 76px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  background:
+    linear-gradient(rgba(18, 18, 24, 0.9), rgba(18, 18, 24, 0.9)),
+    url("/assets/skins/relic-ruins/textures/floor.png");
+  background-size: auto, 420px 420px;
+}
+
+.editor-topbar,
+.editor-toolbar,
+.editor-board-frame,
+.editor-inspector {
+  border: 3px solid #6f4326;
+  border-radius: 7px;
+  background: #f5e7bd;
+  box-shadow:
+    inset 0 0 0 3px #fff6d8,
+    inset 0 0 0 6px #b98b51,
+    0 10px 24px rgba(0, 0, 0, 0.32);
+}
+
+.editor-topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+}
+
+.editor-kicker {
+  display: block;
+  color: #7b5933;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.editor-topbar h1 {
+  margin: 0;
+  color: #4b2a19;
+  font-size: 25px;
+  line-height: 1.1;
+}
+
+.editor-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.editor-link {
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0 16px;
+  border-radius: 8px;
+  color: #2b170e;
+  background: #fff4ce;
+  box-shadow: inset 0 0 0 2px #7b5933;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.editor-toolbar {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+}
+
+.editor-toolbar button,
+.editor-segments button,
+.editor-actions button {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 3px 0 #6d3b20;
+  font-size: 13px;
+}
+
+.editor-toolbar button.is-active,
+.editor-segments button.is-active {
+  outline: 3px solid #4aa7ff;
+  outline-offset: 2px;
+  filter: brightness(1.08);
+}
+
+.editor-board-wrap {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.editor-board-frame {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: auto;
+  background: #372518;
+}
+
+.editor-grid {
+  width: min(100%, 900px);
+  aspect-ratio: 17 / 13;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 3px solid #2e1b12;
+  background: #2e1b12;
+}
+
+.editor-cell {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 1px solid rgba(71, 42, 27, 0.42);
+  border-radius: 3px;
+  box-shadow: none;
+  color: #fff4ce;
+  font-size: 10px;
+  line-height: 1.1;
+  text-shadow: 0 1px 0 #2e1b12;
+}
+
+.editor-cell.floor-sandstone {
+  background: #d9a76a;
+}
+
+.editor-cell.floor-cracked {
+  background: #a98682;
+}
+
+.editor-cell.floor-moss {
+  background: #80a66a;
+}
+
+.editor-cell.floor-danger {
+  background: #b74f39;
+}
+
+.editor-cell.has-obstacle {
+  border-color: #2e1b12;
+  background-image: linear-gradient(135deg, rgba(0, 0, 0, 0.26), transparent);
+}
+
+.editor-cell.has-spawn {
+  border-color: #fff2c0;
+  box-shadow: inset 0 0 0 2px rgba(255, 242, 192, 0.75);
+}
+
+.editor-cell.obstacle-wood {
+  background-color: #9a6431;
+}
+
+.editor-cell.obstacle-stone {
+  background-color: #686070;
+}
+
+.editor-cell.obstacle-metal {
+  background-color: #5f7180;
+}
+
+.editor-cell.spawn-grunt {
+  background-color: #c47a34;
+}
+
+.editor-cell.spawn-runner {
+  background-color: #3b91a5;
+}
+
+.editor-cell.spawn-tank {
+  background-color: #6b4d9a;
+}
+
+.editor-cell.is-selected {
+  outline: 3px solid #51d8ff;
+  outline-offset: -2px;
+}
+
+.editor-cell span,
+.editor-cell em {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.editor-hint {
+  color: #f5e7bd;
+  font-size: 13px;
+  text-align: center;
+}
+
+.editor-inspector {
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+}
+
+.editor-panel {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(111, 67, 38, 0.22);
+}
+
+.editor-panel h2 {
+  margin: 0 0 8px;
+  color: #6b3f25;
+  font-size: 15px;
+}
+
+.editor-panel p {
+  margin: 0;
+  font-weight: 800;
+}
+
+.editor-segments {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.editor-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #5b351e;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.editor-field.compact {
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+}
+
+.editor-field input,
+.editor-field select,
+.editor-field textarea {
+  width: 100%;
+  border: 2px solid #7b5933;
+  border-radius: 5px;
+  background: #fff4ce;
+  color: #3c2114;
+  font: inherit;
+  font-weight: 800;
+}
+
+.editor-field input,
+.editor-field select {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.editor-field textarea {
+  min-height: 230px;
+  padding: 10px;
+  resize: vertical;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.editor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .editor-shell {
+    grid-template-columns: 92px minmax(420px, 1fr) 320px;
+  }
+}

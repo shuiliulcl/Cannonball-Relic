@@ -3,7 +3,9 @@ import { Game } from "./game/Game";
 import { Input } from "./game/input";
 import { SceneView } from "./render/SceneView";
 import { Hud } from "./ui/Hud";
+import { LevelEditor } from "./editor/LevelEditor";
 
+const app = document.querySelector<HTMLElement>("#app");
 const sceneRoot = document.querySelector<HTMLDivElement>("#sceneRoot");
 const stageShell = document.querySelector<HTMLElement>("#stageShell");
 const startButton = document.querySelector<HTMLButtonElement>("#startButton");
@@ -15,6 +17,13 @@ const resumeButton = document.querySelector<HTMLButtonElement>("#resumeButton");
 const pauseRestartButton = document.querySelector<HTMLButtonElement>("#pauseRestartButton");
 const upgradePanel = document.querySelector<HTMLElement>("#upgradePanel");
 const upgradeChoices = document.querySelector<HTMLDivElement>("#upgradeChoices");
+
+if (new URLSearchParams(window.location.search).get("mode") === "editor") {
+  if (!app) {
+    throw new Error("Missing app root.");
+  }
+  new LevelEditor(app).mount();
+} else {
 
 if (
   !sceneRoot ||
@@ -66,3 +75,4 @@ hud.onUpgrade((upgradeId) => {
 });
 
 game.renderIdle();
+}

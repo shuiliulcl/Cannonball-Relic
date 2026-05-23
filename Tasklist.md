@@ -119,3 +119,13 @@
 - [x] Add pause overlay with continue and restart actions.
 - [x] Cancel charging safely when pausing.
 - [x] Build, interaction verify, and push pause flow.
+
+## Phase 15 - Level Editor
+
+- [x] Add standalone `?mode=editor` route.
+- [x] Design editable level JSON for floors, obstacles, and monster spawns.
+- [x] Build grid painting tools for floor materials, obstacles, spawns, and erase.
+- [x] Add inspector controls for materials and spawn logic.
+- [x] Add JSON export, import, reset, and copy actions.
+- [x] Add level editor documentation.
+- [x] Build, screenshot verify, and push level editor.
