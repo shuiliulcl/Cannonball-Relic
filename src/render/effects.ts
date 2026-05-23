@@ -1,10 +1,20 @@
 import * as THREE from "three";
 import type { Vec2 } from "../game/types";
 
-type FloatingText = {
+const TEXT_POOL_SIZE = 16;
+const TEXT_CANVAS_W = 128;
+const TEXT_CANVAS_H = 64;
+const TEXT_LIFETIME = 0.75;
+
+type PooledText = {
   sprite: THREE.Sprite;
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  texture: THREE.CanvasTexture;
+  material: THREE.SpriteMaterial;
   velocity: THREE.Vector3;
   life: number;
+  active: boolean;
 };
 
 type Spark = {
@@ -14,23 +24,39 @@ type Spark = {
   maxLife: number;
 };
 
+const SHARED_SPARK_GEO = new THREE.SphereGeometry(0.045, 8, 6);
+
 export class Effects {
   private readonly group = new THREE.Group();
-  private readonly texts: FloatingText[] = [];
+  private readonly textPool: PooledText[];
   private readonly sparks: Spark[] = [];
 
   constructor(private readonly scene: THREE.Scene) {
     scene.add(this.group);
+
+    this.textPool = Array.from({ length: TEXT_POOL_SIZE }, () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = TEXT_CANVAS_W;
+      canvas.height = TEXT_CANVAS_H;
+      const ctx = canvas.getContext("2d")!;
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+      const sprite = new THREE.Sprite(material);
+      sprite.scale.set(1.15, 0.58, 1);
+      sprite.visible = false;
+      scene.add(sprite);
+      return { sprite, canvas, ctx, texture, material, velocity: new THREE.Vector3(), life: 0, active: false };
+    });
   }
 
   damageText(text: string, position: Vec2, color = "#fff2c0"): void {
-    const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 64;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return;
+    const item = this.textPool.find((t) => !t.active);
+    if (!item) {
+      return; // 池满时静默丢弃（高频战斗期间极少发生）
     }
+    const { ctx, canvas, texture, sprite } = item;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.font = "800 34px Arial";
     ctx.textAlign = "center";
     ctx.lineWidth = 7;
@@ -38,27 +64,27 @@ export class Effects {
     ctx.strokeText(text, 64, 42);
     ctx.fillStyle = color;
     ctx.fillText(text, 64, 42);
+    texture.needsUpdate = true;
 
-    const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-    const sprite = new THREE.Sprite(material);
     sprite.position.set(position.x, 1.25, position.z);
-    sprite.scale.set(1.15, 0.58, 1);
-    this.group.add(sprite);
-    this.texts.push({ sprite, velocity: new THREE.Vector3(0, 1.2, 0), life: 0.75 });
+    sprite.material.opacity = 1;
+    sprite.visible = true;
+    item.velocity.set(0, 1.2, 0);
+    item.life = TEXT_LIFETIME;
+    item.active = true;
   }
 
   update(dt: number): void {
-    for (let i = this.texts.length - 1; i >= 0; i -= 1) {
-      const item = this.texts[i];
+    for (const item of this.textPool) {
+      if (!item.active) {
+        continue;
+      }
       item.life -= dt;
       item.sprite.position.addScaledVector(item.velocity, dt);
-      item.sprite.material.opacity = Math.max(0, item.life / 0.75);
+      item.sprite.material.opacity = Math.max(0, item.life / TEXT_LIFETIME);
       if (item.life <= 0) {
-        this.group.remove(item.sprite);
-        item.sprite.material.map?.dispose();
-        item.sprite.material.dispose();
-        this.texts.splice(i, 1);
+        item.sprite.visible = false;
+        item.active = false;
       }
     }
 
@@ -73,7 +99,6 @@ export class Effects {
       }
       if (spark.life <= 0) {
         this.group.remove(spark.mesh);
-        spark.mesh.geometry.dispose();
         if (spark.mesh.material instanceof THREE.Material) {
           spark.mesh.material.dispose();
         }
@@ -85,7 +110,7 @@ export class Effects {
   spark(position: Vec2, color = 0xffe08a, count = 10): void {
     for (let i = 0; i < count; i += 1) {
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.045, 8, 6),
+        SHARED_SPARK_GEO,
         new THREE.MeshBasicMaterial({ color, transparent: true }),
       );
       const angle = Math.random() * Math.PI * 2;

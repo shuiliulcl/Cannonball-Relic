@@ -19,6 +19,9 @@ const resumeButton = document.querySelector<HTMLButtonElement>("#resumeButton");
 const pauseRestartButton = document.querySelector<HTMLButtonElement>("#pauseRestartButton");
 const upgradePanel = document.querySelector<HTMLElement>("#upgradePanel");
 const upgradeChoices = document.querySelector<HTMLDivElement>("#upgradeChoices");
+const buffOverlay = document.querySelector<HTMLDivElement>("#buffOverlay");
+const buffButton = document.querySelector<HTMLButtonElement>("#buffButton");
+const buffCloseButton = document.querySelector<HTMLButtonElement>("#buffCloseButton");
 
 if (new URLSearchParams(window.location.search).get("mode") === "editor") {
   if (!app) {
@@ -38,7 +41,10 @@ if (
   !resumeButton ||
   !pauseRestartButton ||
   !upgradePanel ||
-  !upgradeChoices
+  !upgradeChoices ||
+  !buffOverlay ||
+  !buffButton ||
+  !buffCloseButton
 ) {
   throw new Error("Missing required DOM nodes.");
 }
@@ -47,7 +53,7 @@ const runtimeLevel = new URLSearchParams(window.location.search).get("level") ==
 const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
 const input = new Input(sceneRoot);
 const view = new SceneView(sceneRoot, convertedLevel?.obstacles, convertedLevel);
-const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay);
+const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
 const game = new Game(input, view, hud, convertedLevel);
 
 startButton.addEventListener("click", () => {
@@ -60,6 +66,7 @@ restartButton.addEventListener("click", () => {
   startOverlay.hidden = true;
   resultOverlay.hidden = true;
   pauseOverlay.hidden = true;
+  buffOverlay.hidden = true;
   game.start();
 });
 
@@ -71,11 +78,20 @@ pauseRestartButton.addEventListener("click", () => {
   startOverlay.hidden = true;
   resultOverlay.hidden = true;
   pauseOverlay.hidden = true;
+  buffOverlay.hidden = true;
   game.start();
 });
 
 hud.onUpgrade((upgradeId) => {
   game.chooseUpgrade(upgradeId);
+});
+
+hud.onBuffOpen(() => {
+  game.openBuffPanel();
+});
+
+hud.onBuffClose(() => {
+  game.closeBuffPanel();
 });
 
 game.renderIdle();

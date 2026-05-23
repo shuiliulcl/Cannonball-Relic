@@ -53,6 +53,31 @@ src/
 
 `Game` owns pure gameplay state and calls `SceneView` to sync visible objects. The renderer should not decide score, damage, bounce count, or wave progression. UI reads game snapshots and sends explicit commands such as `start`, `chooseUpgrade`, or `restart`.
 
+## Planned Feature Hooks
+
+- Buff review panel:
+  - Store owned upgrades/buffs in `Game` state.
+  - Expose owned buff data through `GameSnapshot` or a dedicated HUD update method.
+  - Let `Hud` own the panel DOM and send `pauseForBuffPanel` / `resumeFromBuffPanel` style commands back to `Game`.
+  - Opening the panel pauses simulation; closing resumes only if the game was previously running and not already paused for upgrades/results.
+- One-time diamond cards:
+  - Extend card rarity data to include `diamond`, `gold`, and `bronze` presentation tiers, or map current rarity values into those tiers.
+  - Track selected one-time card IDs in `Game`.
+  - Filter selected diamond cards out of future `draftUpgrades` calls.
+- Monster health bars:
+  - Keep health values in `Monster`.
+  - Render a small billboard or HTML-free Three.js bar above each monster in `SceneView.syncMonsters`.
+- Tap-fire and charge-fire consistency:
+  - Normalize projectile speed in `Game.updatePlayer`.
+  - If charge remains, use it for aiming commitment, range, or later card hooks rather than making tap-fire slower by default.
+- Bounce-colored trajectory:
+  - Return segment/bounce metadata from trajectory generation, or split trajectory points into segments in `SceneView`/`TrajectoryView`.
+  - Shift color toward red after each bounce segment.
+- Dodge roll:
+  - Replace instant dash with a 0.5 second roll state on `Player`.
+  - During roll, advance the player at high speed and set invulnerability for the whole roll window.
+  - Expose dodge cooldown remaining through HUD state for lower HUD display.
+
 ## Build And Run
 
 ```bash

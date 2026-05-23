@@ -1,18 +1,11 @@
 import { HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./config";
-import { draftUpgrades } from "./upgrades";
-import { add, bounceCircleFromObstacle, bounceInArena, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
-import type { Marble, Monster, Player, UpgradeId, Vec2 } from "./types";
+import { draftUpgrades, findUpgrade, DEFAULT_UPGRADE_STATS } from "./upgrades";
+import { add, applyHoming, bounceCircleFromObstacle, bounceInArena, calcBounceDamage, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
+import type { Marble, Monster, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
 import type { Input } from "./input";
 import type { SceneView } from "../render/SceneView";
 import type { Hud } from "../ui/Hud";
 import type { MonsterType, RuntimeLevel, RuntimeSpawn } from "../levels/types";
-
-type UpgradeStats = {
-  bounceBonusDamage: number;
-  rangeMultiplier: number;
-  recallDamageBonus: number;
-  maxHp: number;
-};
 
 type SpawnQueueItem = RuntimeSpawn & {
   remaining: number;
@@ -21,8 +14,10 @@ type SpawnQueueItem = RuntimeSpawn & {
 
 export class Game {
   private player: Player = this.createPlayer();
+  private stats: UpgradeStats = DEFAULT_UPGRADE_STATS();
   private marble: Marble = this.createMarble();
   private monsters: Monster[] = [];
+  private chargeSeconds = 0;
   private running = false;
   private paused = false;
   private pausedForUpgrade = false;
@@ -33,14 +28,13 @@ export class Game {
   private rafId = 0;
   private nextMonsterId = 1;
   private spawnQueue: SpawnQueueItem[] = [];
+  private waveSpawnTotal = 0;
+  private readonly ownedUpgrades = new Map<UpgradeId, number>();
+  private readonly blockedDiamondUpgrades = new Set<UpgradeId>();
+  private pausedForBuffPanel = false;
+  private wasPausedBeforeBuffPanel = false;
   private readonly obstacles;
   private readonly levelSpawns;
-  private stats: UpgradeStats = {
-    bounceBonusDamage: MARBLE.bounceBonusDamage,
-    rangeMultiplier: 1,
-    recallDamageBonus: 0,
-    maxHp: PLAYER.hp,
-  };
 
   constructor(
     private readonly input: Input,
@@ -62,12 +56,12 @@ export class Game {
     this.score = 0;
     this.wave = 1;
     this.nextMonsterId = 1;
-    this.stats = {
-      bounceBonusDamage: MARBLE.bounceBonusDamage,
-      rangeMultiplier: 1,
-      recallDamageBonus: 0,
-      maxHp: PLAYER.hp,
-    };
+    this.waveSpawnTotal = 0;
+    this.stats = DEFAULT_UPGRADE_STATS();
+    this.ownedUpgrades.clear();
+    this.blockedDiamondUpgrades.clear();
+    this.pausedForBuffPanel = false;
+    this.wasPausedBeforeBuffPanel = false;
     this.spawnWave();
     this.running = true;
     this.paused = false;
@@ -76,6 +70,7 @@ export class Game {
     this.hud.hideUpgrades();
     this.hud.hideResult();
     this.hud.hidePause();
+    this.hud.hideBuffs();
     this.lastTime = performance.now();
     cancelAnimationFrame(this.rafId);
     this.rafId = requestAnimationFrame((time) => this.loop(time));
@@ -90,21 +85,13 @@ export class Game {
   }
 
   chooseUpgrade(upgradeId: UpgradeId): void {
-    if (upgradeId === "extraDamage") {
-      this.stats.bounceBonusDamage += 1;
-    }
-    if (upgradeId === "longerRange") {
-      this.stats.rangeMultiplier += 0.25;
-    }
-    if (upgradeId === "recallBlade") {
-      this.stats.recallDamageBonus += 1;
-    }
-    if (upgradeId === "quickDash") {
-      this.player.dashCooldown *= 0.82;
-    }
-    if (upgradeId === "vitality") {
-      this.stats.maxHp += 1;
-      this.player.hp = Math.min(this.stats.maxHp, this.player.hp + 1);
+    const upgrade = findUpgrade(upgradeId);
+    if (upgrade) {
+      upgrade.apply(this.stats, this.player);
+      this.ownedUpgrades.set(upgrade.id, (this.ownedUpgrades.get(upgrade.id) ?? 0) + 1);
+      if (upgrade.rarity === "diamond") {
+        this.blockedDiamondUpgrades.add(upgrade.id);
+      }
     }
     if (upgradeId === "humanCannon") {
       this.activateHumanCannon();
@@ -135,7 +122,7 @@ export class Game {
   }
 
   resume(): void {
-    if (!this.running || this.gameOver || this.pausedForUpgrade) {
+    if (!this.running || this.gameOver || this.pausedForUpgrade || this.pausedForBuffPanel) {
       return;
     }
     this.paused = false;
@@ -144,7 +131,7 @@ export class Game {
   }
 
   togglePause(): void {
-    if (!this.running || this.gameOver || this.pausedForUpgrade) {
+    if (!this.running || this.gameOver || this.pausedForUpgrade || this.pausedForBuffPanel) {
       return;
     }
     if (this.paused) {
@@ -154,6 +141,29 @@ export class Game {
     this.paused = true;
     this.cancelCharge();
     this.hud.showPause();
+  }
+
+  openBuffPanel(): void {
+    if (!this.running || this.gameOver || this.pausedForUpgrade || this.pausedForBuffPanel) {
+      return;
+    }
+    this.wasPausedBeforeBuffPanel = this.paused;
+    this.paused = true;
+    this.pausedForBuffPanel = true;
+    this.cancelCharge();
+    this.hud.showBuffs(this.ownedBuffs());
+  }
+
+  closeBuffPanel(): void {
+    if (!this.pausedForBuffPanel) {
+      this.hud.hideBuffs();
+      return;
+    }
+    this.pausedForBuffPanel = false;
+    this.paused = this.wasPausedBeforeBuffPanel;
+    this.wasPausedBeforeBuffPanel = false;
+    this.hud.hideBuffs();
+    this.lastTime = performance.now();
   }
 
   private update(dt: number): void {
@@ -169,7 +179,7 @@ export class Game {
         return;
       }
       this.pausedForUpgrade = true;
-      this.hud.showUpgrades(draftUpgrades(3, this.wave));
+      this.hud.showUpgrades(draftUpgrades(3, this.wave, this.blockedDiamondUpgrades));
     }
   }
 
@@ -180,37 +190,46 @@ export class Game {
     }
 
     const movement = this.input.movement();
-    const delta = scale(movement, this.player.speed * dt);
-    this.player.position = clampToArena(add(this.player.position, delta), this.player.radius);
     this.player.dashTimer = Math.max(0, this.player.dashTimer - dt);
     this.player.invulnTimer = Math.max(0, this.player.invulnTimer - dt);
 
-    if (this.input.keys.has(" ") && this.player.dashTimer <= 0 && (movement.x !== 0 || movement.z !== 0)) {
-      this.player.position = clampToArena(add(this.player.position, scale(movement, PLAYER.dashDistance)), this.player.radius);
+    if (this.player.rollTimer > 0) {
+      this.player.position = clampToArena(add(this.player.position, scale(this.player.rollVelocity, dt)), this.player.radius);
+      this.player.rollTimer = Math.max(0, this.player.rollTimer - dt);
+      this.player.invulnTimer = Math.max(this.player.invulnTimer, this.player.rollTimer);
+    } else {
+      const delta = scale(movement, this.player.speed * dt);
+      this.player.position = clampToArena(add(this.player.position, delta), this.player.radius);
+    }
+
+    if (this.input.keys.has(" ") && this.player.dashTimer <= 0 && this.player.rollTimer <= 0 && (movement.x !== 0 || movement.z !== 0)) {
+      this.player.rollTimer = PLAYER.rollDuration;
+      this.player.rollDuration = PLAYER.rollDuration;
+      this.player.rollVelocity = scale(movement, PLAYER.dashDistance / PLAYER.rollDuration);
+      this.player.invulnTimer = PLAYER.rollDuration;
       this.player.dashTimer = this.player.dashCooldown;
     }
 
     if (this.input.leftDown && this.marble.state === "ready") {
       this.marble.state = "charging";
-      this.input.chargeSeconds = 0;
+      this.chargeSeconds = 0;
     }
 
     if (this.marble.state === "charging") {
-      this.input.chargeSeconds = Math.min(MARBLE.maxChargeSeconds, this.input.chargeSeconds + dt);
+      this.chargeSeconds = Math.min(MARBLE.maxChargeSeconds, this.chargeSeconds + dt);
       const direction = this.aimDirection();
-      this.view.showTrajectory(makeTrajectory(this.player.position, direction, 3, this.obstacles), this.input.chargeSeconds / MARBLE.maxChargeSeconds);
+      this.view.showTrajectory(makeTrajectory(this.player.position, direction, MARBLE.maxBounces, this.obstacles, 0.2, MARBLE.radius), this.chargeSeconds / MARBLE.maxChargeSeconds);
     }
 
     if (this.input.consumeLeftRelease() && this.marble.state === "charging") {
-      const charge = 0.55 + this.input.chargeSeconds / MARBLE.maxChargeSeconds;
       const direction = this.aimDirection();
       this.marble.state = "flying";
       this.marble.position = { ...this.player.position };
-      this.marble.velocity = scale(direction, MARBLE.baseSpeed * charge);
-      this.marble.distanceLeft = MARBLE.baseRange * this.stats.rangeMultiplier * charge;
+      this.marble.velocity = scale(direction, MARBLE.baseSpeed);
+      this.marble.distanceLeft = MARBLE.baseRange * this.stats.rangeMultiplier;
       this.marble.bounces = 0;
       this.marble.hitIds.clear();
-      this.input.chargeSeconds = 0;
+      this.chargeSeconds = 0;
       this.view.hideTrajectory();
     }
 
@@ -236,6 +255,10 @@ export class Game {
       this.marble.velocity = scale(normalize(toPlayer), MARBLE.recallSpeed);
     }
 
+    if (this.marble.state === "flying" && this.stats.homingAngle > 0) {
+      this.marble.velocity = applyHoming(this.marble.velocity, this.marble.position, this.monsters, this.stats.homingAngle);
+    }
+
     const step = scale(this.marble.velocity, dt);
     this.marble.position = add(this.marble.position, step);
     this.marble.distanceLeft -= Math.hypot(step.x, step.z);
@@ -259,6 +282,10 @@ export class Game {
       this.marble.bounces += 1;
       this.marble.hitIds.clear();
       this.view.spark(this.marble.position, 0xffdf72, 12);
+      if (this.marble.bounces >= MARBLE.maxBounces) {
+        this.marble.state = "recalling";
+        this.marble.hitIds.clear();
+      }
     }
 
     if (this.marble.distanceLeft <= 0 && this.marble.state === "flying") {
@@ -353,7 +380,7 @@ export class Game {
       return;
     }
 
-    const baseDamage = MARBLE.baseDamage + this.marble.bounces * this.stats.bounceBonusDamage;
+    const baseDamage = calcBounceDamage(this.marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage);
     const damage = this.marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus : baseDamage;
 
     for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
@@ -366,13 +393,20 @@ export class Game {
         this.marble.hitIds.add(monster.id);
         this.view.damageText(String(damage), monster.position);
         this.view.spark(monster.position, 0x9de7ff, 14);
+        if (!monster.noKnockback && monster.hp > 0) {
+          const knockDir = normalize(sub(monster.position, this.marble.position));
+          monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius);
+        }
         if (monster.hp <= 0) {
           this.score += 10 + this.marble.bounces * 5;
           this.monsters.splice(i, 1);
         }
         if (this.marble.state === "flying") {
-          this.marble.state = "recalling";
-          this.marble.hitIds.clear();
+          this.marble.hp -= 1;
+          if (this.marble.hp <= 0) {
+            this.marble.state = "recalling";
+            this.marble.hitIds.clear();
+          }
         }
       }
     }
@@ -386,11 +420,14 @@ export class Game {
       score: this.score,
       wave: this.wave,
       marbleState: this.player.mode === "humanCannon" ? "cannon" : this.marble.state,
-      damageScale: MARBLE.baseDamage + this.marble.bounces * this.stats.bounceBonusDamage,
-      chargeRatio: this.marble.state === "charging" ? this.input.chargeSeconds / MARBLE.maxChargeSeconds : 0,
+      damageScale: calcBounceDamage(this.marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage),
+      chargeRatio: this.marble.state === "charging" ? this.chargeSeconds / MARBLE.maxChargeSeconds : 0,
       hp: this.player.hp,
       maxHp: this.stats.maxHp,
       waveProgress: this.waveProgress(),
+      dashCooldownRatio: this.player.dashCooldown > 0 ? 1 - this.player.dashTimer / this.player.dashCooldown : 1,
+      dashCooldownText: this.player.dashTimer > 0 ? `${this.player.dashTimer.toFixed(1)}s` : "就绪",
+      ownedBuffs: this.ownedBuffs(),
     });
   }
 
@@ -400,36 +437,36 @@ export class Game {
   }
 
   private spawnWave(): void {
-    if (this.levelSpawns.length > 0) {
-      const spawns = this.levelSpawns.filter((spawn) => spawn.wave === this.wave);
-      for (const spawn of spawns) {
-        this.spawnQueue.push({
-          ...spawn,
-          remaining: spawn.count,
-          timer: 0,
-        });
-      }
-      this.updateSpawnQueue(0);
-      return;
-    }
+    const spawns = this.levelSpawns.length > 0
+      ? this.levelSpawns.filter((spawn) => spawn.wave === this.wave)
+      : this.defaultSpawnsForWave();
 
+    this.waveSpawnTotal = spawns.reduce((sum, s) => sum + s.count, 0);
+
+    for (const spawn of spawns) {
+      this.spawnQueue.push({ ...spawn, remaining: spawn.count, timer: 0 });
+    }
+    this.updateSpawnQueue(0);
+  }
+
+  private defaultSpawnsForWave(): Array<SpawnQueueItem> {
     const count = 4 + this.wave * 2;
+    const items: SpawnQueueItem[] = [];
     for (let i = 0; i < count; i += 1) {
       const row = Math.floor(i / 4);
       const col = i % 4;
-      this.monsters.push({
-        id: this.nextMonsterId,
-        position: {
-          x: -3.2 + col * 2.1,
-          z: -3.8 - row * 0.72,
-        },
-        radius: MONSTER.radius,
-        hp: MONSTER.hp + Math.floor(this.wave / 2),
-        maxHp: MONSTER.hp + Math.floor(this.wave / 2),
-        speed: MONSTER.speed + this.wave * 0.06,
+      items.push({
+        id: `default-${i}`,
+        position: { x: -3.2 + col * 2.1, z: -3.8 - row * 0.72 },
+        wave: this.wave,
+        count: 1,
+        monsterType: "grunt",
+        interval: 0,
+        remaining: 1,
+        timer: 0,
       });
-      this.nextMonsterId += 1;
     }
+    return items;
   }
 
   private updateSpawnQueue(dt: number): void {
@@ -456,6 +493,7 @@ export class Game {
       hp: stats.hp + Math.floor(this.wave / 2),
       maxHp: stats.hp + Math.floor(this.wave / 2),
       speed: stats.speed + this.wave * 0.06,
+      monsterType,
     });
     this.nextMonsterId += 1;
   }
@@ -475,16 +513,11 @@ export class Game {
   }
 
   private waveProgress(): number {
-    if (this.levelSpawns.length > 0) {
-      const total = this.levelSpawns.filter((spawn) => spawn.wave === this.wave).reduce((sum, spawn) => sum + spawn.count, 0);
-      if (total <= 0) {
-        return 1;
-      }
-      const remainingQueued = this.spawnQueue.reduce((sum, spawn) => sum + spawn.remaining, 0);
-      return Math.max(0, Math.min(1, 1 - (this.monsters.length + remainingQueued) / total));
+    if (this.waveSpawnTotal <= 0) {
+      return 1;
     }
-    const startingCount = 4 + this.wave * 2;
-    return Math.max(0, Math.min(1, 1 - this.monsters.length / startingCount));
+    const remainingQueued = this.spawnQueue.reduce((sum, item) => sum + item.remaining, 0);
+    return Math.max(0, Math.min(1, 1 - (this.monsters.length + remainingQueued) / this.waveSpawnTotal));
   }
 
   private createPlayer(): Player {
@@ -500,8 +533,29 @@ export class Game {
       speed: PLAYER.speed,
       dashCooldown: PLAYER.dashCooldown,
       dashTimer: 0,
+      rollTimer: 0,
+      rollDuration: PLAYER.rollDuration,
+      rollVelocity: { x: 0, z: 0 },
       invulnTimer: 0,
     };
+  }
+
+  private ownedBuffs(): OwnedBuff[] {
+    const buffs: OwnedBuff[] = [];
+    for (const [id, count] of this.ownedUpgrades) {
+      const upgrade = findUpgrade(id);
+      if (!upgrade) {
+        continue;
+      }
+      buffs.push({
+        id,
+        title: upgrade.title,
+        description: upgrade.description,
+        rarity: upgrade.rarity,
+        count,
+      });
+    }
+    return buffs;
   }
 
   private activateHumanCannon(): void {
@@ -520,7 +574,7 @@ export class Game {
   private cancelCharge(): void {
     if (this.marble.state === "charging") {
       this.marble.state = "ready";
-      this.input.chargeSeconds = 0;
+      this.chargeSeconds = 0;
       this.view.hideTrajectory();
     }
     this.input.clearPointerActions();
@@ -535,6 +589,7 @@ export class Game {
       bounces: 0,
       distanceLeft: 0,
       hitIds: new Set<number>(),
+      hp: this.stats.marbleHp,
     };
   }
 
@@ -546,8 +601,10 @@ export class Game {
     this.running = false;
     this.paused = false;
     this.pausedForUpgrade = false;
+    this.pausedForBuffPanel = false;
     this.view.hideTrajectory();
     this.hud.hidePause();
+    this.hud.hideBuffs();
     this.hud.showResult(kind, this.score, this.wave);
   }
 }

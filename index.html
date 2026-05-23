@@ -10,6 +10,8 @@
       <section id="stageShell" class="stage-shell">
         <div id="sceneRoot" class="scene-root"></div>
         <section class="game-hud" aria-label="Game status">
+          <button id="buffButton" class="buff-button" type="button" title="查看当前强化">◆</button>
+
           <div class="hp-panel">
             <div class="heart">HP</div>
             <div class="hp-frame">
@@ -24,7 +26,7 @@
               <div id="progressFill" class="progress-fill"></div>
             </div>
             <span class="progress-node">B</span>
-          <span class="progress-wave">第 <strong id="wave">1</strong> 波</span>
+            <span class="progress-wave">第 <strong id="wave">1</strong> 波</span>
           </div>
 
           <div class="controls-panel">
@@ -32,12 +34,12 @@
             <div class="control-grid">
               <span>WASD</span>
               <span>移动</span>
-              <span>按住左键</span>
-              <span>瞄准</span>
-              <span>松开</span>
-              <span>发射</span>
+              <span>左键</span>
+              <span>发射 / 蓄力</span>
               <span>右键</span>
               <span>回收</span>
+              <span>Space</span>
+              <span>翻滚</span>
               <span>P / Esc</span>
               <span>暂停</span>
             </div>
@@ -50,24 +52,32 @@
               <div id="chargeFill" class="charge-fill"></div>
               <strong id="charge">0%</strong>
             </div>
+            <div class="dash-meter">
+              <span>翻滚</span>
+              <div class="dash-track"><div id="dashFill" class="dash-fill"></div></div>
+              <strong id="dashCooldown">就绪</strong>
+            </div>
             <div class="buff-readout">
               <span>分数 <strong id="score">0</strong></span>
-              <span id="marbleState">ready</span>
+              <span id="marbleState">待发射</span>
               <span id="damageScale">x1</span>
             </div>
           </div>
         </section>
+
         <div id="startOverlay" class="overlay">
           <h1>Cannonball Relic</h1>
-          <p>WASD 移动。按住左键预瞄，松开发射弹珠。右键回收弹珠。</p>
+          <p>WASD 移动。左键点按或蓄力后松开发射弹珠。右键回收弹珠，Space 翻滚。</p>
           <button id="startButton" type="button">开始游戏</button>
         </div>
+
         <div id="resultOverlay" class="overlay result-overlay" hidden>
           <span id="resultKicker" class="result-kicker">本局结束</span>
           <h1 id="resultTitle">胜利</h1>
           <p id="resultSummary">分数 0</p>
           <button id="restartButton" type="button">重新开始</button>
         </div>
+
         <div id="pauseOverlay" class="overlay pause-overlay" hidden>
           <span class="result-kicker">暂停中</span>
           <h1>暂停</h1>
@@ -76,6 +86,13 @@
             <button id="resumeButton" type="button">继续游戏</button>
             <button id="pauseRestartButton" type="button">重新开始</button>
           </div>
+        </div>
+
+        <div id="buffOverlay" class="overlay buff-overlay" hidden>
+          <span class="result-kicker">当前强化</span>
+          <h1>Buff 列表</h1>
+          <div id="buffList" class="buff-list"></div>
+          <button id="buffCloseButton" type="button">返回游戏</button>
         </div>
 
         <section id="upgradePanel" class="upgrade-panel" hidden>

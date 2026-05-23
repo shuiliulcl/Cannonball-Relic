@@ -4,6 +4,7 @@ import type { Marble, Monster, Obstacle, Player, Vec2 } from "../game/types";
 import type { FloorMaterial, ObstacleMaterial, RuntimeLevel } from "../levels/types";
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
 import { Effects } from "./effects";
+import { TrajectoryView } from "./TrajectoryView";
 import { preparePixelTexture, resolveSkinAssets } from "./skin";
 
 export class SceneView {
@@ -21,10 +22,11 @@ export class SceneView {
   private readonly marbleSprite = this.createSprite(this.skin.marble, 0.58, 0.58);
   private readonly monsterMeshes = new Map<number, THREE.Group>();
   private readonly obstacleMeshes = new Map<string, THREE.Group>();
-  private readonly trajectoryGroup = new THREE.Group();
-  private readonly trajectoryPulseItems: Array<{ mesh: THREE.Mesh; baseScale: number; phase: number }> = [];
-  private trajectoryPulseTime = 0;
+  private readonly trajectory: TrajectoryView;
   private readonly effects: Effects;
+  private readonly _raycaster = new THREE.Raycaster();
+  private readonly _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private readonly _planeHit = new THREE.Vector3();
 
   constructor(
     private readonly root: HTMLElement,
@@ -38,9 +40,7 @@ export class SceneView {
 
     this.scene.background = new THREE.Color(0x171720);
     this.effects = new Effects(this.scene);
-
-    this.trajectoryGroup.visible = false;
-    this.scene.add(this.trajectoryGroup);
+    this.trajectory = new TrajectoryView(this.scene);
 
     this.setupCamera();
     this.setupLights();
@@ -68,7 +68,7 @@ export class SceneView {
 
   updateEffects(dt: number): void {
     this.effects.update(dt);
-    this.updateTrajectoryPulse(dt);
+    this.trajectory.update(dt);
   }
 
   syncPlayer(player: Player): void {
@@ -99,13 +99,17 @@ export class SceneView {
     for (const monster of monsters) {
       let group = this.monsterMeshes.get(monster.id);
       if (!group) {
-        group = this.createMonsterMesh();
+        group = this.createMonsterMesh(monster.monsterType);
         this.monsterMeshes.set(monster.id, group);
         this.scene.add(group);
       }
       group.position.set(monster.position.x, 0, monster.position.z);
       const healthScale = Math.max(0.35, monster.hp / monster.maxHp);
       group.scale.setScalar(0.85 + healthScale * 0.25);
+      const hpFill = group.getObjectByName("hp-fill");
+      if (hpFill) {
+        hpFill.scale.x = Math.max(0, monster.hp / monster.maxHp);
+      }
     }
   }
 
@@ -118,52 +122,11 @@ export class SceneView {
   }
 
   showTrajectory(points: Vec2[], chargeRatio: number): void {
-    this.clearTrajectoryObjects();
-    if (points.length <= 1) {
-      this.trajectoryGroup.visible = false;
-      return;
-    }
-
-    const power = THREE.MathUtils.clamp(chargeRatio, 0, 1);
-    const color = power > 0.72 ? 0xffe38a : 0x8eeaff;
-    const coreColor = power > 0.72 ? 0xff9d42 : 0x55d4ff;
-    const sampleStride = power > 0.7 ? 3 : 4;
-    let index = 0;
-
-    for (let i = 0; i < points.length; i += sampleStride) {
-      const point = points[i];
-      const size = THREE.MathUtils.lerp(0.035, 0.07, power) * (index % 2 === 0 ? 1 : 0.72);
-      const dot = this.createTrajectoryOrb(size, color, 0.3 + power * 0.28);
-      dot.position.set(point.x, 0.22, point.z);
-      this.trajectoryGroup.add(dot);
-      this.trajectoryPulseItems.push({ mesh: dot, baseScale: 1, phase: index * 0.42 });
-      index += 1;
-    }
-
-    for (let i = 2; i < points.length - 2; i += 1) {
-      const before = points[i - 2];
-      const current = points[i];
-      const after = points[i + 2];
-      const a = new THREE.Vector2(current.x - before.x, current.z - before.z).normalize();
-      const b = new THREE.Vector2(after.x - current.x, after.z - current.z).normalize();
-      if (a.dot(b) < 0.82) {
-        this.addTrajectoryRing(current, coreColor, 0.28 + power * 0.14, 0.52);
-        i += 6;
-      }
-    }
-
-    const end = points[points.length - 1];
-    this.addTrajectoryRing(end, coreColor, 0.36 + power * 0.16, 0.75);
-    const glow = this.createTrajectoryOrb(0.12 + power * 0.06, coreColor, 0.34 + power * 0.24);
-    glow.position.set(end.x, 0.26, end.z);
-    this.trajectoryGroup.add(glow);
-    this.trajectoryPulseItems.push({ mesh: glow, baseScale: 1, phase: index * 0.42 });
-    this.trajectoryGroup.visible = true;
+    this.trajectory.show(points, chargeRatio);
   }
 
   hideTrajectory(): void {
-    this.trajectoryGroup.visible = false;
-    this.clearTrajectoryObjects();
+    this.trajectory.hide();
   }
 
   damageText(text: string, position: Vec2): void {
@@ -211,12 +174,9 @@ export class SceneView {
   }
 
   pointerToPlane(pointer: THREE.Vector2): Vec2 {
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(pointer, this.camera);
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hit = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, hit);
-    return { x: hit.x, z: hit.z };
+    this._raycaster.setFromCamera(pointer, this.camera);
+    this._raycaster.ray.intersectPlane(this._groundPlane, this._planeHit);
+    return { x: this._planeHit.x, z: this._planeHit.z };
   }
 
   private setupCamera(): void {
@@ -319,14 +279,51 @@ export class SceneView {
     }
   }
 
-  private createMonsterMesh(): THREE.Group {
+  private createMonsterMesh(monsterType: "grunt" | "runner" | "tank" = "grunt"): THREE.Group {
     const group = new THREE.Group();
-    const shadow = makeCylinder(0.38, 0.04, 0x2a1b16);
+
+    // 各类型的视觉参数
+    const cfg = monsterType === "runner"
+      ? { shadowR: 0.28, shadowColor: 0x1a1010, spriteW: 0.82, spriteH: 1.1, tint: 0xff6a6a }
+      : monsterType === "tank"
+      ? { shadowR: 0.52, shadowColor: 0x1a1208, spriteW: 1.42, spriteH: 1.72, tint: 0x8866ff }
+      : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, tint: 0xffffff };
+
+    const shadow = makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);
     shadow.position.y = 0.03;
     shadow.scale.z = 0.72;
-    const sprite = this.createSprite(this.skin.enemyGrunt, 1.08, 1.35);
-    sprite.position.y = 0.92;
+
+    const sprite = this.createSprite(this.skin.enemyGrunt, cfg.spriteW, cfg.spriteH);
+    sprite.position.y = cfg.spriteH * 0.68;
+
+    // runner 偏红色调，tank 偏紫色调（通过颜色叠加区分）
+    if (monsterType !== "grunt") {
+      (sprite.material as THREE.SpriteMaterial).color.setHex(cfg.tint);
+    }
+
     group.add(shadow, sprite);
+    group.add(this.createMonsterHealthBar(cfg.spriteH));
+    return group;
+  }
+
+  private createMonsterHealthBar(spriteHeight: number): THREE.Group {
+    const group = new THREE.Group();
+    group.position.y = spriteHeight + 0.34;
+
+    const back = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.82, 0.1),
+      new THREE.MeshBasicMaterial({ color: 0x2a1110, side: THREE.DoubleSide }),
+    );
+    back.position.z = 0.01;
+
+    const fill = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.78, 0.06),
+      new THREE.MeshBasicMaterial({ color: 0xe33b2f, side: THREE.DoubleSide }),
+    );
+    fill.name = "hp-fill";
+    fill.position.z = 0.02;
+
+    group.add(back, fill);
     return group;
   }
 
@@ -377,63 +374,6 @@ export class SceneView {
       return this.skin.floorDanger;
     }
     return this.skin.floor;
-  }
-
-  private createTrajectoryOrb(radius: number, color: number, opacity: number): THREE.Mesh {
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(radius, 10, 8),
-      new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    );
-    return mesh;
-  }
-
-  private addTrajectoryRing(point: Vec2, color: number, radius: number, opacity: number): void {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(radius, 0.018, 8, 32),
-      new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(point.x, 0.09, point.z);
-    this.trajectoryGroup.add(ring);
-    this.trajectoryPulseItems.push({ mesh: ring, baseScale: 1, phase: this.trajectoryPulseItems.length * 0.5 });
-  }
-
-  private updateTrajectoryPulse(dt: number): void {
-    if (!this.trajectoryGroup.visible) {
-      return;
-    }
-    this.trajectoryPulseTime += dt * 5.5;
-    for (const item of this.trajectoryPulseItems) {
-      const pulse = 1 + Math.sin(this.trajectoryPulseTime - item.phase) * 0.13;
-      item.mesh.scale.setScalar(item.baseScale * pulse);
-      const material = item.mesh.material;
-      if (material instanceof THREE.MeshBasicMaterial) {
-        material.opacity = Math.max(0.18, material.opacity);
-      }
-    }
-  }
-
-  private clearTrajectoryObjects(): void {
-    for (const item of this.trajectoryPulseItems) {
-      this.trajectoryGroup.remove(item.mesh);
-      item.mesh.geometry.dispose();
-      if (item.mesh.material instanceof THREE.Material) {
-        item.mesh.material.dispose();
-      }
-    }
-    this.trajectoryPulseItems.length = 0;
   }
 
   private resize(): void {

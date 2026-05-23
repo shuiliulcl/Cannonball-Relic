@@ -64,6 +64,15 @@
 
 Cards are drafted after wave clear from a weighted pool. The default game remains marble firing and recall. Special cards may bend rules temporarily, but they should not silently redefine the baseline control scheme.
 
+### Card Rarity And One-Time Rules
+
+- Card rarity should be visually distinct in both frame and background treatment:
+  - Diamond card: highest rarity, strongest build-changing effects.
+  - Gold card: rare/high-value effects.
+  - Bronze card: common numeric or utility upgrades.
+- Diamond cards can only be drafted once per run. After a diamond card is selected, remove that exact card from the remaining draft pool for the rest of the run.
+- Rarity visuals should be readable at a glance before the player reads the card text.
+
 ## HUD Direction
 
 UI should read like an in-game HUD rather than a web dashboard:
@@ -74,6 +83,20 @@ UI should read like an in-game HUD rather than a web dashboard:
 - Bottom-center buff/marble status meter.
 - Keep gameplay canvas full-screen behind the HUD.
 
+### Buff Review Panel
+
+- Add a top HUD icon that opens the current buff review panel.
+- The panel lists every buff/card currently owned by the player, including name, rarity, short effect text, and stack/count where relevant.
+- Opening this panel pauses gameplay immediately.
+- Closing the panel resumes gameplay if the game was running before the panel opened.
+- The panel should not appear during result screens unless explicitly reopened from a future meta screen.
+
+### Cooldown And Combat Readability
+
+- Show the Space dodge/roll cooldown in the lower HUD area.
+- Add a health bar above each monster. The bar should be small, readable, and not obscure the monster silhouette.
+- The trajectory preview should change color by bounce segment: each bounce makes the later segment redder so players can distinguish bounce order and expected damage buildup.
+
 ## Out Of Scope For First Slice
 
 - Full art pipeline.
@@ -81,3 +104,10 @@ UI should read like an in-game HUD rather than a web dashboard:
 - Network features.
 - Save system.
 - Mobile controls.
+
+## Control And Combat Rule Updates
+
+- Tap-fire bullets and hold-charge bullets should use the same final projectile speed. Charging may affect preview/commit timing or other future stats, but it should not make tap-fire feel like a weaker projectile by default.
+- Space dodge should become a 0.5 second fast movement/roll instead of an instant teleport.
+- During the 0.5 second dodge/roll movement, the player is invincible.
+- Dodge/roll should preserve player agency and readability: the movement direction is based on current input direction, with a sensible fallback only if no movement key is held.

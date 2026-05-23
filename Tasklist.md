@@ -163,3 +163,27 @@
 - [x] Correct the four corner brazier scale for the current arena camera.
 - [x] Build verify runtime material art pass.
 - [ ] Screenshot verify and push runtime material art pass.
+
+## Phase 20 - Collaboration Sync Rule
+
+- [x] Document the rule that every teammate and AI agent must pull the latest GitHub main before making changes.
+- [x] Add dirty-worktree safety guidance so parallel agents do not overwrite each other.
+
+## Phase 21 - Supplemental Design Requirements
+
+- [x] Add Buff review panel, pause/resume behavior, and top HUD icon requirements to design docs.
+- [x] Add one-time diamond card draft rule and diamond/gold/bronze card visual tiers.
+- [x] Add monster health bars, bounce-colored trajectory, tap-fire speed consistency, dodge roll duration/invulnerability, and dodge cooldown HUD requirements.
+- [x] Sync supplemental design notes to the Feishu development cloud document after the target document URL is confirmed.
+
+## Phase 22 - Supplemental Feature Implementation
+
+- [x] Implement Buff review HUD icon, panel, pause-on-open, and resume-on-close behavior.
+- [x] Implement diamond/gold/bronze card rarity data and visual card frames.
+- [x] Ensure diamond cards are removed from the draft pool after being selected once per run.
+- [x] Add monster health bars.
+- [x] Keep tap-fire and charged-fire projectile speed consistent.
+- [x] Make trajectory preview segments redder after each bounce.
+- [x] Replace instant dash with 0.5 second invincible roll movement.
+- [x] Add lower HUD roll cooldown display.
+- [x] Build verify supplemental feature implementation.

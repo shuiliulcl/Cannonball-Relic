@@ -11,6 +11,26 @@ This file is required reading for every teammate and AI agent before changing Ca
 
 ## 2. Work Order
 
+### 2.0 Sync From GitHub First
+
+Every teammate and AI agent must sync the repository before making code, art, level, or documentation changes.
+
+Required pre-change routine:
+
+```bash
+git status --short
+git pull --ff-only origin main
+git status --short
+```
+
+Rules:
+
+- Run this before editing files, generating assets, or starting a refactor.
+- If `git status --short` is not clean, do not overwrite or revert those files. Confirm whether the changes belong to another teammate/AI agent, then coordinate, commit, stash, or move to a separate worktree before pulling.
+- Prefer `git pull --ff-only origin main` so a local agent does not create accidental merge commits.
+- If the pull fails because the branch diverged or the workspace is dirty, stop and report the exact status before continuing.
+- After syncing, note the latest commit hash when handing work to another person or AI agent.
+
 Before implementation:
 
 1. Read `README.md`, `docs/GameDesign.md`, `docs/CollaboratorGuide.md`, and this file.

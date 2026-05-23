@@ -14,6 +14,8 @@ export type Monster = {
   hp: number;
   maxHp: number;
   speed: number;
+  monsterType: "grunt" | "runner" | "tank";
+  noKnockback?: boolean;
 };
 
 export type Obstacle = {
@@ -31,6 +33,7 @@ export type Marble = {
   bounces: number;
   distanceLeft: number;
   hitIds: Set<number>;
+  hp: number;
 };
 
 export type Player = {
@@ -45,7 +48,18 @@ export type Player = {
   speed: number;
   dashCooldown: number;
   dashTimer: number;
+  rollTimer: number;
+  rollDuration: number;
+  rollVelocity: Vec2;
   invulnTimer: number;
+};
+
+export type OwnedBuff = {
+  id: UpgradeId;
+  title: string;
+  description: string;
+  rarity: UpgradeRarity;
+  count: number;
 };
 
 export type GameSnapshot = {
@@ -57,6 +71,9 @@ export type GameSnapshot = {
   hp: number;
   maxHp: number;
   waveProgress: number;
+  dashCooldownRatio: number;
+  dashCooldownText: string;
+  ownedBuffs: OwnedBuff[];
 };
 
 export type UpgradeId =
@@ -65,9 +82,19 @@ export type UpgradeId =
   | "recallBlade"
   | "quickDash"
   | "vitality"
-  | "humanCannon";
+  | "humanCannon"
+  | "piercingMarble";
 
-export type UpgradeRarity = "common" | "rare" | "special";
+export type UpgradeRarity = "bronze" | "gold" | "diamond";
+
+export type UpgradeStats = {
+  bounceBonusDamage: number;
+  rangeMultiplier: number;
+  recallDamageBonus: number;
+  maxHp: number;
+  marbleHp: number;
+  homingAngle: number;
+};
 
 export type Upgrade = {
   id: UpgradeId;
@@ -75,4 +102,6 @@ export type Upgrade = {
   title: string;
   description: string;
   weight: number;
+  uniquePerRun?: boolean;
+  apply: (stats: UpgradeStats, player: Player) => void;
 };

@@ -6,10 +6,11 @@ export const ARENA = {
 
 export const PLAYER = {
   radius: 0.32,
-  hp: 5,
+  hp: 20,
   speed: 4.8,
   dashDistance: 1.9,
-  dashCooldown: 1.2,
+  dashCooldown: 2.0,
+  rollDuration: 0.5,
 };
 
 export const HUMAN_CANNON = {
@@ -26,8 +27,11 @@ export const MARBLE = {
   maxChargeSeconds: 0.9,
   baseRange: 18,
   baseDamage: 1,
-  bounceBonusDamage: 1,
+  maxBounces: 3,
   recallSpeed: 10,
+  knockback: 1.2,
+  hp: 1,
+  homingAngle: 10,
 };
 
 export const MONSTER = {
@@ -41,7 +45,7 @@ export const CAMERA = {
 };
 
 export const RUN = {
-  maxWaves: 5,
+  maxWaves: 10,
 };
 
 export const OBSTACLES = [

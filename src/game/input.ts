@@ -8,7 +8,6 @@ export class Input {
   rightPressed = false;
   leftReleased = false;
   pausePressed = false;
-  chargeSeconds = 0;
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener("keydown", (event) => {

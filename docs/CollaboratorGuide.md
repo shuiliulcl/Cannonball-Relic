@@ -64,6 +64,7 @@ HUD direction: keep important combat information as a game overlay. HP belongs t
 ## Collaboration Rules
 
 - Read `docs/DevelopmentStandards.md` before implementation.
+- Before every change, run `git status --short`, then `git pull --ff-only origin main`, then check `git status --short` again. If the workspace is dirty, coordinate first and do not overwrite another teammate or AI agent's files.
 - Keep core gameplay decisions in `docs/GameDesign.md` before large code changes.
 - Put tunable values in `src/game/config.ts`.
 - Keep renderer code out of score/damage/wave decisions.

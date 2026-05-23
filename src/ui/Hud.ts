@@ -1,6 +1,7 @@
-import type { GameSnapshot, Upgrade, UpgradeId } from "../game/types";
+import type { GameSnapshot, OwnedBuff, Upgrade, UpgradeId, UpgradeRarity } from "../game/types";
 
 type UpgradeHandler = (upgradeId: UpgradeId) => void;
+type VoidHandler = () => void;
 
 const MARBLE_STATE_LABEL: Record<GameSnapshot["marbleState"], string> = {
   ready: "待发射",
@@ -10,10 +11,10 @@ const MARBLE_STATE_LABEL: Record<GameSnapshot["marbleState"], string> = {
   cannon: "人间大炮",
 };
 
-const RARITY_LABEL: Record<Upgrade["rarity"], string> = {
-  common: "普通",
-  rare: "稀有",
-  special: "特殊",
+const RARITY_LABEL: Record<UpgradeRarity, string> = {
+  bronze: "青铜",
+  gold: "黄金",
+  diamond: "钻石",
 };
 
 export class Hud {
@@ -23,13 +24,20 @@ export class Hud {
   private readonly hpFill = document.querySelector<HTMLElement>("#hpFill");
   private readonly charge = document.querySelector<HTMLElement>("#charge");
   private readonly chargeFill = document.querySelector<HTMLElement>("#chargeFill");
+  private readonly dashFill = document.querySelector<HTMLElement>("#dashFill");
+  private readonly dashCooldown = document.querySelector<HTMLElement>("#dashCooldown");
   private readonly progressFill = document.querySelector<HTMLElement>("#progressFill");
   private readonly marbleState = document.querySelector<HTMLElement>("#marbleState");
   private readonly damageScale = document.querySelector<HTMLElement>("#damageScale");
   private readonly resultKicker = document.querySelector<HTMLElement>("#resultKicker");
   private readonly resultTitle = document.querySelector<HTMLElement>("#resultTitle");
   private readonly resultSummary = document.querySelector<HTMLElement>("#resultSummary");
+  private readonly buffButton = document.querySelector<HTMLButtonElement>("#buffButton");
+  private readonly buffCloseButton = document.querySelector<HTMLButtonElement>("#buffCloseButton");
+  private readonly buffList = document.querySelector<HTMLElement>("#buffList");
   private upgradeHandler: UpgradeHandler | undefined;
+  private buffOpenHandler: VoidHandler | undefined;
+  private buffCloseHandler: VoidHandler | undefined;
 
   constructor(
     private readonly stageShell: HTMLElement,
@@ -37,6 +45,7 @@ export class Hud {
     private readonly upgradeChoices: HTMLElement,
     private readonly resultOverlay: HTMLElement,
     private readonly pauseOverlay: HTMLElement,
+    private readonly buffOverlay: HTMLElement,
   ) {
     upgradeChoices.addEventListener("click", (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-upgrade]");
@@ -45,6 +54,9 @@ export class Hud {
       }
       this.upgradeHandler?.(button.dataset.upgrade as UpgradeId);
     });
+
+    this.buffButton?.addEventListener("click", () => this.buffOpenHandler?.());
+    this.buffCloseButton?.addEventListener("click", () => this.buffCloseHandler?.());
   }
 
   update(snapshot: GameSnapshot): void {
@@ -66,6 +78,12 @@ export class Hud {
     if (this.chargeFill) {
       this.chargeFill.style.width = `${Math.round(snapshot.chargeRatio * 100)}%`;
     }
+    if (this.dashFill) {
+      this.dashFill.style.width = `${Math.round(Math.max(0, Math.min(1, snapshot.dashCooldownRatio)) * 100)}%`;
+    }
+    if (this.dashCooldown) {
+      this.dashCooldown.textContent = snapshot.dashCooldownText;
+    }
     if (this.progressFill) {
       this.progressFill.style.width = `${Math.round(snapshot.waveProgress * 100)}%`;
     }
@@ -74,6 +92,10 @@ export class Hud {
     }
     if (this.damageScale) {
       this.damageScale.textContent = `x${snapshot.damageScale}`;
+    }
+    if (this.buffButton) {
+      this.buffButton.dataset.count = snapshot.ownedBuffs.length.toString();
+      this.buffButton.classList.toggle("has-buffs", snapshot.ownedBuffs.length > 0);
     }
   }
 
@@ -100,13 +122,29 @@ export class Hud {
 
   hideUpgrades(): void {
     this.upgradePanel.hidden = true;
-    if (this.resultOverlay.hidden) {
-      this.stageShell.classList.remove("modal-open");
+    this.clearModalOpenIfIdle();
+  }
+
+  showBuffs(buffs: OwnedBuff[]): void {
+    if (this.buffList) {
+      if (buffs.length === 0) {
+        this.buffList.innerHTML = `<p class="empty-buffs">还没有获得强化。</p>`;
+      } else {
+        this.buffList.replaceChildren(...buffs.map((buff) => this.buffItem(buff)));
+      }
     }
+    this.stageShell.classList.add("modal-open");
+    this.buffOverlay.hidden = false;
+  }
+
+  hideBuffs(): void {
+    this.buffOverlay.hidden = true;
+    this.clearModalOpenIfIdle();
   }
 
   showResult(kind: "victory" | "defeat", score: number, wave: number): void {
     this.hideUpgrades();
+    this.hideBuffs();
     if (this.resultKicker) {
       this.resultKicker.textContent = kind === "victory" ? "通关成功" : "本局失败";
     }
@@ -122,9 +160,7 @@ export class Hud {
 
   hideResult(): void {
     this.resultOverlay.hidden = true;
-    if (this.upgradePanel.hidden && this.pauseOverlay.hidden) {
-      this.stageShell.classList.remove("modal-open");
-    }
+    this.clearModalOpenIfIdle();
   }
 
   showPause(): void {
@@ -134,13 +170,37 @@ export class Hud {
 
   hidePause(): void {
     this.pauseOverlay.hidden = true;
-    if (this.upgradePanel.hidden && this.resultOverlay.hidden) {
-      this.stageShell.classList.remove("modal-open");
-    }
+    this.clearModalOpenIfIdle();
   }
 
   onUpgrade(handler: UpgradeHandler): void {
     this.upgradeHandler = handler;
+  }
+
+  onBuffOpen(handler: VoidHandler): void {
+    this.buffOpenHandler = handler;
+  }
+
+  onBuffClose(handler: VoidHandler): void {
+    this.buffCloseHandler = handler;
+  }
+
+  private buffItem(buff: OwnedBuff): HTMLElement {
+    const item = document.createElement("article");
+    item.className = "buff-item";
+    item.dataset.rarity = buff.rarity;
+    item.innerHTML = `
+      <span class="buff-rarity">${RARITY_LABEL[buff.rarity]}</span>
+      <strong>${buff.title}${buff.count > 1 ? ` x${buff.count}` : ""}</strong>
+      <p>${buff.description}</p>
+    `;
+    return item;
+  }
+
+  private clearModalOpenIfIdle(): void {
+    if (this.upgradePanel.hidden && this.resultOverlay.hidden && this.pauseOverlay.hidden && this.buffOverlay.hidden) {
+      this.stageShell.classList.remove("modal-open");
+    }
   }
 
   private cardIcon(upgradeId: UpgradeId): string {
@@ -151,6 +211,7 @@ export class Hud {
       quickDash: "闪",
       vitality: "心",
       humanCannon: "炮",
+      piercingMarble: "穿",
     };
     return icons[upgradeId];
   }
