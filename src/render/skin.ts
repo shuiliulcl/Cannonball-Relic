@@ -15,9 +15,14 @@ export interface SkinAssets {
   readonly marble: string;
   readonly enemyGrunt: string;
   readonly obstacleCrate: string;
+  readonly obstacleStone: string;
+  readonly obstacleMetal: string;
   readonly pillar: string;
   readonly brazier: string;
   readonly floor: string;
+  readonly floorCracked: string;
+  readonly floorMoss: string;
+  readonly floorDanger: string;
   readonly wallBorder: string;
 }
 
@@ -30,9 +35,14 @@ export function resolveSkinAssets(): SkinAssets {
     marble: `${base}/sprites/marble.png`,
     enemyGrunt: `${base}/sprites/enemy-grunt.png`,
     obstacleCrate: `${base}/sprites/obstacle-crate.png`,
+    obstacleStone: `${base}/sprites/obstacle-stone.png`,
+    obstacleMetal: `${base}/sprites/obstacle-metal.png`,
     pillar: `${base}/sprites/pillar.png`,
     brazier: `${base}/sprites/brazier.png`,
     floor: `${base}/textures/floor.png`,
+    floorCracked: `${base}/textures/floor-cracked.png`,
+    floorMoss: `${base}/textures/floor-moss.png`,
+    floorDanger: `${base}/textures/floor-danger.png`,
     wallBorder: `${base}/textures/wall-border.png`,
   };
 }

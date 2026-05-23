@@ -154,3 +154,12 @@
 - [x] Render non-default floor materials in game validation mode.
 - [x] Render stone and metal obstacles differently from wood obstacles.
 - [x] Build, screenshot verify, and push runtime material display.
+
+## Phase 19 - Runtime Material Art Pass
+
+- [x] Generate pixel-art floor material textures for cracked, moss, and danger tiles.
+- [x] Generate stone and metal obstacle sprites and process fake checker backgrounds into alpha.
+- [x] Replace runtime material color blocks and badges with skin-driven art assets.
+- [x] Correct the four corner brazier scale for the current arena camera.
+- [x] Build verify runtime material art pass.
+- [ ] Screenshot verify and push runtime material art pass.

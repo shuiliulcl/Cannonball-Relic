@@ -7,9 +7,14 @@
     "marble": "sprites/marble.png",
     "enemyGrunt": "sprites/enemy-grunt.png",
     "obstacleCrate": "sprites/obstacle-crate.png",
+    "obstacleStone": "sprites/obstacle-stone.png",
+    "obstacleMetal": "sprites/obstacle-metal.png",
     "pillar": "sprites/pillar.png",
     "brazier": "sprites/brazier.png",
     "floor": "textures/floor.png",
+    "floorCracked": "textures/floor-cracked.png",
+    "floorMoss": "textures/floor-moss.png",
+    "floorDanger": "textures/floor-danger.png",
     "wallBorder": "textures/wall-border.png"
   },
   "notes": [

@@ -48,9 +48,14 @@ sprites/player.png
 sprites/marble.png
 sprites/enemy-grunt.png
 sprites/obstacle-crate.png
+sprites/obstacle-stone.png
+sprites/obstacle-metal.png
 sprites/pillar.png
 sprites/brazier.png
 textures/floor.png
+textures/floor-cracked.png
+textures/floor-moss.png
+textures/floor-danger.png
 textures/wall-border.png
 manifest.json
 ```

@@ -33,3 +33,23 @@ Isolated single side-wall pillar sprite, transparent PNG background, pixel art, 
 ## Brazier
 
 Isolated single lit brazier torch sprite, transparent PNG background, pixel art, 2.5D top-down isometric view, ancient ruin bronze stone brazier with bright orange flame, bold dark outline, warm glow, no floor, no scenery, no text, centered, readable at 64 pixels, game asset.
+
+## Cracked Floor
+
+Seamless tileable pixel art ground texture, top-down ancient ruin sandstone floor, cracked worn slabs, warm ochre stone with muted lavender shadows, subtle chipped edges, no objects, no characters, no text, no UI, perfectly tileable square texture, game asset.
+
+## Moss Floor
+
+Seamless tileable pixel art ground texture, top-down ancient ruin sandstone floor with patches of green moss and small weeds between bricks, warm ochre base, readable at small tile size, no objects, no characters, no text, no UI, perfectly tileable square texture, game asset.
+
+## Danger Floor
+
+Seamless tileable pixel art ground texture, top-down ancient ruin warning tile, reddish cracked sandstone slabs with subtle glowing orange seams and scorch marks, readable but not noisy, no objects, no characters, no text, no UI, perfectly tileable square texture, game asset.
+
+## Stone Obstacle
+
+Isolated single stone block obstacle sprite, transparent PNG background, pixel art, 2.5D top-down isometric view, square cracked sandstone relic block with moss patches, chunky silhouette, bold dark outline, no floor, no scenery, no text, centered, game asset.
+
+## Metal Obstacle
+
+Isolated single metal anvil obstacle sprite, transparent PNG background, pixel art, 2.5D top-down isometric view, heavy blue-gray fantasy anvil with brass trim, chunky readable silhouette, bold dark outline, no floor, no scenery, no text, centered, game asset.
