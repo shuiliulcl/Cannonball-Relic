@@ -129,3 +129,13 @@
 - [x] Add JSON export, import, reset, and copy actions.
 - [x] Add level editor documentation.
 - [x] Build, screenshot verify, and push level editor.
+
+## Phase 16 - Level Collaboration Workflow
+
+- [x] Add shared level schema and localStorage draft persistence.
+- [x] Add editor actions for local save, game validation, JSON download, and GitHub directory handoff.
+- [x] Let the game load `?level=local` from the editor draft.
+- [x] Convert editor obstacles into runtime collision and scene obstacles.
+- [x] Convert editor spawn points into runtime wave spawn queues.
+- [x] Rewrite level editor documentation in Chinese with GitHub submission workflow.
+- [x] Build, interaction verify, and push collaboration workflow.

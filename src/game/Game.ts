@@ -5,12 +5,18 @@ import type { Marble, Monster, Player, UpgradeId, Vec2 } from "./types";
 import type { Input } from "./input";
 import type { SceneView } from "../render/SceneView";
 import type { Hud } from "../ui/Hud";
+import type { MonsterType, RuntimeLevel, RuntimeSpawn } from "../levels/types";
 
 type UpgradeStats = {
   bounceBonusDamage: number;
   rangeMultiplier: number;
   recallDamageBonus: number;
   maxHp: number;
+};
+
+type SpawnQueueItem = RuntimeSpawn & {
+  remaining: number;
+  timer: number;
 };
 
 export class Game {
@@ -26,6 +32,9 @@ export class Game {
   private lastTime = 0;
   private rafId = 0;
   private nextMonsterId = 1;
+  private spawnQueue: SpawnQueueItem[] = [];
+  private readonly obstacles;
+  private readonly levelSpawns;
   private stats: UpgradeStats = {
     bounceBonusDamage: MARBLE.bounceBonusDamage,
     rangeMultiplier: 1,
@@ -37,13 +46,19 @@ export class Game {
     private readonly input: Input,
     private readonly view: SceneView,
     private readonly hud: Hud,
-  ) {}
+    private readonly runtimeLevel?: RuntimeLevel,
+  ) {
+    this.obstacles = runtimeLevel?.obstacles ?? OBSTACLES;
+    this.levelSpawns = runtimeLevel?.spawns ?? [];
+  }
 
   start(): void {
     this.player = this.createPlayer();
     this.marble = this.createMarble();
     this.monsters = [];
+    this.spawnQueue = [];
     this.view.clearTransientObjects();
+    this.view.setObstacles(this.obstacles);
     this.score = 0;
     this.wave = 1;
     this.nextMonsterId = 1;
@@ -71,6 +86,7 @@ export class Game {
     this.sync();
     this.view.render();
     this.monsters = [];
+    this.spawnQueue = [];
   }
 
   chooseUpgrade(upgradeId: UpgradeId): void {
@@ -143,10 +159,11 @@ export class Game {
   private update(dt: number): void {
     this.updatePlayer(dt);
     this.updateMarble(dt);
+    this.updateSpawnQueue(dt);
     this.updateMonsters(dt);
     this.handleHits();
 
-    if (this.monsters.length === 0) {
+    if (this.monsters.length === 0 && !this.hasPendingSpawns()) {
       if (this.wave >= RUN.maxWaves) {
         this.endRun("victory");
         return;
@@ -181,7 +198,7 @@ export class Game {
     if (this.marble.state === "charging") {
       this.input.chargeSeconds = Math.min(MARBLE.maxChargeSeconds, this.input.chargeSeconds + dt);
       const direction = this.aimDirection();
-      this.view.showTrajectory(makeTrajectory(this.player.position, direction, 3, OBSTACLES), this.input.chargeSeconds / MARBLE.maxChargeSeconds);
+      this.view.showTrajectory(makeTrajectory(this.player.position, direction, 3, this.obstacles), this.input.chargeSeconds / MARBLE.maxChargeSeconds);
     }
 
     if (this.input.consumeLeftRelease() && this.marble.state === "charging") {
@@ -228,7 +245,7 @@ export class Game {
     this.marble.velocity = bounce.velocity;
     let didBounce = bounce.bounced;
 
-    for (const obstacle of OBSTACLES) {
+    for (const obstacle of this.obstacles) {
       const obstacleBounce = bounceCircleFromObstacle(this.marble.position, this.marble.velocity, this.marble.radius, obstacle);
       if (obstacleBounce.bounced) {
         this.marble.position = obstacleBounce.position;
@@ -282,7 +299,7 @@ export class Game {
     this.player.velocity = bounce.velocity;
     let didBounce = bounce.bounced;
 
-    for (const obstacle of OBSTACLES) {
+    for (const obstacle of this.obstacles) {
       const obstacleBounce = bounceCircleFromObstacle(
         this.player.position,
         this.player.velocity,
@@ -383,6 +400,19 @@ export class Game {
   }
 
   private spawnWave(): void {
+    if (this.levelSpawns.length > 0) {
+      const spawns = this.levelSpawns.filter((spawn) => spawn.wave === this.wave);
+      for (const spawn of spawns) {
+        this.spawnQueue.push({
+          ...spawn,
+          remaining: spawn.count,
+          timer: 0,
+        });
+      }
+      this.updateSpawnQueue(0);
+      return;
+    }
+
     const count = 4 + this.wave * 2;
     for (let i = 0; i < count; i += 1) {
       const row = Math.floor(i / 4);
@@ -402,7 +432,57 @@ export class Game {
     }
   }
 
+  private updateSpawnQueue(dt: number): void {
+    for (let i = this.spawnQueue.length - 1; i >= 0; i -= 1) {
+      const item = this.spawnQueue[i];
+      item.timer -= dt;
+      while (item.remaining > 0 && item.timer <= 0) {
+        this.spawnMonster(item.position, item.monsterType);
+        item.remaining -= 1;
+        item.timer += Math.max(0.05, item.interval);
+      }
+      if (item.remaining <= 0) {
+        this.spawnQueue.splice(i, 1);
+      }
+    }
+  }
+
+  private spawnMonster(position: Vec2, monsterType: MonsterType): void {
+    const stats = this.monsterStats(monsterType);
+    this.monsters.push({
+      id: this.nextMonsterId,
+      position: { ...position },
+      radius: stats.radius,
+      hp: stats.hp + Math.floor(this.wave / 2),
+      maxHp: stats.hp + Math.floor(this.wave / 2),
+      speed: stats.speed + this.wave * 0.06,
+    });
+    this.nextMonsterId += 1;
+  }
+
+  private monsterStats(monsterType: MonsterType): { radius: number; hp: number; speed: number } {
+    if (monsterType === "runner") {
+      return { radius: MONSTER.radius * 0.86, hp: Math.max(1, MONSTER.hp - 1), speed: MONSTER.speed * 1.45 };
+    }
+    if (monsterType === "tank") {
+      return { radius: MONSTER.radius * 1.18, hp: MONSTER.hp + 3, speed: MONSTER.speed * 0.72 };
+    }
+    return { radius: MONSTER.radius, hp: MONSTER.hp, speed: MONSTER.speed };
+  }
+
+  private hasPendingSpawns(): boolean {
+    return this.spawnQueue.some((item) => item.remaining > 0);
+  }
+
   private waveProgress(): number {
+    if (this.levelSpawns.length > 0) {
+      const total = this.levelSpawns.filter((spawn) => spawn.wave === this.wave).reduce((sum, spawn) => sum + spawn.count, 0);
+      if (total <= 0) {
+        return 1;
+      }
+      const remainingQueued = this.spawnQueue.reduce((sum, spawn) => sum + spawn.remaining, 0);
+      return Math.max(0, Math.min(1, 1 - (this.monsters.length + remainingQueued) / total));
+    }
     const startingCount = 4 + this.wave * 2;
     return Math.max(0, Math.min(1, 1 - this.monsters.length / startingCount));
   }

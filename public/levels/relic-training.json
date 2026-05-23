@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "name": "遗迹训练场",
+  "grid": {
+    "width": 17,
+    "height": 13,
+    "cellSize": 1
+  },
+  "floors": [
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "moss", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone"
+  ],
+  "obstacles": [
+    { "id": "left-block", "x": 5, "z": 5, "w": 2, "h": 1, "material": "wood" },
+    { "id": "right-block", "x": 11, "z": 5, "w": 2, "h": 1, "material": "wood" },
+    { "id": "center-low", "x": 8, "z": 7, "w": 1, "h": 1, "material": "stone" }
+  ],
+  "spawns": [
+    { "id": "wave-1-a", "x": 7, "z": 3, "wave": 1, "count": 3, "monsterType": "grunt", "interval": 0.7 },
+    { "id": "wave-1-b", "x": 10, "z": 3, "wave": 1, "count": 3, "monsterType": "grunt", "interval": 0.7 },
+    { "id": "wave-2-a", "x": 5, "z": 2, "wave": 2, "count": 2, "monsterType": "runner", "interval": 0.45 },
+    { "id": "wave-2-b", "x": 12, "z": 2, "wave": 2, "count": 1, "monsterType": "tank", "interval": 1.0 }
+  ]
+}

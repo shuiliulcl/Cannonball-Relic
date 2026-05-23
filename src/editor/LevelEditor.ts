@@ -1,39 +1,7 @@
-type FloorMaterial = "sandstone" | "cracked" | "moss" | "danger";
-type ObstacleMaterial = "wood" | "stone" | "metal";
-type MonsterType = "grunt" | "runner" | "tank";
+import { saveLocalLevel } from "../levels/storage";
+import type { FloorMaterial, LevelDefinition, LevelObstacle, LevelSpawn, MonsterType, ObstacleMaterial } from "../levels/types";
+
 type Tool = "floor" | "obstacle" | "spawn" | "erase";
-
-type ObstacleDraft = {
-  id: string;
-  x: number;
-  z: number;
-  w: number;
-  h: number;
-  material: ObstacleMaterial;
-};
-
-type SpawnDraft = {
-  id: string;
-  x: number;
-  z: number;
-  wave: number;
-  count: number;
-  monsterType: MonsterType;
-  interval: number;
-};
-
-type LevelDraft = {
-  version: 1;
-  name: string;
-  grid: {
-    width: number;
-    height: number;
-    cellSize: number;
-  };
-  floors: FloorMaterial[];
-  obstacles: ObstacleDraft[];
-  spawns: SpawnDraft[];
-};
 
 const FLOOR_LABEL: Record<FloorMaterial, string> = {
   sandstone: "砂岩",
@@ -55,7 +23,7 @@ const MONSTER_LABEL: Record<MonsterType, string> = {
 };
 
 export class LevelEditor {
-  private readonly level: LevelDraft = this.createInitialLevel();
+  private readonly level: LevelDefinition = this.createInitialLevel();
   private tool: Tool = "floor";
   private floorMaterial: FloorMaterial = "sandstone";
   private obstacleMaterial: ObstacleMaterial = "wood";
@@ -81,7 +49,11 @@ export class LevelEditor {
           </div>
           <nav class="editor-top-actions">
             <a href="/" class="editor-link">返回游戏</a>
+            <button id="editorSaveLocal" type="button">保存本地草稿</button>
+            <button id="editorPlaytest" type="button">游戏内验证</button>
+            <button id="editorDownload" type="button">下载关卡</button>
             <button id="editorCopy" type="button">复制 JSON</button>
+            <a href="https://github.com/shuiliulcl/Cannonball-Relic/tree/main/public/levels" target="_blank" rel="noreferrer" class="editor-link">GitHub 关卡目录</a>
           </nav>
         </header>
         <aside class="editor-toolbar" aria-label="编辑工具">
@@ -110,6 +82,10 @@ export class LevelEditor {
             <button id="editorImport" type="button">导入</button>
             <button id="editorReset" type="button">重置</button>
           </div>
+          <section class="editor-panel github-help">
+            <h2>提交到 GitHub</h2>
+            <p>下载关卡 JSON 后，把文件放到 <code>public/levels/</code>，提交并推送到仓库。详见 <code>docs/LevelEditor.md</code>。</p>
+          </section>
         </aside>
       </section>
     `;
@@ -139,12 +115,25 @@ export class LevelEditor {
       await navigator.clipboard?.writeText(this.toJson());
     });
 
+    this.root.querySelector<HTMLButtonElement>("#editorSaveLocal")?.addEventListener("click", () => {
+      saveLocalLevel(this.level);
+    });
+
+    this.root.querySelector<HTMLButtonElement>("#editorPlaytest")?.addEventListener("click", () => {
+      saveLocalLevel(this.level);
+      window.location.href = "/?level=local";
+    });
+
+    this.root.querySelector<HTMLButtonElement>("#editorDownload")?.addEventListener("click", () => {
+      this.downloadLevel();
+    });
+
     this.root.querySelector<HTMLButtonElement>("#editorImport")?.addEventListener("click", () => {
       if (!this.outputElement) {
         return;
       }
       try {
-        const imported = JSON.parse(this.outputElement.value) as LevelDraft;
+        const imported = JSON.parse(this.outputElement.value) as LevelDefinition;
         this.applyImport(imported);
         this.render();
       } catch {
@@ -348,18 +337,38 @@ export class LevelEditor {
     return JSON.stringify(this.level, null, 2);
   }
 
-  private applyImport(imported: LevelDraft): void {
+  private downloadLevel(): void {
+    const blob = new Blob([this.toJson()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${this.slugify(this.level.name)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private slugify(value: string): string {
+    return (
+      value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\u4e00-\u9fa5]+/gi, "-")
+        .replace(/^-+|-+$/g, "") || "level"
+    );
+  }
+
+  private applyImport(imported: LevelDefinition): void {
     if (!imported.grid || !Array.isArray(imported.floors)) {
       throw new Error("Invalid level.");
     }
     Object.assign(this.level, imported);
   }
 
-  private findObstacle(x: number, y: number): ObstacleDraft | undefined {
+  private findObstacle(x: number, y: number): LevelObstacle | undefined {
     return this.level.obstacles.find((item) => x >= item.x && x < item.x + item.w && y >= item.z && y < item.z + item.h);
   }
 
-  private findSpawn(x: number, y: number): SpawnDraft | undefined {
+  private findSpawn(x: number, y: number): LevelSpawn | undefined {
     return this.level.spawns.find((item) => item.x === x && item.z === y);
   }
 
@@ -367,7 +376,7 @@ export class LevelEditor {
     return y * this.level.grid.width + x;
   }
 
-  private createInitialLevel(): LevelDraft {
+  private createInitialLevel(): LevelDefinition {
     const width = 17;
     const height = 13;
     const floors = Array.from<FloorMaterial>({ length: width * height }).fill("sandstone");

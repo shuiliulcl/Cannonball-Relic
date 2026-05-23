@@ -617,6 +617,7 @@ button:focus-visible {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 18px;
+  overflow: hidden;
 }
 
 .editor-kicker {
@@ -639,10 +640,13 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
+  overflow-x: auto;
+  padding: 4px;
 }
 
 .editor-link {
   min-height: 44px;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   padding: 0 16px;
@@ -652,6 +656,7 @@ button:focus-visible {
   box-shadow: inset 0 0 0 2px #7b5933;
   font-weight: 900;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .editor-toolbar {
@@ -669,6 +674,11 @@ button:focus-visible {
   border-radius: 6px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 3px 0 #6d3b20;
   font-size: 13px;
+}
+
+.editor-top-actions button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .editor-toolbar button.is-active,

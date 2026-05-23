@@ -100,3 +100,10 @@ Rules:
 - AI-generated art should include the prompt and destination skin folder.
 - If you make assumptions, write them in the relevant doc instead of only in chat.
 - If a task touches design, art, and code, leave a short handoff note in `Tasklist.md` or the related doc.
+
+## 8. Level Files
+
+- Use `?mode=editor` to author levels locally.
+- Use `?level=local` to validate the browser's saved local draft in game.
+- Commit shared level JSON files under `public/levels/`.
+- Read `docs/LevelEditor.md` before changing the editor schema or runtime level loader.

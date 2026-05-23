@@ -25,7 +25,10 @@ export class SceneView {
   private trajectoryPulseTime = 0;
   private readonly effects: Effects;
 
-  constructor(private readonly root: HTMLElement) {
+  constructor(
+    private readonly root: HTMLElement,
+    initialObstacles: readonly Obstacle[] = OBSTACLES,
+  ) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x171720);
     this.renderer.shadowMap.enabled = true;
@@ -40,7 +43,7 @@ export class SceneView {
     this.setupCamera();
     this.setupLights();
     this.buildArena();
-    this.syncObstacles(OBSTACLES);
+    this.setObstacles(initialObstacles);
 
     this.playerMesh.position.y = 0.34;
     this.playerMesh.visible = false;
@@ -193,6 +196,14 @@ export class SceneView {
       this.obstacleMeshes.set(obstacle.id, group);
       this.scene.add(group);
     }
+  }
+
+  setObstacles(obstacles: readonly Obstacle[]): void {
+    for (const mesh of this.obstacleMeshes.values()) {
+      this.scene.remove(mesh);
+    }
+    this.obstacleMeshes.clear();
+    this.syncObstacles(obstacles);
   }
 
   pointerToPlane(pointer: THREE.Vector2): Vec2 {
