@@ -475,7 +475,8 @@ export class SceneView {
   }
 
   private applyVoidCells(originX: number, originZ: number, cellSize: number): void {
-    if (!this.runtimeLevel?.voids.length) {
+    const voids = this.runtimeLevel?.voids;
+    if (!voids?.length) {
       return;
     }
     const material = new THREE.MeshBasicMaterial({
@@ -484,12 +485,18 @@ export class SceneView {
       opacity: 0.96,
       side: THREE.DoubleSide,
     });
-    for (const cell of this.runtimeLevel.voids) {
-      const tile = new THREE.Mesh(new THREE.PlaneGeometry(cellSize, cellSize), material);
-      tile.rotation.x = -Math.PI / 2;
-      tile.position.set(originX + cell.x * cellSize, -0.006, originZ + cell.z * cellSize);
-      this.arenaGroup.add(tile);
+    const baseGeo = new THREE.PlaneGeometry(cellSize, cellSize);
+    const mesh = new THREE.InstancedMesh(baseGeo, material, voids.length);
+    mesh.position.y = -0.006;
+    const dummy = new THREE.Object3D();
+    dummy.rotation.x = -Math.PI / 2;
+    for (let i = 0; i < voids.length; i += 1) {
+      dummy.position.set(originX + voids[i].x * cellSize, 0, originZ + voids[i].z * cellSize);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
     }
+    mesh.instanceMatrix.needsUpdate = true;
+    this.arenaGroup.add(mesh);
   }
 
   private createMonsterMesh(monsterType: MonsterType = "grunt"): THREE.Group {
