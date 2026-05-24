@@ -1,7 +1,7 @@
 import { ARENA, HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./config";
 import { draftUpgrades, findUpgrade, DEFAULT_UPGRADE_STATS } from "./upgrades";
 import { add, applyHoming, bounceCircleFromObstacle, bounceInArena, calcBounceDamage, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
-import type { FloorMaterial, Marble, Monster, MonsterType, Obstacle, ObstacleBehavior, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
+import type { EnemyProjectile, FloorMaterial, Marble, Monster, MonsterType, Obstacle, ObstacleBehavior, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
 import type { Input } from "./input";
 import type { SceneView } from "../render/SceneView";
 import type { Hud } from "../ui/Hud";
@@ -18,6 +18,7 @@ export class Game {
   private marble: Marble = this.createMarble();
   private auxiliaryMarbles: Marble[] = [];
   private monsters: Monster[] = [];
+  private enemyProjectiles: EnemyProjectile[] = [];
   private chargeSeconds = 0;
   private running = false;
   private paused = false;
@@ -28,6 +29,7 @@ export class Game {
   private lastTime = 0;
   private rafId = 0;
   private nextMonsterId = 1;
+  private nextProjectileId = 1;
   private spawnQueue: SpawnQueueItem[] = [];
   private waveSpawnTotal = 0;
   private readonly ownedUpgrades = new Map<UpgradeId, number>();
@@ -64,6 +66,7 @@ export class Game {
     this.marble = this.createMarble();
     this.auxiliaryMarbles = [];
     this.monsters = [];
+    this.enemyProjectiles = [];
     this.spawnQueue = [];
     this.obstacles = this.cloneObstacles();
     this.view.clearTransientObjects();
@@ -72,6 +75,7 @@ export class Game {
     this.score = 0;
     this.wave = 1;
     this.nextMonsterId = 1;
+    this.nextProjectileId = 1;
     this.waveSpawnTotal = 0;
     this.stats = DEFAULT_UPGRADE_STATS();
     this.ownedUpgrades.clear();
@@ -189,6 +193,7 @@ export class Game {
     this.updateAuxiliaryMarbles(dt);
     this.updateSpawnQueue(dt);
     this.updateMonsters(dt);
+    this.updateEnemyProjectiles(dt);
     this.handleHits();
 
     if (this.monsters.length === 0 && !this.hasPendingSpawns()) {
@@ -363,11 +368,18 @@ export class Game {
 
   private updateMonsters(dt: number): void {
     for (const monster of this.monsters) {
-      const toPlayer = sub(this.player.position, monster.position);
-      const direction = normalize(toPlayer);
+      monster.frozenTimer = Math.max(0, (monster.frozenTimer ?? 0) - dt);
+      monster.attackCooldown = Math.max(0, (monster.attackCooldown ?? 0) - dt);
+      if ((monster.frozenTimer ?? 0) > 0) {
+        continue;
+      }
+      this.updateMonsterAiState(monster, dt);
+      const direction = this.monsterMoveDirection(monster, dt);
       const floor = this.floorAt(monster.position);
       const speedMultiplier = floor === "mud" ? 0.5 : 1;
-      monster.position = add(monster.position, scale(direction, monster.speed * speedMultiplier * dt));
+      const chargeMultiplier = (monster.chargeTimer ?? 0) > 0 ? 2.4 : 1;
+      monster.position = add(monster.position, scale(direction, monster.speed * speedMultiplier * chargeMultiplier * dt));
+      this.updateMonsterAttack(monster);
       if (floor === "blood") {
         monster.hp = Math.min(monster.maxHp, monster.hp + dt);
       }
@@ -381,6 +393,28 @@ export class Game {
         this.player.invulnTimer = 1;
         this.view.damageText("-1", this.player.position);
         this.view.spark(this.player.position, 0xff4f4f, 16);
+        if (this.player.hp <= 0) {
+          this.endRun("defeat");
+        }
+      }
+    }
+  }
+
+  private updateEnemyProjectiles(dt: number): void {
+    for (let i = this.enemyProjectiles.length - 1; i >= 0; i -= 1) {
+      const projectile = this.enemyProjectiles[i];
+      projectile.ttl -= dt;
+      projectile.position = add(projectile.position, scale(projectile.velocity, dt));
+      if (projectile.ttl <= 0) {
+        this.enemyProjectiles.splice(i, 1);
+        continue;
+      }
+      if (distance(projectile.position, this.player.position) <= projectile.radius + this.player.radius && this.player.invulnTimer <= 0) {
+        this.player.hp -= projectile.damage;
+        this.player.invulnTimer = 0.8;
+        this.view.damageText(`-${projectile.damage}`, this.player.position);
+        this.view.spark(this.player.position, 0xff4f4f, 14);
+        this.enemyProjectiles.splice(i, 1);
         if (this.player.hp <= 0) {
           this.endRun("defeat");
         }
@@ -493,6 +527,7 @@ export class Game {
     this.view.syncMarble(this.marble);
     this.view.syncAuxiliaryMarbles(this.auxiliaryMarbles);
     this.view.syncMonsters(this.monsters);
+    this.view.syncEnemyProjectiles(this.enemyProjectiles);
     this.hud.update({
       score: this.score,
       wave: this.wave,
@@ -573,7 +608,9 @@ export class Game {
       speed: stats.speed + this.wave * 0.06,
       monsterType,
       patrolPath: spawn?.patrolPath,
+      patrolIndex: 0,
       aiState: spawn?.patrolPath?.length ? "patrol" : "alert",
+      attackCooldown: monsterType === "octopus" ? 1.2 : 0,
       aggroRange: spawn?.aggroRange ?? 15,
       disengageRange: spawn?.disengageRange ?? 25,
     });
@@ -583,6 +620,15 @@ export class Game {
   private monsterStats(monsterType: MonsterType): { radius: number; hp: number; speed: number } {
     if (monsterType === "runner") {
       return { radius: MONSTER.radius * 0.86, hp: Math.max(1, MONSTER.hp - 1), speed: MONSTER.speed * 1.45 };
+    }
+    if (monsterType === "hound") {
+      return { radius: MONSTER.radius * 0.95, hp: MONSTER.hp, speed: MONSTER.speed * 1.55 };
+    }
+    if (monsterType === "boar") {
+      return { radius: MONSTER.radius * 1.08, hp: MONSTER.hp + 1, speed: MONSTER.speed * 1.25 };
+    }
+    if (monsterType === "octopus") {
+      return { radius: MONSTER.radius * 0.9, hp: MONSTER.hp, speed: 0 };
     }
     if (monsterType === "tank") {
       return { radius: MONSTER.radius * 1.18, hp: MONSTER.hp + 3, speed: MONSTER.speed * 0.72 };
@@ -596,6 +642,110 @@ export class Game {
       marbles.unshift(this.marble);
     }
     return marbles;
+  }
+
+  private updateMonsterAiState(monster: Monster, dt: number): void {
+    const aggroRange = monster.aggroRange ?? 15;
+    const disengageRange = monster.disengageRange ?? 25;
+    const distToPlayer = distance(monster.position, this.player.position);
+    if ((monster.aiState === "idle" || monster.aiState === "patrol") && distToPlayer <= aggroRange && this.hasLineOfSight(monster.position, this.player.position)) {
+      monster.aiState = "alert";
+    }
+    if (monster.aiState === "alert" && distToPlayer > disengageRange) {
+      monster.aiState = "returning";
+    }
+    if (monster.aiState === "returning" && monster.spawnPosition && distance(monster.position, monster.spawnPosition) < 0.2) {
+      monster.aiState = monster.patrolPath?.length ? "patrol" : "idle";
+    }
+    if (monster.monsterType === "boar" && monster.aiState === "alert" && (monster.chargeTimer ?? 0) <= 0 && distToPlayer <= 7) {
+      monster.chargeVelocity = scale(normalize(sub(this.player.position, monster.position)), monster.speed * 2.4);
+      monster.chargeTimer = 0.75;
+      monster.aiState = "alert";
+      this.view.spark(monster.position, 0xffa23a, 12);
+    }
+    if ((monster.chargeTimer ?? 0) > 0) {
+      monster.chargeTimer = Math.max(0, (monster.chargeTimer ?? 0) - dt);
+    }
+  }
+
+  private monsterMoveDirection(monster: Monster, dt: number): Vec2 {
+    if ((monster.chargeTimer ?? 0) > 0 && monster.chargeVelocity) {
+      return normalize(monster.chargeVelocity);
+    }
+    if (monster.monsterType === "octopus") {
+      return { x: 0, z: 0 };
+    }
+    if (monster.aiState === "alert") {
+      return normalize(sub(this.player.position, monster.position));
+    }
+    if (monster.aiState === "returning" && monster.spawnPosition) {
+      return normalize(sub(monster.spawnPosition, monster.position));
+    }
+    if (monster.aiState === "patrol" && monster.patrolPath?.length) {
+      const index = monster.patrolIndex ?? 0;
+      const target = monster.patrolPath[index % monster.patrolPath.length];
+      if (distance(monster.position, target) < 0.18) {
+        monster.patrolIndex = (index + 1) % monster.patrolPath.length;
+      }
+      const nextTarget = monster.patrolPath[(monster.patrolIndex ?? 0) % monster.patrolPath.length];
+      monster.aiTimer = (monster.aiTimer ?? 0) + dt;
+      return normalize(sub(nextTarget, monster.position));
+    }
+    return { x: 0, z: 0 };
+  }
+
+  private updateMonsterAttack(monster: Monster): void {
+    if (monster.aiState !== "alert" || monster.monsterType !== "octopus" || (monster.attackCooldown ?? 0) > 0) {
+      return;
+    }
+    if (!this.hasLineOfSight(monster.position, this.player.position)) {
+      return;
+    }
+    const direction = normalize(sub(this.player.position, monster.position));
+    this.enemyProjectiles.push({
+      id: this.nextProjectileId,
+      position: { ...monster.position },
+      velocity: scale(direction, 5.4),
+      radius: 0.16,
+      damage: 1,
+      ttl: 4,
+    });
+    this.nextProjectileId += 1;
+    monster.attackCooldown = 1.55;
+    this.view.spark(monster.position, 0xffdf72, 8);
+  }
+
+  private hasLineOfSight(from: Vec2, to: Vec2): boolean {
+    const ray = sub(to, from);
+    const distanceToTarget = Math.max(0.0001, Math.hypot(ray.x, ray.z));
+    const direction = scale(ray, 1 / distanceToTarget);
+    for (const obstacle of this.obstacles) {
+      const behavior = this.obstacleBehavior(obstacle);
+      if (behavior !== "solid" && behavior !== "oneWay" && behavior !== "breakable") {
+        continue;
+      }
+      const hit = this.rayIntersectsObstacle(from, direction, distanceToTarget, obstacle);
+      if (hit) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private rayIntersectsObstacle(origin: Vec2, direction: Vec2, maxDistance: number, obstacle: Obstacle): boolean {
+    const minX = obstacle.position.x - obstacle.halfSize.x;
+    const maxX = obstacle.position.x + obstacle.halfSize.x;
+    const minZ = obstacle.position.z - obstacle.halfSize.z;
+    const maxZ = obstacle.position.z + obstacle.halfSize.z;
+    const invX = Math.abs(direction.x) < 0.0001 ? Infinity : 1 / direction.x;
+    const invZ = Math.abs(direction.z) < 0.0001 ? Infinity : 1 / direction.z;
+    const t1 = (minX - origin.x) * invX;
+    const t2 = (maxX - origin.x) * invX;
+    const t3 = (minZ - origin.z) * invZ;
+    const t4 = (maxZ - origin.z) * invZ;
+    const tMin = Math.max(Math.min(t1, t2), Math.min(t3, t4));
+    const tMax = Math.min(Math.max(t1, t2), Math.max(t3, t4));
+    return tMax >= 0 && tMin <= tMax && tMin <= maxDistance;
   }
 
   private hasPendingSpawns(): boolean {
@@ -882,7 +1032,7 @@ export class Game {
       for (const monster of this.monsters) {
         if (distance(monster.position, interactable.position) <= 1.8) {
           monster.aiState = "idle";
-          monster.speed *= 0.45;
+          monster.frozenTimer = 2.5;
         }
       }
       this.view.spark(interactable.position, 0x8edcff, 32);

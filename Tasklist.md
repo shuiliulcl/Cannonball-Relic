@@ -242,3 +242,15 @@
 - [x] Keep removed/toggled obstacles restorable on restart.
 - [x] Expand the smoke level to include every Phase 3 interactable type.
 - [ ] Add editor UI for placing and configuring interactables.
+
+## Phase 29 - Monster AI First Batch
+
+- [x] Add runtime monster AI fields for patrol, alert, return, cooldown, freeze, and charge state.
+- [x] Add enemy projectile runtime and rendering support.
+- [x] Implement generic patrol, aggro, disengage, and return-to-spawn behavior.
+- [x] Implement line-of-sight checks against solid/breakable/one-way obstacles.
+- [x] Implement octopus as a stationary ranged shooter.
+- [x] Implement hound as a patrol-to-chase melee pressure enemy.
+- [x] Implement boar as a telegraphed straight-line charger.
+- [x] Expand the smoke level to include octopus, hound, and boar.
+- [ ] Implement second batch: slime, rabbit, bomb bug.

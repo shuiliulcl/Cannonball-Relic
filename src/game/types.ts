@@ -46,15 +46,30 @@ export type Monster = {
   position: Vec2;
   spawnPosition?: Vec2;
   patrolPath?: Vec2[];
+  patrolIndex?: number;
   radius: number;
   hp: number;
   maxHp: number;
   speed: number;
   monsterType: MonsterType;
   aiState?: MonsterAiState;
+  aiTimer?: number;
+  attackCooldown?: number;
+  frozenTimer?: number;
+  chargeVelocity?: Vec2;
+  chargeTimer?: number;
   aggroRange?: number;
   disengageRange?: number;
   noKnockback?: boolean;
+};
+
+export type EnemyProjectile = {
+  id: number;
+  position: Vec2;
+  velocity: Vec2;
+  radius: number;
+  damage: number;
+  ttl: number;
 };
 
 export type Obstacle = {

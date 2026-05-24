@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { ARENA, CAMERA, OBSTACLES } from "../game/config";
-import type { Marble, Monster, MonsterType, Obstacle, Player, Vec2 } from "../game/types";
+import type { EnemyProjectile, Marble, Monster, MonsterType, Obstacle, Player, Vec2 } from "../game/types";
 import type { FloorMaterial, ObstacleMaterial, RuntimeLevel } from "../levels/types";
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
 import { Effects } from "./effects";
@@ -29,6 +29,7 @@ export class SceneView {
   );
   private readonly marbleSprite = this.createSprite(this.skin.marble, 0.58, 0.58);
   private readonly auxiliaryMarbleMeshes = new Map<string, THREE.Sprite>();
+  private readonly enemyProjectileMeshes = new Map<number, THREE.Sprite>();
   private readonly monsterMeshes = new Map<number, THREE.Group>();
   private readonly obstacleMeshes = new Map<string, THREE.Group>();
   private readonly interactableMeshes = new Map<string, THREE.Group>();
@@ -123,6 +124,26 @@ export class SceneView {
     }
   }
 
+  syncEnemyProjectiles(projectiles: EnemyProjectile[]): void {
+    const liveIds = new Set(projectiles.map((projectile) => projectile.id));
+    for (const [id, mesh] of this.enemyProjectileMeshes) {
+      if (!liveIds.has(id)) {
+        this.scene.remove(mesh);
+        this.enemyProjectileMeshes.delete(id);
+      }
+    }
+
+    for (const projectile of projectiles) {
+      let sprite = this.enemyProjectileMeshes.get(projectile.id);
+      if (!sprite) {
+        sprite = this.createGlowSprite(0xffdf72, 0.32);
+        this.enemyProjectileMeshes.set(projectile.id, sprite);
+        this.scene.add(sprite);
+      }
+      sprite.position.set(projectile.position.x, 0.48, projectile.position.z);
+    }
+  }
+
   syncMonsters(monsters: Monster[]): void {
     const aliveIds = new Set(monsters.map((monster) => monster.id));
     for (const [id, mesh] of this.monsterMeshes) {
@@ -160,6 +181,10 @@ export class SceneView {
       this.scene.remove(mesh);
     }
     this.auxiliaryMarbleMeshes.clear();
+    for (const mesh of this.enemyProjectileMeshes.values()) {
+      this.scene.remove(mesh);
+    }
+    this.enemyProjectileMeshes.clear();
     this.hideTrajectory();
   }
 
@@ -406,8 +431,12 @@ export class SceneView {
     const group = new THREE.Group();
 
     // 各类型的视觉参数
-    const cfg = monsterType === "runner"
+    const cfg = monsterType === "runner" || monsterType === "hound"
       ? { shadowR: 0.28, shadowColor: 0x1a1010, spriteW: 0.82, spriteH: 1.1, tint: 0xff6a6a }
+      : monsterType === "boar"
+      ? { shadowR: 0.44, shadowColor: 0x24100a, spriteW: 1.24, spriteH: 1.28, tint: 0xff8a3a }
+      : monsterType === "octopus"
+      ? { shadowR: 0.34, shadowColor: 0x101426, spriteW: 1.05, spriteH: 1.22, tint: 0x8edcff }
       : monsterType === "tank"
       ? { shadowR: 0.52, shadowColor: 0x1a1208, spriteW: 1.42, spriteH: 1.72, tint: 0x8866ff }
       : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, tint: 0xffffff };
@@ -472,6 +501,18 @@ export class SceneView {
     });
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(width, height, 1);
+    return sprite;
+  }
+
+  private createGlowSprite(color: number, size: number): THREE.Sprite {
+    const material = new THREE.SpriteMaterial({
+      color,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+    });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(size, size, 1);
     return sprite;
   }
 

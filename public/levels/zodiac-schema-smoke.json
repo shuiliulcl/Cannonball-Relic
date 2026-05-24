@@ -62,6 +62,17 @@
       "interval": 0.5,
       "aggroRange": 15,
       "disengageRange": 25
+    },
+    {
+      "id": "boar-charger",
+      "x": 10,
+      "z": 8,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "boar",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
     }
   ]
 }
