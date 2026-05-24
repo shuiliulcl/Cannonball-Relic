@@ -1,10 +1,11 @@
-import { ARENA } from "../game/config";
 import type { LevelDefinition, RuntimeLevel } from "./types";
 
 export function levelToRuntime(level: LevelDefinition): RuntimeLevel {
   const cellSize = level.grid.cellSize || 1;
-  const originX = -ARENA.halfWidth + cellSize / 2;
-  const originZ = -ARENA.halfDepth + cellSize / 2;
+  const arenaHalfWidth = (level.grid.width * cellSize) / 2;
+  const arenaHalfDepth = (level.grid.height * cellSize) / 2;
+  const originX = -arenaHalfWidth + cellSize / 2;
+  const originZ = -arenaHalfDepth + cellSize / 2;
   const gridToWorld = (x: number, z: number) => ({
     x: originX + x * cellSize,
     z: originZ + z * cellSize,
@@ -14,6 +15,8 @@ export function levelToRuntime(level: LevelDefinition): RuntimeLevel {
     name: level.name,
     description: level.description,
     grid: level.grid,
+    arenaHalfWidth,
+    arenaHalfDepth,
     playerStart: level.playerStart ? gridToWorld(level.playerStart.x, level.playerStart.z) : undefined,
     floors: level.floors,
     obstacles: level.obstacles.map((item) => ({

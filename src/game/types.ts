@@ -151,7 +151,17 @@ export type UpgradeId =
   | "quickDash"
   | "vitality"
   | "humanCannon"
-  | "piercingMarble";
+  | "piercingMarble"
+  | "sprintTraining"
+  | "rollMastery"
+  | "lightMarble"
+  | "multiBounce"
+  | "sizeAmplify"
+  | "expandedPouch"
+  | "hunterCalibration"
+  | "swiftRecall"
+  | "rapidThrow"
+  | "crisisConcentration";
 
 export type UpgradeRarity = "bronze" | "gold" | "diamond";
 
@@ -162,6 +172,13 @@ export type UpgradeStats = {
   maxHp: number;
   marbleHp: number;
   homingAngle: number;
+  speedBonus: number;
+  dashDistanceBonus: number;
+  marbleSpeedMultiplier: number;
+  maxBouncesBonus: number;
+  marbleRadiusBonus: number;
+  baseDamageBonus: number;
+  recallSpeedMultiplier: number;
 };
 
 export type Upgrade = {

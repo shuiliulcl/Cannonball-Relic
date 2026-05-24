@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "name": "黄道 02 — 苔藓庭院",
+  "description": "地面铺有苔藓，踩上会减速。注意怪物绕行路线。",
+  "grid": { "width": 13, "height": 11, "cellSize": 1 },
+  "playerStart": { "x": 6, "z": 9 },
+  "floors": [
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","moss","moss","moss","sandstone","sandstone","sandstone","moss","moss","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","moss","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","moss","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone"
+  ],
+  "obstacles": [
+    { "id": "ob-1", "x": 2, "z": 4, "w": 2, "h": 1, "material": "wood" },
+    { "id": "ob-2", "x": 9, "z": 4, "w": 2, "h": 1, "material": "wood" },
+    { "id": "ob-3", "x": 5, "z": 6, "w": 1, "h": 1, "material": "stone" },
+    { "id": "ob-4", "x": 7, "z": 6, "w": 1, "h": 1, "material": "stone" }
+  ],
+  "spawns": [
+    { "id": "s1a", "x": 3, "z": 1, "wave": 1, "count": 3, "monsterType": "grunt",  "interval": 0.7 },
+    { "id": "s1b", "x": 10, "z": 1, "wave": 1, "count": 2, "monsterType": "runner","interval": 0.5 },
+    { "id": "s2a", "x": 2, "z": 2, "wave": 2, "count": 3, "monsterType": "runner", "interval": 0.5 },
+    { "id": "s2b", "x": 11, "z": 2, "wave": 2, "count": 1, "monsterType": "tank",  "interval": 1.2 },
+    { "id": "s3a", "x": 6, "z": 1, "wave": 3, "count": 2, "monsterType": "grunt",  "interval": 0.6 },
+    { "id": "s3b", "x": 2, "z": 3, "wave": 3, "count": 2, "monsterType": "runner", "interval": 0.4 },
+    { "id": "s3c", "x": 11, "z": 3, "wave": 3, "count": 1, "monsterType": "tank",  "interval": 1.0 }
+  ]
+}

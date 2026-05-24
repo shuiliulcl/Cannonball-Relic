@@ -39,34 +39,36 @@ export function scale(v: Vec2, amount: number): Vec2 {
   return { x: v.x * amount, z: v.z * amount };
 }
 
-export function clampToArena(position: Vec2, radius: number): Vec2 {
+type ArenaDims = { halfWidth: number; halfDepth: number };
+
+export function clampToArena(position: Vec2, radius: number, arena: ArenaDims = ARENA): Vec2 {
   return {
-    x: Math.max(-ARENA.halfWidth + radius, Math.min(ARENA.halfWidth - radius, position.x)),
-    z: Math.max(-ARENA.halfDepth + radius, Math.min(ARENA.halfDepth - radius, position.z)),
+    x: Math.max(-arena.halfWidth + radius, Math.min(arena.halfWidth - radius, position.x)),
+    z: Math.max(-arena.halfDepth + radius, Math.min(arena.halfDepth - radius, position.z)),
   };
 }
 
-export function bounceInArena(position: Vec2, velocity: Vec2, radius: number): { position: Vec2; velocity: Vec2; bounced: boolean } {
+export function bounceInArena(position: Vec2, velocity: Vec2, radius: number, arena: ArenaDims = ARENA): { position: Vec2; velocity: Vec2; bounced: boolean } {
   const nextPosition = { ...position };
   const nextVelocity = { ...velocity };
   let bounced = false;
 
-  if (nextPosition.x < -ARENA.halfWidth + radius) {
-    nextPosition.x = -ARENA.halfWidth + radius;
+  if (nextPosition.x < -arena.halfWidth + radius) {
+    nextPosition.x = -arena.halfWidth + radius;
     nextVelocity.x = Math.abs(nextVelocity.x);
     bounced = true;
-  } else if (nextPosition.x > ARENA.halfWidth - radius) {
-    nextPosition.x = ARENA.halfWidth - radius;
+  } else if (nextPosition.x > arena.halfWidth - radius) {
+    nextPosition.x = arena.halfWidth - radius;
     nextVelocity.x = -Math.abs(nextVelocity.x);
     bounced = true;
   }
 
-  if (nextPosition.z < -ARENA.halfDepth + radius) {
-    nextPosition.z = -ARENA.halfDepth + radius;
+  if (nextPosition.z < -arena.halfDepth + radius) {
+    nextPosition.z = -arena.halfDepth + radius;
     nextVelocity.z = Math.abs(nextVelocity.z);
     bounced = true;
-  } else if (nextPosition.z > ARENA.halfDepth - radius) {
-    nextPosition.z = ARENA.halfDepth - radius;
+  } else if (nextPosition.z > arena.halfDepth - radius) {
+    nextPosition.z = arena.halfDepth - radius;
     nextVelocity.z = -Math.abs(nextVelocity.z);
     bounced = true;
   }
@@ -170,7 +172,7 @@ export function applyHoming(velocity: Vec2, marblePos: Vec2, targets: ReadonlyAr
   return { x: (blendedX / blendedLen) * speed, z: (blendedZ / blendedLen) * speed };
 }
 
-export function makeTrajectory(origin: Vec2, direction: Vec2, bounces: number, obstacles: readonly Obstacle[] = [], step = 0.2, marbleRadius = 0.18): Vec2[] {
+export function makeTrajectory(origin: Vec2, direction: Vec2, bounces: number, obstacles: readonly Obstacle[] = [], step = 0.2, marbleRadius = 0.18, arena: ArenaDims = ARENA): Vec2[] {
   const points: Vec2[] = [{ ...origin }];
   let position = { ...origin };
   let velocity = scale(normalize(direction), step);
@@ -180,7 +182,7 @@ export function makeTrajectory(origin: Vec2, direction: Vec2, bounces: number, o
   while (bounceCount <= bounces && safety < 240) {
     safety += 1;
     position = add(position, velocity);
-    let bounced = bounceInArena(position, velocity, marbleRadius);
+    let bounced = bounceInArena(position, velocity, marbleRadius, arena);
     position = bounced.position;
     velocity = bounced.velocity;
     for (const obstacle of obstacles) {

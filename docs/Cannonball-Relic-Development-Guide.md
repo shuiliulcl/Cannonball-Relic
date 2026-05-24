@@ -161,22 +161,23 @@ docs/
 | 字段 | 说明 |
 |-|-|
 | `id` | 唯一标识，需要同步加入 `UpgradeId` |
-| `rarity` | `common` / `rare` / `special` |
+| `rarity` | `bronze` / `gold` / `diamond` |
 | `title` | UI 展示名称 |
 | `description` | UI 展示描述 |
 | `weight` | 抽取权重 |
+| `uniquePerRun` | 可选，`true` 表示单局仅能抽一次（所有钻石卡默认应设此项） |
+| `apply` | `(stats, player) => void`，直接修改属性，无需改 `Game.chooseUpgrade` |
 
 新增卡牌流程：
 
 1. 在 `src/game/types.ts` 的 `UpgradeId` 加新 id。
-2. 在 `src/game/upgrades.ts` 增加卡牌配置。
-3. 在 `src/game/Game.ts` 的 `chooseUpgrade` 实现效果。
-4. 如有 UI 或特效需求，再改 `src/ui/Hud.ts` 或 `src/render/effects.ts`。
-5. 更新 `docs/GameDesign.md` 或 `docs/CollaboratorGuide.md`。
+2. 在 `src/game/upgrades.ts` 增加卡牌配置，在 `apply` 里写效果。
+3. 如有 UI 或特效需求，再改 `src/ui/Hud.ts` 或 `src/render/effects.ts`。
+4. 更新 `docs/GameDesign.md` 或 `docs/CollaboratorGuide.md`。
 
 ### 6.3 Human Cannon 特殊卡
 
-Human Cannon 是 `special` 卡。
+Human Cannon 是 `diamond`（钻石）卡。
 
 设计边界：
 

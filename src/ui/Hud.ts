@@ -212,6 +212,16 @@ export class Hud {
       vitality: "心",
       humanCannon: "炮",
       piercingMarble: "穿",
+      sprintTraining: "跑",
+      rollMastery: "滚",
+      lightMarble: "速",
+      multiBounce: "弹",
+      sizeAmplify: "大",
+      expandedPouch: "包",
+      hunterCalibration: "猎",
+      swiftRecall: "收",
+      rapidThrow: "射",
+      crisisConcentration: "专",
     };
     return icons[upgradeId];
   }

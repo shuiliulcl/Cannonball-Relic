@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "name": "黄道 06 — 玻璃温室",
+  "description": "玻璃障碍只能被打破一次，破碎后失去遮蔽。史莱姆分裂繁殖，须快速清场。",
+  "grid": { "width": 16, "height": 12, "cellSize": 1 },
+  "playerStart": { "x": 8, "z": 10 },
+  "floors": [
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","blood","blood","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","blood","blood","sandstone",
+    "sandstone","blood","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","blood","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone"
+  ],
+  "obstacles": [
+    { "id": "ob-1", "x": 2,  "z": 4, "w": 1, "h": 2, "material": "glass" },
+    { "id": "ob-2", "x": 13, "z": 4, "w": 1, "h": 2, "material": "glass" },
+    { "id": "ob-3", "x": 4,  "z": 3, "w": 2, "h": 1, "material": "wood"  },
+    { "id": "ob-4", "x": 10, "z": 3, "w": 2, "h": 1, "material": "wood"  },
+    { "id": "ob-5", "x": 7,  "z": 6, "w": 2, "h": 1, "material": "stone" }
+  ],
+  "spawns": [
+    { "id": "s1a", "x": 3,  "z": 1, "wave": 1, "count": 3, "monsterType": "grunt",  "interval": 0.7 },
+    { "id": "s1b", "x": 13, "z": 1, "wave": 1, "count": 3, "monsterType": "runner", "interval": 0.5 },
+    { "id": "s2a", "x": 4,  "z": 2, "wave": 2, "count": 3, "monsterType": "slime",  "interval": 0.9 },
+    { "id": "s2b", "x": 12, "z": 2, "wave": 2, "count": 1, "monsterType": "tank",   "interval": 1.2 },
+    { "id": "s3a", "x": 8,  "z": 1, "wave": 3, "count": 4, "monsterType": "slime",  "interval": 0.8 },
+    { "id": "s3b", "x": 2,  "z": 2, "wave": 3, "count": 1, "monsterType": "octopus","interval": 1.5 },
+    { "id": "s3c", "x": 14, "z": 2, "wave": 3, "count": 1, "monsterType": "boar",   "interval": 1.0 },
+    { "id": "s4a", "x": 4,  "z": 1, "wave": 4, "count": 5, "monsterType": "slime",  "interval": 0.7 },
+    { "id": "s4b", "x": 12, "z": 1, "wave": 4, "count": 2, "monsterType": "hound",  "interval": 0.8 },
+    { "id": "s4c", "x": 8,  "z": 2, "wave": 4, "count": 1, "monsterType": "tank",   "interval": 1.0 }
+  ]
+}

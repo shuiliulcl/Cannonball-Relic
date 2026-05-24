@@ -218,7 +218,7 @@
 - [x] Add `zodiac-schema-smoke.json` as a minimal new-schema validation level.
 - [x] Align core numeric constants with the Zodiac baseline for movement, roll, marble speed, range, and radius.
 - [x] Implement runtime effects for the new terrain and core obstacle behaviors.
-- [ ] Implement runtime effects for interactable behaviors.
+- [x] Implement runtime effects for interactable behaviors.
 
 ## Phase 27 - Zodiac Terrain And Obstacle Runtime
 
@@ -256,3 +256,78 @@
 - [x] Implement second batch: slime, rabbit, bomb bug.
 - [x] Implement third batch: shield crab, voodoo flower, eye cannon, priest.
 - [ ] Replace placeholder monster tints with dedicated pixel sprites for all Zodiac enemies.
+
+## Phase 30 - Documentation Cleanup
+
+- [x] Update CollaboratorGuide.md card rarity from common/rare/special to bronze/gold/diamond.
+- [x] Update Cannonball-Relic-Development-Guide.md card rarity and card authoring flow.
+- [x] Tick Phase 26 interactable behaviors checkbox (completed in Phase 28/29).
+- [ ] Screenshot verify Phase 19 art pass and push.
+
+## Phase 31 - Editor Completion
+
+- [ ] Add obstacle behavior, facing, and HP controls to the level editor inspector.
+- [ ] Add interactable placement tool with type, wave, and cooldown configuration.
+- [x] Build verify and test in ?mode=editor.
+
+## Phase 32 - Dynamic Arena Size
+
+- [x] Add arenaHalfWidth and arenaHalfDepth to RuntimeLevel (derived from grid dimensions).
+- [x] Update physics.ts bounceInArena and clampToArena to accept optional arena dimensions.
+- [x] Update Game.ts to use runtime arena dimensions for physics, spawn, and floor lookups.
+- [x] Update SceneView.ts arena construction to use runtime arena dimensions.
+- [x] Build verify with existing smoke level and default mode.
+
+## Phase 33 - Card Pool Expansion: Stat Cards
+
+- [x] Extend UpgradeStats with speedBonus, dashDistanceBonus, marbleSpeedMultiplier, maxBouncesBonus, marbleRadiusBonus, baseDamageBonus, recallSpeedMultiplier.
+- [x] Wire new stats into Game.ts movement, marble creation, and physics calls.
+- [x] Add bronze cards: 疾跑训练, 翻滚精进, 轻量弹珠, 多段弹跳, 尺寸增幅, 腰包扩容 (placeholder).
+- [x] Add gold cards: 猎手校准, 迅捷回收, 速射抛投, 绝境专注.
+- [x] Update Hud.ts cardIcon and types.ts UpgradeId.
+- [x] Build verify.
+
+## Phase 34 - Wave Rarity Weights
+
+- [x] Update draftUpgrades to apply wave-based rarity weights (bronze/gold/diamond).
+- [x] Implement pity counter in Game.ts: two consecutive bronze-only waves increase gold chance.
+- [x] Build verify.
+
+## Phase 35 - Ten Level Content
+
+- [x] Create public/levels/zodiac-01.json through zodiac-10.json from design document.
+- [x] Verify each level loads via ?level=zodiac-0X, can start, and win/lose correctly.
+
+## Phase 36 - Gold Card Complex Systems
+
+- [ ] 护盾特性: kill grants 1 shield (max 3), shields absorb damage before HP.
+- [ ] 吸血特性: kill restores 1 HP.
+- [ ] 余势不止: kill restores 1 marble HP.
+- [ ] 连锁装填: recall hit boosts next shot damage.
+- [ ] 破片弹道: first hit spawns two angled auxiliary marbles.
+- [ ] 强震击退: wall bounce damages nearby monsters.
+- [ ] Build verify.
+
+## Phase 37 - Diamond Card Complex Systems
+
+- [ ] 一键三连: fire three marbles in a spread.
+- [ ] 冻住不许走: hits apply freeze to monsters.
+- [ ] 是你吗沙师弟: marble grows in radius on each bounce.
+- [ ] 我的钻头: marble HP +2 and full pierce (ignore hitIds).
+- [ ] Build verify.
+
+## Phase 38 - Monster Pixel Sprites
+
+- [ ] Add per-monster sprite slots to SkinAssets and skin.ts.
+- [ ] Generate pixel sprites for all 10+ Zodiac monster types.
+- [ ] Wire sprites into SceneView.createMonsterMesh, remove color tints.
+- [ ] Build verify both view modes.
+
+## Phase 39 - Polish and Submission Materials
+
+- [ ] Add sound effects (charge, fire, bounce, hit, wave clear, card select).
+- [ ] Optimize defeat/victory restart flow.
+- [ ] Prepare cover image (1920x1080).
+- [ ] Record PV (16:9, 1080p, under 2 min).
+- [ ] Update docs/AIProcess.md with all AI contributions.
+- [ ] Final build and dist package.

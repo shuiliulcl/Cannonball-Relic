@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "name": "黄道 04 — 冰霜大厅",
+  "description": "冰面令人难以刹车，野猪冲刺更加危险。谨慎预判。",
+  "grid": { "width": 14, "height": 12, "cellSize": 1 },
+  "playerStart": { "x": 7, "z": 10 },
+  "floors": [
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","ice","ice","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","ice","ice","sandstone","sandstone",
+    "sandstone","sandstone","ice","ice","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","ice","ice","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","ice","ice","ice","ice","ice","ice","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","ice","ice","ice","ice","ice","ice","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone"
+  ],
+  "obstacles": [
+    { "id": "ob-1", "x": 1,  "z": 4, "w": 2, "h": 1, "material": "wood" },
+    { "id": "ob-2", "x": 11, "z": 4, "w": 2, "h": 1, "material": "wood" },
+    { "id": "ob-3", "x": 6,  "z": 3, "w": 2, "h": 1, "material": "stone" },
+    { "id": "ob-4", "x": 6,  "z": 8, "w": 2, "h": 1, "material": "stone" }
+  ],
+  "spawns": [
+    { "id": "s1a", "x": 3,  "z": 1, "wave": 1, "count": 3, "monsterType": "grunt",  "interval": 0.7 },
+    { "id": "s1b", "x": 11, "z": 1, "wave": 1, "count": 3, "monsterType": "grunt",  "interval": 0.7 },
+    { "id": "s2a", "x": 2,  "z": 2, "wave": 2, "count": 2, "monsterType": "boar",   "interval": 1.0 },
+    { "id": "s2b", "x": 12, "z": 2, "wave": 2, "count": 2, "monsterType": "runner", "interval": 0.5 },
+    { "id": "s3a", "x": 7,  "z": 1, "wave": 3, "count": 2, "monsterType": "boar",   "interval": 0.8 },
+    { "id": "s3b", "x": 2,  "z": 2, "wave": 3, "count": 1, "monsterType": "hound",  "interval": 0.8 },
+    { "id": "s3c", "x": 12, "z": 2, "wave": 3, "count": 1, "monsterType": "tank",   "interval": 1.0 }
+  ]
+}

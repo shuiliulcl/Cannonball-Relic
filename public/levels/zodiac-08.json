@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "name": "黄道 08 — 爆破试炼",
+  "description": "爆炸虫自爆范围大，盾蟹正面格挡弹珠。寻找侧面击杀窗口。",
+  "grid": { "width": 17, "height": 13, "cellSize": 1 },
+  "playerStart": { "x": 8, "z": 11 },
+  "floors": [
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","ice","ice","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","ice","ice","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","danger","danger","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","danger","danger","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone"
+  ],
+  "obstacles": [
+    { "id": "ob-1", "x": 2,  "z": 3, "w": 2, "h": 1, "material": "wood"  },
+    { "id": "ob-2", "x": 13, "z": 3, "w": 2, "h": 1, "material": "wood"  },
+    { "id": "ob-3", "x": 4,  "z": 6, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "ob-4", "x": 12, "z": 6, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "ob-5", "x": 7,  "z": 4, "w": 3, "h": 1, "material": "stone" },
+    { "id": "ob-6", "x": 7,  "z": 9, "w": 2, "h": 1, "material": "stone" }
+  ],
+  "spawns": [
+    { "id": "s1a", "x": 4,  "z": 1, "wave": 1, "count": 3, "monsterType": "grunt",     "interval": 0.7 },
+    { "id": "s1b", "x": 13, "z": 1, "wave": 1, "count": 3, "monsterType": "runner",    "interval": 0.5 },
+    { "id": "s2a", "x": 4,  "z": 2, "wave": 2, "count": 3, "monsterType": "bombBug",   "interval": 1.0 },
+    { "id": "s2b", "x": 13, "z": 2, "wave": 2, "count": 2, "monsterType": "hound",     "interval": 0.8 },
+    { "id": "s3a", "x": 8,  "z": 1, "wave": 3, "count": 2, "monsterType": "shieldCrab","interval": 1.2 },
+    { "id": "s3b", "x": 3,  "z": 2, "wave": 3, "count": 2, "monsterType": "bombBug",   "interval": 0.9 },
+    { "id": "s3c", "x": 14, "z": 2, "wave": 3, "count": 1, "monsterType": "octopus",   "interval": 1.5 },
+    { "id": "s4a", "x": 4,  "z": 1, "wave": 4, "count": 3, "monsterType": "shieldCrab","interval": 1.0 },
+    { "id": "s4b", "x": 13, "z": 1, "wave": 4, "count": 2, "monsterType": "boar",      "interval": 0.9 },
+    { "id": "s4c", "x": 8,  "z": 2, "wave": 4, "count": 2, "monsterType": "bombBug",   "interval": 0.8 }
+  ]
+}

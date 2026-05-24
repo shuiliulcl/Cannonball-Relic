@@ -98,14 +98,12 @@ Current default skin:
 
 ## Card Authoring
 
-Cards live in `src/game/upgrades.ts`. Add a unique `id`, `rarity`, `title`, `description`, and `weight`.
+Cards live in `src/game/upgrades.ts`. Add a unique `id`, `rarity`, `title`, `description`, and `weight`. The card `apply(stats, player)` function handles its effect directly — no need to touch `Game.chooseUpgrade`.
 
-- `common`: frequent numeric upgrades.
-- `rare`: stronger build-shaping upgrades.
-- `special`: unusual rule-bending cards. These should preserve the base game unless selected by the player.
+- `bronze`: frequent numeric or utility upgrades.
+- `gold`: stronger build-shaping upgrades.
+- `diamond`: unusual rule-bending cards that change the play model. These should preserve the base game unless selected by the player. Diamond cards can only be drafted once per run.
 
-After adding a new `UpgradeId`, implement its effect in `Game.chooseUpgrade`.
-
-Current special card:
+Current diamond card:
 
 - `humanCannon`: selected after a wave, then launches the player as a temporary projectile. This is intentionally a card effect, not the default control scheme.

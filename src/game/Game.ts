@@ -35,6 +35,7 @@ export class Game {
   private readonly ownedUpgrades = new Map<UpgradeId, number>();
   private readonly blockedDiamondUpgrades = new Set<UpgradeId>();
   private terrainDamageTimer = 0;
+  private bronzeStreakCount = 0;
   private pausedForBuffPanel = false;
   private wasPausedBeforeBuffPanel = false;
   private readonly baseObstacles: Obstacle[];
@@ -61,6 +62,13 @@ export class Game {
     this.levelSpawns = runtimeLevel?.spawns ?? [];
   }
 
+  private get arena() {
+    return {
+      halfWidth: this.runtimeLevel?.arenaHalfWidth ?? ARENA.halfWidth,
+      halfDepth: this.runtimeLevel?.arenaHalfDepth ?? ARENA.halfDepth,
+    };
+  }
+
   start(): void {
     this.player = this.createPlayer();
     this.marble = this.createMarble();
@@ -81,6 +89,7 @@ export class Game {
     this.ownedUpgrades.clear();
     this.blockedDiamondUpgrades.clear();
     this.terrainDamageTimer = 0;
+    this.bronzeStreakCount = 0;
     this.pausedForBuffPanel = false;
     this.wasPausedBeforeBuffPanel = false;
     this.spawnWave();
@@ -112,6 +121,12 @@ export class Game {
       this.ownedUpgrades.set(upgrade.id, (this.ownedUpgrades.get(upgrade.id) ?? 0) + 1);
       if (upgrade.rarity === "diamond") {
         this.blockedDiamondUpgrades.add(upgrade.id);
+      }
+      // 连铜保底计数：选了铜卡 streak+1，金/钻 streak 归零
+      if (upgrade.rarity === "bronze") {
+        this.bronzeStreakCount += 1;
+      } else {
+        this.bronzeStreakCount = 0;
       }
     }
     if (upgradeId === "humanCannon") {
@@ -202,7 +217,7 @@ export class Game {
         return;
       }
       this.pausedForUpgrade = true;
-      this.hud.showUpgrades(draftUpgrades(3, this.wave, this.blockedDiamondUpgrades));
+      this.hud.showUpgrades(draftUpgrades(3, this.wave, this.blockedDiamondUpgrades, this.bronzeStreakCount));
     }
   }
 
@@ -219,24 +234,24 @@ export class Game {
     const speedMultiplier = floor === "mud" ? 0.5 : 1;
 
     if (this.player.rollTimer > 0) {
-      this.player.position = clampToArena(add(this.player.position, scale(this.player.rollVelocity, dt)), this.player.radius);
+      this.player.position = clampToArena(add(this.player.position, scale(this.player.rollVelocity, dt)), this.player.radius, this.arena);
       this.player.rollTimer = Math.max(0, this.player.rollTimer - dt);
       this.player.invulnTimer = Math.max(this.player.invulnTimer, this.player.rollTimer);
     } else if (floor === "ice") {
-      const desiredVelocity = scale(movement, this.player.speed * speedMultiplier);
+      const desiredVelocity = scale(movement, (this.player.speed + this.stats.speedBonus) * speedMultiplier);
       this.player.velocity = add(scale(this.player.velocity, 0.9), scale(desiredVelocity, 0.1));
-      this.player.position = clampToArena(add(this.player.position, scale(this.player.velocity, dt)), this.player.radius);
+      this.player.position = clampToArena(add(this.player.position, scale(this.player.velocity, dt)), this.player.radius, this.arena);
     } else {
-      this.player.velocity = scale(movement, this.player.speed * speedMultiplier);
+      this.player.velocity = scale(movement, (this.player.speed + this.stats.speedBonus) * speedMultiplier);
       const delta = scale(this.player.velocity, dt);
-      this.player.position = clampToArena(add(this.player.position, delta), this.player.radius);
+      this.player.position = clampToArena(add(this.player.position, delta), this.player.radius, this.arena);
     }
     this.applyPlayerTerrainEffects(dt);
 
     if (this.input.keys.has(" ") && this.player.dashTimer <= 0 && this.player.rollTimer <= 0 && (movement.x !== 0 || movement.z !== 0)) {
       this.player.rollTimer = PLAYER.rollDuration;
       this.player.rollDuration = PLAYER.rollDuration;
-      this.player.rollVelocity = scale(movement, PLAYER.dashDistance / PLAYER.rollDuration);
+      this.player.rollVelocity = scale(movement, (PLAYER.dashDistance + this.stats.dashDistanceBonus) / PLAYER.rollDuration);
       this.player.invulnTimer = PLAYER.rollDuration;
       this.player.dashTimer = this.player.dashCooldown;
     }
@@ -249,14 +264,14 @@ export class Game {
     if (this.marble.state === "charging") {
       this.chargeSeconds = Math.min(MARBLE.maxChargeSeconds, this.chargeSeconds + dt);
       const direction = this.aimDirection();
-      this.view.showTrajectory(makeTrajectory(this.player.position, direction, MARBLE.maxBounces, this.obstacles, 0.2, MARBLE.radius), this.chargeSeconds / MARBLE.maxChargeSeconds);
+      this.view.showTrajectory(makeTrajectory(this.player.position, direction, MARBLE.maxBounces + this.stats.maxBouncesBonus, this.obstacles, 0.2, MARBLE.radius + this.stats.marbleRadiusBonus, this.arena), this.chargeSeconds / MARBLE.maxChargeSeconds);
     }
 
     if (this.input.consumeLeftRelease() && this.marble.state === "charging") {
       const direction = this.aimDirection();
       this.marble.state = "flying";
       this.marble.position = { ...this.player.position };
-      this.marble.velocity = scale(direction, MARBLE.baseSpeed);
+      this.marble.velocity = scale(direction, MARBLE.baseSpeed * this.stats.marbleSpeedMultiplier);
       this.marble.distanceLeft = MARBLE.baseRange * this.stats.rangeMultiplier;
       this.marble.bounces = 0;
       this.marble.hitIds.clear();
@@ -283,7 +298,7 @@ export class Game {
         this.marble = this.createMarble();
         return;
       }
-      this.marble.velocity = scale(normalize(toPlayer), MARBLE.recallSpeed);
+      this.marble.velocity = scale(normalize(toPlayer), MARBLE.recallSpeed * this.stats.recallSpeedMultiplier);
     }
 
     if (this.marble.state === "flying" && this.stats.homingAngle > 0) {
@@ -294,7 +309,7 @@ export class Game {
     this.marble.position = add(this.marble.position, step);
     this.marble.distanceLeft -= Math.hypot(step.x, step.z);
 
-    const bounce = bounceInArena(this.marble.position, this.marble.velocity, this.marble.radius);
+    const bounce = bounceInArena(this.marble.position, this.marble.velocity, this.marble.radius, this.arena);
     this.marble.position = bounce.position;
     this.marble.velocity = bounce.velocity;
     let didBounce = bounce.bounced;
@@ -316,7 +331,7 @@ export class Game {
       this.marble.bounces += 1;
       this.marble.hitIds.clear();
       this.view.spark(this.marble.position, 0xffdf72, 12);
-      if (this.marble.bounces >= MARBLE.maxBounces) {
+      if (this.marble.bounces >= MARBLE.maxBounces + this.stats.maxBouncesBonus) {
         this.marble.state = "recalling";
         this.marble.hitIds.clear();
       }
@@ -335,7 +350,7 @@ export class Game {
       marble.position = add(marble.position, step);
       marble.distanceLeft -= Math.hypot(step.x, step.z);
 
-      const bounce = bounceInArena(marble.position, marble.velocity, marble.radius);
+      const bounce = bounceInArena(marble.position, marble.velocity, marble.radius, this.arena);
       marble.position = bounce.position;
       marble.velocity = bounce.velocity;
       if (bounce.bounced) {
@@ -386,6 +401,7 @@ export class Game {
       monster.position = clampToArena(
         add(monster.position, scale(direction, monster.speed * speedMultiplier * chargeMultiplier * jumpMultiplier * dt)),
         monster.radius,
+        this.arena,
       );
       this.updateMonsterAttack(monster);
       if (floor === "blood") {
@@ -435,7 +451,7 @@ export class Game {
     const step = scale(this.player.velocity, dt);
     this.player.position = add(this.player.position, step);
 
-    const bounce = bounceInArena(this.player.position, this.player.velocity, this.player.radius + HUMAN_CANNON.radiusBonus);
+    const bounce = bounceInArena(this.player.position, this.player.velocity, this.player.radius + HUMAN_CANNON.radiusBonus, this.arena);
     this.player.position = bounce.position;
     this.player.velocity = bounce.velocity;
     let didBounce = bounce.bounced;
@@ -496,7 +512,7 @@ export class Game {
     }
 
     for (const marble of activeMarbles) {
-      const baseDamage = calcBounceDamage(marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage) + marble.bonusDamage;
+      const baseDamage = calcBounceDamage(marble.bounces, MARBLE.baseDamage + this.stats.baseDamageBonus, this.stats.bounceBonusDamage) + marble.bonusDamage;
       const damage = marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus : baseDamage;
 
       for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
@@ -512,7 +528,7 @@ export class Game {
           this.view.spark(monster.position, finalDamage < damage ? 0x8edcff : 0x9de7ff, finalDamage < damage ? 20 : 14);
           if (!monster.noKnockback && monster.hp > 0) {
             const knockDir = normalize(sub(monster.position, marble.position));
-            monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius);
+            monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius, this.arena);
           }
           if (monster.hp <= 0) {
             this.defeatMonster(i, 10 + marble.bounces * 5);
@@ -539,7 +555,7 @@ export class Game {
       score: this.score,
       wave: this.wave,
       marbleState: this.player.mode === "humanCannon" ? "cannon" : this.marble.state,
-      damageScale: calcBounceDamage(this.marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage),
+      damageScale: calcBounceDamage(this.marble.bounces, MARBLE.baseDamage + this.stats.baseDamageBonus, this.stats.bounceBonusDamage),
       chargeRatio: this.marble.state === "charging" ? this.chargeSeconds / MARBLE.maxChargeSeconds : 0,
       hp: this.player.hp,
       maxHp: this.stats.maxHp,
@@ -971,7 +987,7 @@ export class Game {
       id: "main",
       position: { ...this.player.position },
       velocity: { x: 0, z: 0 },
-      radius: MARBLE.radius,
+      radius: MARBLE.radius + this.stats.marbleRadiusBonus,
       state: "ready",
       bounces: 0,
       distanceLeft: 0,
@@ -1012,10 +1028,10 @@ export class Game {
     if (!this.runtimeLevel) {
       return "sandstone";
     }
-    const { grid, floors } = this.runtimeLevel;
+    const { grid, floors, arenaHalfWidth, arenaHalfDepth } = this.runtimeLevel;
     const cellSize = grid.cellSize || 1;
-    const x = Math.floor((position.x + ARENA.halfWidth) / cellSize);
-    const z = Math.floor((position.z + ARENA.halfDepth) / cellSize);
+    const x = Math.floor((position.x + arenaHalfWidth) / cellSize);
+    const z = Math.floor((position.z + arenaHalfDepth) / cellSize);
     if (x < 0 || z < 0 || x >= grid.width || z >= grid.height) {
       return "sandstone";
     }
@@ -1231,7 +1247,7 @@ export class Game {
     ];
     for (const offset of offsets) {
       this.spawnMonster(
-        clampToArena(add(monster.position, offset), childRadius),
+        clampToArena(add(monster.position, offset), childRadius, this.arena),
         "slime",
         undefined,
         {

@@ -78,6 +78,8 @@ export type RuntimeLevel = {
   name: string;
   description?: string;
   grid: LevelDefinition["grid"];
+  arenaHalfWidth: number;
+  arenaHalfDepth: number;
   playerStart?: Vec2;
   floors: FloorMaterial[];
   obstacles: Obstacle[];

@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "name": "黄道 09 — 诅咒神殿",
+  "description": "巫毒花持续降低弹珠伤害，眼型炮台精准射击。快速击杀优先级目标。",
+  "grid": { "width": 18, "height": 14, "cellSize": 1 },
+  "playerStart": { "x": 9, "z": 12 },
+  "floors": [
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","cracked","cracked","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","cracked","cracked","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","moss","moss","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","moss","moss","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","danger","danger","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","danger","danger","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","danger","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","danger","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone"
+  ],
+  "obstacles": [
+    { "id": "ob-1", "x": 3,  "z": 4, "w": 2, "h": 1, "material": "wood"    },
+    { "id": "ob-2", "x": 13, "z": 4, "w": 2, "h": 1, "material": "wood"    },
+    { "id": "ob-3", "x": 6,  "z": 3, "w": 1, "h": 1, "material": "glass"   },
+    { "id": "ob-4", "x": 11, "z": 3, "w": 1, "h": 1, "material": "glass"   },
+    { "id": "ob-5", "x": 8,  "z": 6, "w": 2, "h": 1, "material": "stone"   }
+  ],
+  "spawns": [
+    { "id": "s1a", "x": 4,  "z": 1, "wave": 1, "count": 4, "monsterType": "grunt",       "interval": 0.7 },
+    { "id": "s1b", "x": 14, "z": 1, "wave": 1, "count": 3, "monsterType": "runner",      "interval": 0.5 },
+    { "id": "s2a", "x": 5,  "z": 2, "wave": 2, "count": 2, "monsterType": "voodooFlower","interval": 1.5 },
+    { "id": "s2b", "x": 13, "z": 2, "wave": 2, "count": 2, "monsterType": "shieldCrab",  "interval": 1.0 },
+    { "id": "s2c", "x": 9,  "z": 1, "wave": 2, "count": 2, "monsterType": "boar",        "interval": 0.9 },
+    { "id": "s3a", "x": 2,  "z": 1, "wave": 3, "count": 2, "monsterType": "eyeCannon",   "interval": 1.5 },
+    { "id": "s3b", "x": 16, "z": 1, "wave": 3, "count": 2, "monsterType": "eyeCannon",   "interval": 1.5 },
+    { "id": "s3c", "x": 9,  "z": 2, "wave": 3, "count": 3, "monsterType": "slime",       "interval": 0.7 },
+    { "id": "s4a", "x": 5,  "z": 1, "wave": 4, "count": 3, "monsterType": "voodooFlower","interval": 1.2 },
+    { "id": "s4b", "x": 13, "z": 1, "wave": 4, "count": 3, "monsterType": "bombBug",     "interval": 0.9 },
+    { "id": "s4c", "x": 9,  "z": 2, "wave": 4, "count": 1, "monsterType": "tank",        "interval": 1.2 },
+    { "id": "s5a", "x": 3,  "z": 1, "wave": 5, "count": 2, "monsterType": "eyeCannon",   "interval": 1.5 },
+    { "id": "s5b", "x": 15, "z": 1, "wave": 5, "count": 2, "monsterType": "shieldCrab",  "interval": 1.0 },
+    { "id": "s5c", "x": 9,  "z": 1, "wave": 5, "count": 4, "monsterType": "hound",       "interval": 0.7 }
+  ]
+}

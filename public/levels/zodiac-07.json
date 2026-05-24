@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "name": "黄道 07 — 泥泞迷宫",
+  "description": "反射板让弹珠改变方向，泥地令玩家行动迟缓。弹珠路径需反复计算。",
+  "grid": { "width": 16, "height": 13, "cellSize": 1 },
+  "playerStart": { "x": 8, "z": 11 },
+  "floors": [
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","mud","mud","mud","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","mud","mud","mud","sandstone",
+    "sandstone","mud","mud","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","mud","mud","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone"
+  ],
+  "obstacles": [
+    { "id": "ob-1", "x": 3,  "z": 4, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "ob-2", "x": 12, "z": 4, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "ob-3", "x": 2,  "z": 7, "w": 2, "h": 1, "material": "wood"  },
+    { "id": "ob-4", "x": 12, "z": 7, "w": 2, "h": 1, "material": "wood"  },
+    { "id": "ob-5", "x": 7,  "z": 5, "w": 2, "h": 1, "material": "stone" }
+  ],
+  "spawns": [
+    { "id": "s1a", "x": 3,  "z": 1, "wave": 1, "count": 3, "monsterType": "runner", "interval": 0.5 },
+    { "id": "s1b", "x": 13, "z": 1, "wave": 1, "count": 3, "monsterType": "grunt",  "interval": 0.7 },
+    { "id": "s2a", "x": 4,  "z": 2, "wave": 2, "count": 3, "monsterType": "rabbit", "interval": 0.7 },
+    { "id": "s2b", "x": 12, "z": 2, "wave": 2, "count": 2, "monsterType": "hound",  "interval": 0.8 },
+    { "id": "s3a", "x": 8,  "z": 1, "wave": 3, "count": 4, "monsterType": "rabbit", "interval": 0.6 },
+    { "id": "s3b", "x": 2,  "z": 2, "wave": 3, "count": 1, "monsterType": "octopus","interval": 1.5 },
+    { "id": "s3c", "x": 14, "z": 2, "wave": 3, "count": 2, "monsterType": "slime",  "interval": 0.8 },
+    { "id": "s4a", "x": 4,  "z": 1, "wave": 4, "count": 3, "monsterType": "rabbit", "interval": 0.6 },
+    { "id": "s4b", "x": 12, "z": 1, "wave": 4, "count": 1, "monsterType": "boar",   "interval": 1.0 },
+    { "id": "s4c", "x": 8,  "z": 2, "wave": 4, "count": 1, "monsterType": "tank",   "interval": 1.0 }
+  ]
+}

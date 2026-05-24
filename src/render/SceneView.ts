@@ -289,12 +289,14 @@ export class SceneView {
   }
 
   private buildArena(): void {
+    const hw = this.arenaHW;
+    const hd = this.arenaHD;
     const floorTexture = preparePixelTexture(this.textureLoader.load(this.skin.floor));
     floorTexture.wrapS = THREE.RepeatWrapping;
     floorTexture.wrapT = THREE.RepeatWrapping;
     floorTexture.repeat.set(5, 4);
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(ARENA.halfWidth * 2, ARENA.halfDepth * 2),
+      new THREE.PlaneGeometry(hw * 2, hd * 2),
       new THREE.MeshBasicMaterial({ map: floorTexture, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
@@ -302,23 +304,23 @@ export class SceneView {
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    const backWall = this.createTexturedBox(ARENA.halfWidth * 2 + 1, ARENA.wallHeight, 0.35, this.skin.wallBorder, 4, 1);
-    backWall.position.set(0, ARENA.wallHeight / 2, -ARENA.halfDepth - 0.2);
+    const backWall = this.createTexturedBox(hw * 2 + 1, ARENA.wallHeight, 0.35, this.skin.wallBorder, 4, 1);
+    backWall.position.set(0, ARENA.wallHeight / 2, -hd - 0.2);
     this.scene.add(backWall);
 
     const frontWall = backWall.clone();
-    frontWall.position.z = ARENA.halfDepth + 0.2;
+    frontWall.position.z = hd + 0.2;
     this.scene.add(frontWall);
 
-    const leftWall = this.createTexturedBox(0.35, ARENA.wallHeight, ARENA.halfDepth * 2 + 1, this.skin.wallBorder, 1, 4);
-    leftWall.position.set(-ARENA.halfWidth - 0.2, ARENA.wallHeight / 2, 0);
+    const leftWall = this.createTexturedBox(0.35, ARENA.wallHeight, hd * 2 + 1, this.skin.wallBorder, 1, 4);
+    leftWall.position.set(-hw - 0.2, ARENA.wallHeight / 2, 0);
     this.scene.add(leftWall);
 
     const rightWall = leftWall.clone();
-    rightWall.position.x = ARENA.halfWidth + 0.2;
+    rightWall.position.x = hw + 0.2;
     this.scene.add(rightWall);
 
-    for (const x of [-ARENA.halfWidth - 0.45, ARENA.halfWidth + 0.45]) {
+    for (const x of [-hw - 0.45, hw + 0.45]) {
       for (const z of [-4, 0, 4]) {
         const pillar = this.createSprite(this.skin.pillar, 1.0, 1.9);
         pillar.position.set(x, 1.05, z);
@@ -326,8 +328,10 @@ export class SceneView {
       }
     }
 
-    for (const x of [-7.3, 7.3]) {
-      for (const z of [-5.15, 5.15]) {
+    const bx = Math.max(hw - 1.2, hw * 0.85);
+    const bz = Math.max(hd - 1.1, hd * 0.82);
+    for (const x of [-bx, bx]) {
+      for (const z of [-bz, bz]) {
         const brazier = this.createSprite(this.skin.brazier, 0.46, 0.62);
         brazier.position.set(x, 0.43, z);
         this.scene.add(brazier);
@@ -336,12 +340,14 @@ export class SceneView {
   }
 
   private buildTopDownArena(): void {
+    const hw = this.arenaHW;
+    const hd = this.arenaHD;
     const floorTexture = preparePixelTexture(this.textureLoader.load(this.skin.floor));
     floorTexture.wrapS = THREE.RepeatWrapping;
     floorTexture.wrapT = THREE.RepeatWrapping;
     floorTexture.repeat.set(9, 7);
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(ARENA.halfWidth * 2, ARENA.halfDepth * 2),
+      new THREE.PlaneGeometry(hw * 2, hd * 2),
       new THREE.MeshBasicMaterial({ map: floorTexture, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
@@ -349,8 +355,8 @@ export class SceneView {
     this.scene.add(floor);
 
     const grid = new THREE.GridHelper(
-      Math.max(ARENA.halfWidth * 2, ARENA.halfDepth * 2),
-      Math.max(12, Math.round(ARENA.halfWidth * 2)),
+      Math.max(hw * 2, hd * 2),
+      Math.max(12, Math.round(hw * 2)),
       0x7b6155,
       0x7b6155,
     );
@@ -362,40 +368,40 @@ export class SceneView {
 
     const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x55475c });
     const lipMaterial = new THREE.MeshBasicMaterial({ color: 0x2f2638 });
-    const frontBackWidth = ARENA.halfWidth * 2 + 0.55;
-    const sideDepth = ARENA.halfDepth * 2 + 0.55;
+    const frontBackWidth = hw * 2 + 0.55;
+    const sideDepth = hd * 2 + 0.55;
     const wallThickness = 0.28;
 
     const backWall = new THREE.Mesh(new THREE.BoxGeometry(frontBackWidth, 0.2, wallThickness), wallMaterial);
-    backWall.position.set(0, 0.08, -ARENA.halfDepth - wallThickness / 2);
+    backWall.position.set(0, 0.08, -hd - wallThickness / 2);
     this.scene.add(backWall);
 
     const frontWall = backWall.clone();
-    frontWall.position.z = ARENA.halfDepth + wallThickness / 2;
+    frontWall.position.z = hd + wallThickness / 2;
     this.scene.add(frontWall);
 
     const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, 0.2, sideDepth), wallMaterial);
-    leftWall.position.set(-ARENA.halfWidth - wallThickness / 2, 0.08, 0);
+    leftWall.position.set(-hw - wallThickness / 2, 0.08, 0);
     this.scene.add(leftWall);
 
     const rightWall = leftWall.clone();
-    rightWall.position.x = ARENA.halfWidth + wallThickness / 2;
+    rightWall.position.x = hw + wallThickness / 2;
     this.scene.add(rightWall);
 
     const topLip = new THREE.Mesh(new THREE.BoxGeometry(frontBackWidth, 0.06, 0.08), lipMaterial);
-    topLip.position.set(0, 0.16, -ARENA.halfDepth - 0.08);
+    topLip.position.set(0, 0.16, -hd - 0.08);
     this.scene.add(topLip);
 
     const bottomLip = topLip.clone();
-    bottomLip.position.z = ARENA.halfDepth + 0.08;
+    bottomLip.position.z = hd + 0.08;
     this.scene.add(bottomLip);
 
     const leftLip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, sideDepth), lipMaterial);
-    leftLip.position.set(-ARENA.halfWidth - 0.08, 0.16, 0);
+    leftLip.position.set(-hw - 0.08, 0.16, 0);
     this.scene.add(leftLip);
 
     const rightLip = leftLip.clone();
-    rightLip.position.x = ARENA.halfWidth + 0.08;
+    rightLip.position.x = hw + 0.08;
     this.scene.add(rightLip);
   }
 
@@ -403,10 +409,10 @@ export class SceneView {
     if (!this.runtimeLevel) {
       return;
     }
-    const { grid, floors } = this.runtimeLevel;
+    const { grid, floors, arenaHalfWidth, arenaHalfDepth } = this.runtimeLevel;
     const cellSize = grid.cellSize || 1;
-    const originX = -ARENA.halfWidth + cellSize / 2;
-    const originZ = -ARENA.halfDepth + cellSize / 2;
+    const originX = -arenaHalfWidth + cellSize / 2;
+    const originZ = -arenaHalfDepth + cellSize / 2;
     const materials = new Map<FloorMaterial, THREE.MeshBasicMaterial>();
     for (let y = 0; y < grid.height; y += 1) {
       for (let x = 0; x < grid.width; x += 1) {
@@ -701,15 +707,28 @@ export class SceneView {
     return undefined;
   }
 
+  private get arenaHW(): number {
+    return this.runtimeLevel?.arenaHalfWidth ?? ARENA.halfWidth;
+  }
+
+  private get arenaHD(): number {
+    return this.runtimeLevel?.arenaHalfDepth ?? ARENA.halfDepth;
+  }
+
   private resize(): void {
     const rect = this.root.getBoundingClientRect();
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
     const aspect = width / height;
-    this.camera.left = -CAMERA.size * aspect;
-    this.camera.right = CAMERA.size * aspect;
-    this.camera.top = CAMERA.size;
-    this.camera.bottom = -CAMERA.size;
+    // Camera half-height covers the full arena depth with a small margin for walls.
+    const camH = this.arenaHD + 0.5;
+    // Also ensure full arena width is visible.
+    const camW = this.arenaHW + 0.5;
+    const size = Math.max(camH, camW / aspect);
+    this.camera.left = -size * aspect;
+    this.camera.right = size * aspect;
+    this.camera.top = size;
+    this.camera.bottom = -size;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
   }

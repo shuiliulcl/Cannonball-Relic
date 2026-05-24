@@ -62,6 +62,95 @@ export const UPGRADES: Upgrade[] = [
     weight: 4,
     apply: (stats) => { stats.marbleHp += 1; },
   },
+  // ── 青铜卡 ──
+  {
+    id: "sprintTraining",
+    rarity: "bronze",
+    title: "疾跑训练",
+    description: "移动速度 +0.5。",
+    weight: 9,
+    apply: (stats) => { stats.speedBonus += 0.5; },
+  },
+  {
+    id: "rollMastery",
+    rarity: "bronze",
+    title: "翻滚精进",
+    description: "翻滚位移距离 +2。",
+    weight: 8,
+    apply: (stats) => { stats.dashDistanceBonus += 2; },
+  },
+  {
+    id: "lightMarble",
+    rarity: "bronze",
+    title: "轻量弹珠",
+    description: "弹珠飞行速度 +20%。",
+    weight: 9,
+    apply: (stats) => { stats.marbleSpeedMultiplier += 0.2; },
+  },
+  {
+    id: "multiBounce",
+    rarity: "bronze",
+    title: "多段弹跳",
+    description: "弹珠最大弹跳次数 +1。",
+    weight: 8,
+    apply: (stats) => { stats.maxBouncesBonus += 1; },
+  },
+  {
+    id: "sizeAmplify",
+    rarity: "bronze",
+    title: "尺寸增幅",
+    description: "弹珠半径 +0.12，命中范围更大。",
+    weight: 7,
+    apply: (stats) => { stats.marbleRadiusBonus += 0.12; },
+  },
+  {
+    id: "expandedPouch",
+    rarity: "bronze",
+    title: "腰包扩容",
+    description: "HP 上限 +1，立即回复 1 HP，基础伤害 +1。",
+    weight: 6,
+    apply: (stats, player) => {
+      stats.maxHp += 1;
+      player.hp = Math.min(stats.maxHp, player.hp + 1);
+      stats.baseDamageBonus += 1;
+    },
+  },
+  // ── 黄金卡 ──
+  {
+    id: "hunterCalibration",
+    rarity: "gold",
+    title: "猎手校准",
+    description: "基础伤害 +2，更快清除目标。",
+    weight: 5,
+    apply: (stats) => { stats.baseDamageBonus += 2; },
+  },
+  {
+    id: "swiftRecall",
+    rarity: "gold",
+    title: "迅捷回收",
+    description: "弹珠回收速度 +60%。",
+    weight: 5,
+    apply: (stats) => { stats.recallSpeedMultiplier += 0.6; },
+  },
+  {
+    id: "rapidThrow",
+    rarity: "gold",
+    title: "速射抛投",
+    description: "弹珠飞行速度 +30%，最大弹跳 +1。",
+    weight: 4,
+    apply: (stats) => {
+      stats.marbleSpeedMultiplier += 0.3;
+      stats.maxBouncesBonus += 1;
+    },
+  },
+  {
+    id: "crisisConcentration",
+    rarity: "gold",
+    title: "绝境专注",
+    description: "辅助瞄准锥角 +15°，更容易命中敌人。",
+    weight: 4,
+    apply: (stats) => { stats.homingAngle += 15; },
+  },
 ];
 
 export function findUpgrade(id: string): Upgrade | undefined {
@@ -75,32 +164,76 @@ export const DEFAULT_UPGRADE_STATS = () => ({
   maxHp: PLAYER.hp,
   marbleHp: MARBLE.hp,
   homingAngle: MARBLE.homingAngle,
+  speedBonus: 0,
+  dashDistanceBonus: 0,
+  marbleSpeedMultiplier: 1,
+  maxBouncesBonus: 0,
+  marbleRadiusBonus: 0,
+  baseDamageBonus: 0,
+  recallSpeedMultiplier: 1,
 });
 
-export function draftUpgrades(count: number, wave: number, blockedIds: ReadonlySet<UpgradeId> = new Set()): Upgrade[] {
+/**
+ * 两阶段抽卡：
+ * 1. 按波次和连铜保底计算稀有度概率，先抽出目标稀有度。
+ * 2. 再从该稀有度的可用牌中按 weight 加权抽牌。
+ *    若目标稀有度池耗尽，则退回到全池加权抽取。
+ *
+ * 波次权重（%）：
+ *   波次 1-3  → 铜 75 / 金 20 / 钻 5
+ *   波次 4+   → 铜 55 / 金 35 / 钻 10
+ * 连铜保底：连续 2 次（含）以上选铜卡后，金卡权重 +20，铜卡权重 -20。
+ */
+export function draftUpgrades(count: number, wave: number, blockedIds: ReadonlySet<UpgradeId> = new Set(), bronzeStreak = 0): Upgrade[] {
+  const earlyWave = wave <= 3;
+  let bronzeW = earlyWave ? 75 : 55;
+  let goldW = earlyWave ? 20 : 35;
+  const diamondW = earlyWave ? 5 : 10;
+
+  // 连铜保底：+20 金卡权重
+  if (bronzeStreak >= 2) {
+    const boost = Math.min(bronzeW - 5, 20);
+    bronzeW -= boost;
+    goldW += boost;
+  }
+
+  const pickRarity = (): "bronze" | "gold" | "diamond" => {
+    const total = bronzeW + goldW + diamondW;
+    const r = Math.random() * total;
+    if (r < bronzeW) return "bronze";
+    if (r < bronzeW + goldW) return "gold";
+    return "diamond";
+  };
+
   const pool = UPGRADES.filter((upgrade) => {
-    if (blockedIds.has(upgrade.id)) {
-      return false;
-    }
+    if (blockedIds.has(upgrade.id)) return false;
     return upgrade.rarity !== "diamond" || wave >= 2;
   });
+
+  const weightedPick = (candidates: Upgrade[]): Upgrade | null => {
+    const total = candidates.reduce((sum, u) => sum + u.weight, 0);
+    if (total <= 0) return null;
+    let roll = Math.random() * total;
+    for (const u of candidates) {
+      roll -= u.weight;
+      if (roll <= 0) return u;
+    }
+    return candidates[candidates.length - 1] ?? null;
+  };
+
   const choices: Upgrade[] = [];
   const used = new Set<string>();
 
-  while (choices.length < count && used.size < pool.length) {
-    const totalWeight = pool.reduce((sum, upgrade) => sum + (used.has(upgrade.id) ? 0 : upgrade.weight), 0);
-    let roll = Math.random() * totalWeight;
-    for (const upgrade of pool) {
-      if (used.has(upgrade.id)) {
-        continue;
-      }
-      roll -= upgrade.weight;
-      if (roll <= 0) {
-        choices.push(upgrade);
-        used.add(upgrade.id);
-        break;
-      }
-    }
+  while (choices.length < count) {
+    const available = pool.filter((u) => !used.has(u.id));
+    if (available.length === 0) break;
+
+    const rarity = pickRarity();
+    const rarityAvailable = available.filter((u) => u.rarity === rarity);
+    const pick = rarityAvailable.length > 0 ? weightedPick(rarityAvailable) : weightedPick(available);
+    if (!pick) break;
+    choices.push(pick);
+    used.add(pick.id);
   }
 
   return choices;
