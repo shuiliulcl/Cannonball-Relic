@@ -151,6 +151,55 @@ export const UPGRADES: Upgrade[] = [
     weight: 4,
     apply: (stats) => { stats.homingAngle += 15; },
   },
+  // ── 黄金卡·复杂系统 ──
+  {
+    id: "shieldTrait",
+    rarity: "gold",
+    title: "护盾特性",
+    description: "击杀怪物获得 1 层护盾（最多 3 层）。护盾优先抵挡伤害。",
+    weight: 4,
+    apply: (stats) => { stats.hasShieldTrait = true; },
+  },
+  {
+    id: "vampirism",
+    rarity: "gold",
+    title: "吸血特性",
+    description: "每次击杀怪物后恢复 1 HP（不超过上限）。",
+    weight: 4,
+    apply: (stats) => { stats.hasVampirism = true; },
+  },
+  {
+    id: "momentumContinue",
+    rarity: "gold",
+    title: "余势不止",
+    description: "弹珠击杀怪物后恢复 1 点弹珠耐久。",
+    weight: 4,
+    apply: (stats) => { stats.hasMomentumContinue = true; },
+  },
+  {
+    id: "chainLoading",
+    rarity: "gold",
+    title: "连锁装填",
+    description: "弹珠回收时每命中一个敌人，下次发射额外 +3 伤害。",
+    weight: 4,
+    apply: (stats) => { stats.hasChainLoading = true; },
+  },
+  {
+    id: "fragmentTrajectory",
+    rarity: "gold",
+    title: "破片弹道",
+    description: "弹珠首次命中时，向两侧各派生一枚辅助弹珠。",
+    weight: 3,
+    apply: (stats) => { stats.hasFragment = true; },
+  },
+  {
+    id: "shockKnockback",
+    rarity: "gold",
+    title: "强震击退",
+    description: "弹珠撞墙时，对附近敌人造成 1 点伤害。",
+    weight: 4,
+    apply: (stats) => { stats.hasShockKnockback = true; },
+  },
 ];
 
 export function findUpgrade(id: string): Upgrade | undefined {
@@ -171,6 +220,12 @@ export const DEFAULT_UPGRADE_STATS = () => ({
   marbleRadiusBonus: 0,
   baseDamageBonus: 0,
   recallSpeedMultiplier: 1,
+  hasShieldTrait: false,
+  hasVampirism: false,
+  hasMomentumContinue: false,
+  hasChainLoading: false,
+  hasFragment: false,
+  hasShockKnockback: false,
 });
 
 /**

@@ -300,13 +300,13 @@
 
 ## Phase 36 - Gold Card Complex Systems
 
-- [ ] 护盾特性: kill grants 1 shield (max 3), shields absorb damage before HP.
-- [ ] 吸血特性: kill restores 1 HP.
-- [ ] 余势不止: kill restores 1 marble HP.
-- [ ] 连锁装填: recall hit boosts next shot damage.
-- [ ] 破片弹道: first hit spawns two angled auxiliary marbles.
-- [ ] 强震击退: wall bounce damages nearby monsters.
-- [ ] Build verify.
+- [x] 护盾特性: kill grants 1 shield (max 3), shields absorb damage before HP.
+- [x] 吸血特性: kill restores 1 HP.
+- [x] 余势不止: kill restores 1 marble HP.
+- [x] 连锁装填: recall hit boosts next shot damage.
+- [x] 破片弹道: first hit spawns two angled auxiliary marbles.
+- [x] 强震击退: wall bounce damages nearby monsters.
+- [x] Build verify.
 
 ## Phase 37 - Diamond Card Complex Systems
 

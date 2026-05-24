@@ -36,6 +36,8 @@ export class Game {
   private readonly blockedDiamondUpgrades = new Set<UpgradeId>();
   private terrainDamageTimer = 0;
   private bronzeStreakCount = 0;
+  private pendingChainBonus = 0;
+  private fragmentUsedThisShot = false;
   private pausedForBuffPanel = false;
   private wasPausedBeforeBuffPanel = false;
   private readonly baseObstacles: Obstacle[];
@@ -90,6 +92,8 @@ export class Game {
     this.blockedDiamondUpgrades.clear();
     this.terrainDamageTimer = 0;
     this.bronzeStreakCount = 0;
+    this.pendingChainBonus = 0;
+    this.fragmentUsedThisShot = false;
     this.pausedForBuffPanel = false;
     this.wasPausedBeforeBuffPanel = false;
     this.spawnWave();
@@ -275,6 +279,9 @@ export class Game {
       this.marble.distanceLeft = MARBLE.baseRange * this.stats.rangeMultiplier;
       this.marble.bounces = 0;
       this.marble.hitIds.clear();
+      this.marble.bonusDamage = this.pendingChainBonus;
+      this.pendingChainBonus = 0;
+      this.fragmentUsedThisShot = false;
       this.chargeSeconds = 0;
       this.view.hideTrajectory();
     }
@@ -331,6 +338,9 @@ export class Game {
       this.marble.bounces += 1;
       this.marble.hitIds.clear();
       this.view.spark(this.marble.position, 0xffdf72, 12);
+      if (bounce.bounced && this.stats.hasShockKnockback) {
+        this.damageMonstersInRadius(this.marble.position, 1.8, 1, 0);
+      }
       if (this.marble.bounces >= MARBLE.maxBounces + this.stats.maxBouncesBonus) {
         this.marble.state = "recalling";
         this.marble.hitIds.clear();
@@ -413,13 +423,10 @@ export class Game {
         this.player.invulnTimer <= 0 &&
         distance(monster.position, this.player.position) <= monster.radius + this.player.radius
       ) {
-        this.player.hp -= 1;
+        this.applyDamageToPlayer(1);
         this.player.invulnTimer = 1;
         this.view.damageText("-1", this.player.position);
         this.view.spark(this.player.position, 0xff4f4f, 16);
-        if (this.player.hp <= 0) {
-          this.endRun("defeat");
-        }
       }
     }
   }
@@ -434,14 +441,11 @@ export class Game {
         continue;
       }
       if (distance(projectile.position, this.player.position) <= projectile.radius + this.player.radius && this.player.invulnTimer <= 0) {
-        this.player.hp -= projectile.damage;
+        this.applyDamageToPlayer(projectile.damage);
         this.player.invulnTimer = 0.8;
         this.view.damageText(`-${projectile.damage}`, this.player.position);
         this.view.spark(this.player.position, 0xff4f4f, 14);
         this.enemyProjectiles.splice(i, 1);
-        if (this.player.hp <= 0) {
-          this.endRun("defeat");
-        }
       }
     }
   }
@@ -524,6 +528,9 @@ export class Game {
           const finalDamage = this.mitigatedMonsterDamage(monster, marble.position, damage);
           monster.hp -= finalDamage;
           marble.hitIds.add(monster.id);
+          if (marble.state === "recalling" && this.stats.hasChainLoading) {
+            this.pendingChainBonus += 3;
+          }
           this.view.damageText(String(finalDamage), monster.position);
           this.view.spark(monster.position, finalDamage < damage ? 0x8edcff : 0x9de7ff, finalDamage < damage ? 20 : 14);
           if (!monster.noKnockback && monster.hp > 0) {
@@ -531,7 +538,14 @@ export class Game {
             monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius, this.arena);
           }
           if (monster.hp <= 0) {
+            if (this.stats.hasMomentumContinue && marble === this.marble) {
+              marble.hp = Math.min(this.stats.marbleHp, marble.hp + 1);
+            }
             this.defeatMonster(i, 10 + marble.bounces * 5);
+          }
+          if (marble === this.marble && marble.state === "flying" && !this.fragmentUsedThisShot && this.stats.hasFragment) {
+            this.fragmentUsedThisShot = true;
+            this.spawnFragmentMarbles(marble.position, marble.velocity, marble);
           }
           if (marble.state === "flying") {
             marble.hp -= 1;
@@ -559,6 +573,7 @@ export class Game {
       chargeRatio: this.marble.state === "charging" ? this.chargeSeconds / MARBLE.maxChargeSeconds : 0,
       hp: this.player.hp,
       maxHp: this.stats.maxHp,
+      shields: this.player.shields,
       waveProgress: this.waveProgress(),
       dashCooldownRatio: this.player.dashCooldown > 0 ? 1 - this.player.dashTimer / this.player.dashCooldown : 1,
       dashCooldownText: this.player.dashTimer > 0 ? `${this.player.dashTimer.toFixed(1)}s` : "就绪",
@@ -818,12 +833,9 @@ export class Game {
     if (this.player.invulnTimer > 0) {
       return;
     }
-    this.player.hp -= 1;
+    this.applyDamageToPlayer(1);
     this.player.invulnTimer = 0.75;
     this.view.damageText("-1", this.player.position);
-    if (this.player.hp <= 0) {
-      this.endRun("defeat");
-    }
   }
 
   private updatePriestSupport(monster: Monster): void {
@@ -865,13 +877,10 @@ export class Game {
     this.view.damageText("爆", position);
     this.view.spark(position, 0xff3b22, 42);
     if (distance(this.player.position, position) <= 1.65 && this.player.invulnTimer <= 0) {
-      this.player.hp -= 2;
+      this.applyDamageToPlayer(2);
       this.player.invulnTimer = 0.85;
       this.view.damageText("-2", this.player.position);
       this.view.spark(this.player.position, 0xff4f4f, 18);
-      if (this.player.hp <= 0) {
-        this.endRun("defeat");
-      }
     }
     this.damageMonstersInRadius(position, 1.6, 3, 10);
     return true;
@@ -928,6 +937,7 @@ export class Game {
       velocity: { x: 0, z: 0 },
       radius: PLAYER.radius,
       hp: PLAYER.hp,
+      shields: 0,
       mode: "normal",
       cannonTimeLeft: 0,
       cannonBounces: 0,
@@ -940,6 +950,25 @@ export class Game {
       rollVelocity: { x: 0, z: 0 },
       invulnTimer: 0,
     };
+  }
+
+  /** 护盾优先吸收伤害，剩余才扣 HP。若被完全吸收返回 0。 */
+  private applyDamageToPlayer(amount: number): number {
+    if (this.stats.hasShieldTrait && this.player.shields > 0) {
+      const absorbed = Math.min(amount, this.player.shields);
+      this.player.shields -= absorbed;
+      amount -= absorbed;
+      if (absorbed > 0) {
+        this.view.spark(this.player.position, 0x4488ff, 12);
+      }
+    }
+    if (amount > 0) {
+      this.player.hp -= amount;
+      if (this.player.hp <= 0) {
+        this.endRun("defeat");
+      }
+    }
+    return amount;
   }
 
   private ownedBuffs(): OwnedBuff[] {
@@ -1016,6 +1045,17 @@ export class Game {
     };
   }
 
+  private spawnFragmentMarbles(position: Vec2, velocity: Vec2, source: Marble): void {
+    const angle = 30 * (Math.PI / 180);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const vLeft: Vec2 = { x: velocity.x * cos - velocity.z * sin, z: velocity.x * sin + velocity.z * cos };
+    const vRight: Vec2 = { x: velocity.x * cos + velocity.z * sin, z: -velocity.x * sin + velocity.z * cos };
+    this.auxiliaryMarbles.push(this.createAuxiliaryMarble(position, vLeft, source));
+    this.auxiliaryMarbles.push(this.createAuxiliaryMarble(position, vRight, source));
+    this.view.spark(position, 0xffe066, 20);
+  }
+
   private cloneObstacles(): Obstacle[] {
     return this.baseObstacles.map((obstacle) => ({
       ...obstacle,
@@ -1052,13 +1092,10 @@ export class Game {
       return;
     }
     this.terrainDamageTimer = 0;
-    this.player.hp -= 1;
+    this.applyDamageToPlayer(1);
     this.player.invulnTimer = 0.4;
     this.view.damageText("-1", this.player.position);
     this.view.spark(this.player.position, 0xff4f4f, 12);
-    if (this.player.hp <= 0) {
-      this.endRun("defeat");
-    }
   }
 
   private applyMarbleObstacleBehavior(obstacle: Obstacle, bouncedPosition: Vec2, bouncedVelocity: Vec2): { bounced: boolean } {
@@ -1153,12 +1190,9 @@ export class Game {
       }
     }
     if (distance(this.player.position, obstacle.position) <= 1.5 && this.player.invulnTimer <= 0) {
-      this.player.hp -= 2;
+      this.applyDamageToPlayer(2);
       this.player.invulnTimer = 0.6;
       this.view.damageText("-2", this.player.position);
-      if (this.player.hp <= 0) {
-        this.endRun("defeat");
-      }
     }
   }
 
@@ -1231,6 +1265,12 @@ export class Game {
     }
     this.score += scoreValue;
     this.monsters.splice(index, 1);
+    if (this.stats.hasShieldTrait) {
+      this.player.shields = Math.min(3, this.player.shields + 1);
+    }
+    if (this.stats.hasVampirism) {
+      this.player.hp = Math.min(this.stats.maxHp, this.player.hp + 1);
+    }
     if (monster.monsterType !== "slime") {
       return;
     }

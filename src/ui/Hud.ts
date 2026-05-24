@@ -22,6 +22,7 @@ export class Hud {
   private readonly wave = document.querySelector<HTMLElement>("#wave");
   private readonly hp = document.querySelector<HTMLElement>("#hp");
   private readonly hpFill = document.querySelector<HTMLElement>("#hpFill");
+  private readonly shields = document.querySelector<HTMLElement>("#shields");
   private readonly charge = document.querySelector<HTMLElement>("#charge");
   private readonly chargeFill = document.querySelector<HTMLElement>("#chargeFill");
   private readonly dashFill = document.querySelector<HTMLElement>("#dashFill");
@@ -68,6 +69,10 @@ export class Hud {
     }
     if (this.hp) {
       this.hp.textContent = `${snapshot.hp}/${snapshot.maxHp}`;
+    }
+    if (this.shields) {
+      this.shields.textContent = snapshot.shields > 0 ? `◆×${snapshot.shields}` : "";
+      this.shields.style.display = snapshot.shields > 0 ? "" : "none";
     }
     if (this.hpFill) {
       this.hpFill.style.width = `${Math.max(0, Math.min(100, (snapshot.hp / snapshot.maxHp) * 100))}%`;
@@ -222,6 +227,12 @@ export class Hud {
       swiftRecall: "收",
       rapidThrow: "射",
       crisisConcentration: "专",
+      shieldTrait: "盾",
+      vampirism: "吸",
+      momentumContinue: "势",
+      chainLoading: "连",
+      fragmentTrajectory: "碎",
+      shockKnockback: "震",
     };
     return icons[upgradeId];
   }
