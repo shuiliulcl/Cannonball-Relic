@@ -1,112 +1,101 @@
 # 美术资产生成规范 — Cannonball Relic
 
-> 版本：v1.0  
+> 版本：v1.1（2026-05-24 更新：增加纹理类资产规范，修正白边问题）  
 > 适用范围：`public/assets/skins/relic-ruins/` 全部 PNG 资产  
 > 生成工具：Nano Banana Pro / Gemini 3 Pro Image
 
 ---
 
-## 一、问题诊断（已知错误）
+## 一、资产类型区分（重要）
 
-截图分析发现两类严重问题：
+本项目的 PNG 资产分为**两类**，生成方式和后处理流程完全不同：
 
-| 问题 | 现象 | 根因 |
-|---|---|---|
-| 视角错误 | 怪物像人倒在地上、障碍物透视感怪异 | 提示词使用了 `isometric view`，生成了等距斜视角（Diablo风格），在纯俯视摄像机下表现异常 |
-| 白色背景残留 | 部分怪物（tank等）显示白色方块背景 | AI 生成图背景为白色，alpha 去除不完整 |
-| 比例不一致 | 怪物大小参差不齐 | 各次生成画布/缩放不一致 |
-| 风格冲突 | 描边过重 / 等距3D阴影 | 与 HM2 无描边高饱和平光风格相悖 |
+| 类型 | 用途 | 背景 | 画布要求 | 代表文件 |
+|---|---|---|---|---|
+| **Sprite（精灵图）** | 角色、怪物、弹珠等有独立轮廓的个体 | **透明**（alpha=0） | 主体居中，四周留透明边距 | `enemy-*.png`, `player.png`, `marble.png` |
+| **Texture Tile（纹理贴图）** | 障碍物顶面、地板、墙壁等铺满面的图案 | **不透明**（RGB，无 alpha） | **填满整块画布，无边框无留白** | `obstacle-*.png`, `textures/floor*.png` |
 
-**结论：所有角色/怪物/障碍物 sprite 必须按照本规范重新生成。**
+> ⚠️ **最常见的错误**：把 Texture Tile 用 Sprite 的方式生成——AI 会在图案四周留一圈白色背景边框，贴到障碍物上就出现白边。
 
 ---
 
-## 二、目标视角：纯俯视（Bird's-Eye）
+## 二、已知问题记录
+
+| 问题 | 现象 | 根因 | 修复方案 |
+|---|---|---|---|
+| 视角错误 | 怪物像人倒在地上 | 提示词用了 `isometric view`，生成等距斜视角 | 改用 `pure top-down orthographic view` |
+| 怪物白色背景 | 部分怪物显示白色方块 | 生成背景为白色，alpha 去除不完整 | 洪泛填充去除四角连通白色区域 |
+| 障碍物白边 | 纹理四周出现白色方框 | 把 Texture 当 Sprite 生成，AI 在图案外生成白色背景边框，洪泛填充无法去除（不连通到角落） | 纹理提示词必须加 `fills entire canvas edge to edge, no border, no frame`；保存为 RGB 不需要 alpha |
+| 比例不一致 | 怪物大小参差不齐 | 各次生成画布/缩放不同 | 生成后统一缩放到目标尺寸 |
+| 风格冲突 | 描边过重 / 等距3D阴影 | 与 HM2 无描边高饱和平光风格相悖 | 提示词明确 `no bold outlines, flat lighting` |
+
+---
+
+## 三、目标视角：纯俯视（Bird's-Eye）
 
 游戏摄像机在角色正上方垂直向下拍摄，等同于从天花板俯视地面。
 
 ```
 ❌ 错误：等距斜视角（Isometric / 2.5D）
-   你能同时看到角色的正面和侧面，有明显透视感
+   同时看到角色正面和侧面，有明显透视感
    ╔══╗
    ║  ║  ← 看得到角色的脸和身体正面
    ╚══╝
 
 ✅ 正确：正交俯视（Orthographic Top-Down）
-   只能看到角色的头顶和肩膀轮廓，像棋盘上的棋子
+   只看到头顶和肩膀轮廓，像棋盘上的棋子
      ○
     /|\  ← 从正上方看到头顶+手臂展开
      |
 ```
 
-**类比参考：**
-- 迈阿密热线 (Hotline Miami 1/2) — 标准参考
-- GTA 1/2 俯视视角
-- 《死亡细胞》关卡俯视预览
-- 桌游棋子（token）从上往下看
+**参考游戏：**  迈阿密热线 1/2（标准参考）、GTA 1/2、桌游棋子俯视
 
 ---
 
-## 三、风格规范
+## 四、风格规范
 
-### 3.1 整体风格
+### 4.1 整体风格
 - **像素艺术（Pixel Art）**，边缘像素清晰可辨
-- **无描边或极细描边**：字符轮廓不使用粗黑边，颜色深浅自然过渡即可
-- **高饱和度 + 暗底反衬**：深色背景（`#0a0a0f`）下角色颜色饱和度 ≥ 80%
+- **无描边或极细描边**：不使用粗黑边，颜色深浅自然过渡
+- **高饱和度 + 暗底反衬**：游戏背景为 `#0a0a0f`，角色颜色饱和度 ≥ 80%
 - **平光无阴影**：不使用等距阴影、不使用侧面渐变
-- **俯视阴影**：只有正下方小圆形深色阴影（像光源在正上方）
+- **Sprite 俯视阴影**：只有正下方小圆形深色阴影
 
-### 3.2 颜色原则
+### 4.2 颜色原则
 | 规则 | 说明 |
 |---|---|
-| 每个角色有一个主色 | 占面积 ≥ 50%，高饱和度，便于在深色背景上辨认 |
-| 对比度 | 角色颜色与地板颜色（深褐/暗黑）对比度 ≥ 4:1 |
-| 禁止纯白 | 白色背景不可见，白色角色与背景无法区分 |
+| 每个角色/障碍物有一个主色 | 占面积 ≥ 50%，高饱和度，便于在深色背景上辨认 |
+| 对比度 | 颜色与地板（深褐/暗黑）对比度 ≥ 4:1 |
+| 禁止纯白为主色 | 白色在深色背景下可见，但如果是 Sprite 的边缘白色像素会被误判为背景 |
 | 禁用灰色系主色 | 灰色在暗背景上视觉权重太低 |
 
-### 3.3 画布与尺寸
-- **分辨率**：128×128 px（游戏内缩放为约 0.8–1.4 世界单位）
-- **背景**：完全透明（alpha = 0）
-- **内容占画布比例**：角色/物件主体占画布面积 60–75%，四周保留透明边距
-- **禁止**：水印、文字、标注、UI元素
+---
+
+## 五、各类资产详细规范
+
+### 5.1 角色（玩家）— `sprites/player.png`  【Sprite 类型】
+
+**视角：** 俯视，看到玩家头顶。  
+**内容：** 头顶（圆形）+ 肩膀/手臂轮廓，轻微不对称指示朝向。  
+**禁止：** 脸部五官、侧面透视渐变。  
+**画布：** 透明背景，主体居中，四周保留透明边距。  
+**颜色：** 主色青蓝 `#4ac8e8`，高亮 `#b8f8ff`
 
 ---
 
-## 四、各类资产详细规范
+### 5.2 弹珠 — `sprites/marble.png`  【Sprite 类型】
 
-### 4.1 角色（玩家）— `sprites/player.png`
-
-**视角描述：**  
-俯视视角下看到玩家头顶。主色鲜明，有区分于怪物的视觉特征。
-
-**内容要求：**
-- 可见：头顶（圆形）、肩膀/手臂轮廓（左右伸展少量）
-- 可选：背部斗篷/装备的顶部轮廓
-- 朝向指示：轻微不对称提示朝前方向（如正前方较亮或小炮口）
-- 禁止：脸部五官（只有俯视轮廓）、侧面透视渐变
-
-**颜色：** 主色青蓝 `#4ac8e8`，高亮白 `#b8f8ff`
-
----
-
-### 4.2 弹珠 — `sprites/marble.png`
-
-**视角描述：**  
-正圆形，俯视看到球的顶部高光。
-
-**内容要求：**
-- 正圆或略椭圆（纵向稍扁，模拟俯视）
-- 顶部高光白点，边缘深色
-- 发光晕圈可选（对应游戏内 neon 发光）
-
+**视角：** 俯视，看到球顶部高光。  
+**内容：** 正圆或略椭圆，顶部高光白点，边缘深色，可选发光晕。  
+**画布：** 透明背景，居中。  
 **颜色：** 核心 `#00ddff`，高光 `#ffffff`，边缘 `#0066aa`
 
 ---
 
-### 4.3 怪物通用规则
+### 5.3 怪物通用规则  【Sprite 类型】
 
-**所有怪物 sprite 的视角必须是纯俯视。**  
-想象从天花板拍一张怪物站立的照片。
+**所有怪物 sprite 必须是纯俯视视角。**
 
 **结构模板：**
 ```
@@ -116,52 +105,61 @@
   ██  ██     ← 双腿/爪（若有，展开向两侧）
 ```
 
-**共性要求：**
+**要求：**
 - 主体轮廓接近圆形或矮椭圆（不是细长竖条）
-- 有区分特征：颜色、头型、武器顶部轮廓
 - 俯视阴影：主体正下方深色圆形暗影层
-- 不同怪物主色不同（见下表）
+- 画布：透明背景，主体居中，占画布面积 60–75%
 
 **各怪物主色与特征：**
 
 | 文件 | 怪物 | 主色（Hex） | 特征提示 |
 |---|---|---|---|
-| `enemy-grunt.png` | 木偶兵 grunt | `#c8781a` 暖棕橙 | 头顶可见训练头盔顶部，圆鼓鼓 |
-| `enemy-runner.png` | 疾行怪 runner | `#ff4455` 亮红 | 细长轮廓，前倾姿势（头比身体靠前） |
+| `enemy-grunt.png` | 木偶兵 grunt | `#c8781a` 暖棕橙 | 训练头盔顶部，圆鼓鼓 |
+| `enemy-runner.png` | 疾行怪 runner | `#ff4455` 亮红 | 细长轮廓，前倾姿势 |
 | `enemy-tank.png` | 重甲怪 tank | `#8844ff` 紫 | 宽大圆形，装甲板纹路 |
 | `enemy-octopus.png` | 章鱼 octopus | `#40c8ff` 亮青 | 圆头加 6–8 条触手向外展开 |
-| `enemy-hound.png` | 大狗 hound | `#cc3322` 深红 | 细长椭圆，头部明显偏前 |
-| `enemy-boar.png` | 突猪 boar | `#ff8833` 橙 | 宽额头，两侧各有一枚短獠牙横向伸出 |
-| `enemy-slime.png` | 史莱姆 slime | `#44ff66` 亮绿 | 完美圆形，顶部光泽感，有小眼睛在顶部 |
-| `enemy-rabbit.png` | 兔兔 rabbit | `#88eeff` 冰蓝 | 圆体加两个向上竖的兔耳（俯视看耳朵在头两侧） |
-| `enemy-bomb-bug.png` | 爆爆虫 bombBug | `#ff4400` 橙红 | 圆形甲虫背壳，顶部有导火索亮点 |
-| `enemy-shield-crab.png` | 盾兵蟹 shieldCrab | `#8899cc` 蓝灰 | 宽蟹形，正前方有半圆盾牌遮挡 |
-| `enemy-voodoo-flower.png` | 巫毒花 voodooFlower | `#cc44ff` 紫粉 | 花瓣向四周展开（俯视花冠），中心深色花芯 |
-| `enemy-eye-cannon.png` | 眼球炮 eyeCannon | `#ffcc00` 金黄 | 大圆形瞳孔，瞳孔内深色竖缝 |
-| `enemy-priest.png` | 祭司机 priest | `#ffffaa` 淡金 | 头顶法帽/头冠轮廓，持杖顶部光点 |
+| `enemy-hound.png` | 大狗 hound | `#cc3322` 深红 | 细长椭圆，头部偏前 |
+| `enemy-boar.png` | 突猪 boar | `#ff8833` 橙 | 宽额头，两侧獠牙横向伸出 |
+| `enemy-slime.png` | 史莱姆 slime | `#44ff66` 亮绿 | 完美圆形，顶部光泽 |
+| `enemy-rabbit.png` | 兔兔 rabbit | `#88eeff` 冰蓝 | 圆体加两侧兔耳 |
+| `enemy-bomb-bug.png` | 爆爆虫 bombBug | `#ff4400` 橙红 | 圆形甲虫背壳，顶部导火索亮点 |
+| `enemy-shield-crab.png` | 盾兵蟹 shieldCrab | `#8899cc` 蓝灰 | 宽蟹形，正前方半圆盾牌 |
+| `enemy-voodoo-flower.png` | 巫毒花 voodooFlower | `#cc44ff` 紫粉 | 花瓣向四周展开，深色花芯 |
+| `enemy-eye-cannon.png` | 眼球炮 eyeCannon | `#ffcc00` 金黄 | 大圆形瞳孔，深色竖缝 |
+| `enemy-priest.png` | 祭司机 priest | `#ffffaa` 淡金 | 头冠轮廓，法杖顶部光点 |
 
 ---
 
-### 4.4 障碍物 — `sprites/obstacle-*.png`
+### 5.4 障碍物顶面 — `sprites/obstacle-<material>.png`  【Texture Tile 类型】
 
-> **注意：** 当前代码（Phase 40）障碍物已改为代码绘制颜色块，不再读取这些 sprite。  
-> 如果未来要恢复 sprite 显示，必须按以下规范重新生成。
+> 代码通过 `obstacle-${material.toLowerCase()}.png` 动态加载，material 对应：  
+> `wood` / `stone` / `metal` / `glass` / `reflector` / `accelerator` / `thorns` / `oneway` / `bomb`
 
-**视角：** 正交俯视，只看到物件的顶面（Top surface）
+**核心要求（与 Sprite 不同）：**
+- **必须填满整块画布，四边无留白无边框**
+- **保存为 RGB（不需要 alpha/透明通道）**
+- 顶面图案，俯视看到的障碍物表面
+- 高饱和度与主色（见下表），便于和深色地板区分
 
-**内容：**
-- 只画物件被从正上方看到的顶面
-- 木箱：正方形木板纹路，四角钉子点
-- 石柱：圆形/方形石面，裂缝纹路
-- 铁砧：矩形金属面，亮高光
+**各障碍物顶面颜色与特征：**
 
-**禁止：** 侧面、立体感透视渐变、等距3D阴影
+| 文件 | 材质 | 主色 | 图案特征 |
+|---|---|---|---|
+| `obstacle-wood.png` | 木箱 | `#e07020` 橙棕 | 交叉木板纹路，四角黄铜钉 |
+| `obstacle-stone.png` | 石柱 | `#9090b8` 蓝灰 | 石面纹理，自然裂缝 |
+| `obstacle-metal.png` | 铁砧 | `#40a8d0` 钢青 | 刷面金属，四角铆钉 |
+| `obstacle-glass.png` | 玻璃 | `#60d8ff` 亮青 | 光泽玻璃，中心折光菱形 |
+| `obstacle-reflector.png` | 弹反 | `#b040ff` 紫 | 镜面，中心星爆高光 |
+| `obstacle-accelerator.png` | 加速 | `#ffcc00` 金黄 | 双箭头 >> 图案 |
+| `obstacle-thorns.png` | 荆棘 | `#ff2020` 血红 | 尖刺俯视阵列 |
+| `obstacle-oneway.png` | 单向门 | `#00ff60` 霓虹绿 | 白色 → 箭头 |
+| `obstacle-bomb.png` | 爆裂桶 | `#ff5010` 橙红 | 圆形桶盖，警告纹，导火索 |
 
 ---
 
-### 4.5 地板纹理 — `textures/floor*.png`
+### 5.5 地板纹理 — `textures/floor*.png`  【Texture Tile 类型】
 
-地板纹理要求**可无缝平铺**，本身颜色较暗（游戏代码会再叠加 `color: 0x555560` 深色染色）。
+**要求：** 可无缝平铺，颜色较暗（代码会叠加 `0x555560` 深色染色），填满画布无边框。
 
 | 文件 | 描述 | 颜色基调 |
 |---|---|---|
@@ -170,93 +168,184 @@
 | `floor-moss.png` | 苔藓砂岩 | 褐底带绿斑 |
 | `floor-danger.png` | 危险警示地板 | 深色带橙红纹 |
 
-**规范：**
-- 128×128 或 256×256，完全无缝平铺
-- 无角色、无文字、无 UI
-- 不能有大面积亮色（角色主色需对地板有反差）
-
 ---
 
-## 五、生成提示词模板
+## 六、生成提示词模板
 
-以下为正确的俯视视角提示词结构，**必须包含以下关键词**：
+### 6.1 Sprite 模板（角色 / 怪物 / 弹珠）
 
 ```
-single game sprite, pixel art, pure top-down orthographic view (bird's-eye view, looking straight down from above),
-[角色描述], only the TOP of the character is visible, compact circular silhouette,
-highly saturated [主色] color, dark background compatible, no isometric perspective,
-no 3D shading, no bold outlines, flat lighting from directly above,
-small round shadow directly beneath character,
+single game sprite, pixel art, pure top-down orthographic view (bird's-eye view,
+looking straight down from above), [角色描述],
+only the TOP of the character is visible, compact circular silhouette,
+highly saturated [主色], dark background compatible,
+no isometric perspective, no 3D shading, no bold outlines,
+flat lighting from directly above, small round shadow directly beneath character,
 fully transparent PNG background, centered, no text, no UI, 128x128px game asset
 ```
 
-**关键词解释：**
-- `pure top-down orthographic view` = 纯俯视正交视角（不是等距斜视角）
-- `bird's-eye view, looking straight down from above` = 从正上方向下看
-- `only the TOP of the character is visible` = 只看到角色顶部
-- `compact circular silhouette` = 紧凑圆形轮廓（不是细长竖条）
-- `no isometric perspective` = 明确排除等距视角
+**必须包含的关键词：**
+- `pure top-down orthographic view` — 排除等距视角
+- `bird's-eye view, looking straight down from above` — 明确俯视
+- `only the TOP of the character is visible` — 只看顶部
+- `compact circular silhouette` — 紧凑圆形轮廓
+- `no isometric perspective` — 明确排除等距
+- `fully transparent PNG background` — 透明背景
 
-### 示例：怪物 Grunt（木偶兵）
-
+**示例（Grunt 木偶兵）：**
 ```
-single enemy game sprite, pixel art, pure top-down orthographic view (bird's-eye view, 
-looking straight down from above), squat wooden training dummy monster seen from above, 
-only the TOP of the character visible (round helmet top, shoulder pads spreading left and right), 
-compact circular silhouette, warm orange-brown #c8781a as main color, highly saturated, 
-dark background compatible, no isometric perspective, no 3D shading, no bold outlines, 
-flat lighting from directly above, small round shadow directly beneath character, 
+single enemy game sprite, pixel art, pure top-down orthographic view (bird's-eye view,
+looking straight down from above), squat wooden training dummy monster seen from above,
+only the TOP of the character visible (round helmet top, shoulder pads spreading outward),
+compact circular silhouette, warm orange-brown #c8781a as main color, highly saturated,
+dark background compatible, no isometric perspective, no 3D shading, no bold outlines,
+flat lighting from directly above, small round shadow directly beneath character,
 fully transparent PNG background, centered, no text, no UI, 128x128px game asset
 ```
 
-### 示例：怪物 Octopus（章鱼）
+---
+
+### 6.2 Texture Tile 模板（障碍物顶面 / 地板）
 
 ```
-single enemy game sprite, pixel art, pure top-down orthographic view (bird's-eye view, 
-looking straight down from above), octopus monster seen from above, round blue-cyan head 
-in center with 6-8 tentacles spreading radially outward, compact radial silhouette, 
-bright cyan #40c8ff as main color, highly saturated, golden eye visible on top of head, 
-dark background compatible, no isometric perspective, no bold outlines, flat lighting, 
-small shadow beneath, fully transparent PNG background, centered, no text, no UI, 
-128x128px game asset
+seamless top-down [材质] surface texture tile, pixel art,
+[图案特征描述], highly saturated [主色],
+fills entire canvas edge to edge with no border no frame no white margin no background,
+game texture asset, no text, no UI, no watermark
+```
+
+**必须包含的关键词：**
+- `seamless` — 无缝纹理风格
+- `surface texture tile` — 明确是纹理贴片而非独立物件
+- `fills entire canvas edge to edge` — **最重要**，消除白边根因
+- `no border no frame no white margin no background` — 四重禁止，防止 AI 加白色边框
+
+**禁止在 Texture Tile 提示词中出现：**
+- `transparent PNG background` — 纹理不需要透明背景，写了反而会引导 AI 生成带白底的"物件"
+- `centered` — 纹理应填满整块，不是居中的独立物
+- `isolated sprite` — 同上
+
+**示例（木箱障碍物顶面）：**
+```
+seamless top-down wooden crate surface texture tile, pixel art,
+warm orange-brown cross-plank wooden boards pattern with X-beam and corner brass nails,
+highly saturated orange-brown #e07020,
+fills entire canvas edge to edge with no border no frame no white margin no background,
+game texture asset, no text, no UI, no watermark
+```
+
+**示例（单向门障碍物顶面）：**
+```
+seamless top-down one-way gate surface texture tile, pixel art,
+vivid neon green surface with bold white right-pointing arrow symbol in center,
+highly saturated neon green #00ff60,
+fills entire canvas edge to edge with no border no frame no white margin no background,
+game texture asset, no text, no UI, no watermark
 ```
 
 ---
 
-## 六、验收标准
+## 七、后处理流程
 
-生成图提交前必须对照以下清单：
+### 7.1 Sprite 后处理（角色 / 怪物）
 
-- [ ] **视角正确**：从正上方俯视，看不到角色正面或侧面
-- [ ] **轮廓紧凑**：主体轮廓接近圆形或矮椭圆，没有细长竖条感
-- [ ] **透明背景**：整张图除角色外全透明，无白色/灰色底
-- [ ] **主色饱和**：主色在 `#0a0a0f` 深色背景下清晰可辨
-- [ ] **无水印文字**：图内无任何 AI 生成的说明文字或水印
-- [ ] **无描边**：轮廓无粗黑描边，颜色自然过渡
-- [ ] **正确尺寸**：建议 128×128，不超过 512×512
+1. 用 PIL 进行**洪泛填充**：从四角开始，将白色/近白色连通像素设为透明
+2. 裁剪为**正方形**（取短边，中心裁剪）
+3. 缩放到目标尺寸（推荐 512×512）
+4. 保存为 **RGBA PNG**
+
+```python
+# 关键参数
+def is_bg(r, g, b, a):
+    return a > 50 and r > 210 and g > 210 and b > 210  # 白色或近白色
+# BFS 从四角连通填充
+img.save(path)  # RGBA
+```
+
+**注意：** 洪泛填充只去除从角落**连通**的白色区域。角色内部的白色高光不会被删除。
+
+### 7.2 Texture Tile 后处理（障碍物 / 地板）
+
+1. **不需要**背景去除（纹理应完全不透明）
+2. 裁剪为**正方形**（取短边，中心裁剪）
+3. 缩放到目标尺寸（推荐 512×512）
+4. 保存为 **RGB PNG**（无 alpha）
+
+```python
+img = Image.open(path).convert("RGB")  # 转为 RGB，去掉 alpha 通道
+s = min(w, h)
+img = img.crop((cx - s//2, cy - s//2, cx + s//2, cy + s//2))
+img = img.resize((512, 512), Image.LANCZOS)
+img.save(path)  # RGB
+```
 
 ---
 
-## 七、常见错误对照
+## 八、验收标准
 
-| ❌ 错误 | ✅ 正确 |
-|---|---|
-| 提示词写 `isometric view` | 改为 `pure top-down orthographic view` |
-| 提示词写 `2.5D` | 改为 `bird's-eye view, looking straight down from above` |
-| 生成了正面站立角色 | 只应看到头顶和肩膀轮廓 |
-| 角色又高又细（竖条形） | 角色应是矮椭圆/圆形 token 状 |
-| 有白色背景 | 生成后用工具去除背景，或提示词加 `fully transparent PNG background` |
-| 颜色偏灰/偏暗 | 主色饱和度不足，重新生成时强调 `highly saturated` |
-| 侧面阴影渐变 | 禁止使用，只有正下方小圆形阴影 |
+### Sprite（角色/怪物）
+
+- [ ] 视角正确：从正上方俯视，看不到角色正面或侧面
+- [ ] 轮廓紧凑：主体接近圆形或矮椭圆，没有细长竖条感
+- [ ] 透明背景：整张图除角色外全透明，无白色/灰色底
+- [ ] 主色饱和：主色在 `#0a0a0f` 深色背景下清晰可辨
+- [ ] 无水印文字：图内无任何说明文字或水印
+- [ ] 无粗描边：轮廓无明显粗黑边
+
+### Texture Tile（障碍物/地板）
+
+- [ ] 填满画布：纹理铺满整张图，**四边无白边无留白**
+- [ ] 无边框：图案没有被白色/深色矩形边框包围
+- [ ] 主色饱和：贴到深色障碍物顶面后清晰可辨
+- [ ] RGB格式：无透明通道（用 `file.mode` 确认为 `RGB` 而非 `RGBA`）
+- [ ] 尺寸方形：宽高相等（通常 512×512）
 
 ---
 
-## 八、资产更新流程
+## 九、常见错误对照
 
-1. 按本规范撰写提示词
-2. 用 Nano Banana Pro 生成（`uv run scripts/generate_image.py -p "提示词"`）
-3. 检查：背景透明、视角正确、颜色饱和
-4. 将 PNG 放入 `public/assets/skins/relic-ruins/sprites/`
-5. 运行 `npm run build` 验证无报错
-6. 截图验证游戏内效果
-7. 更新 `source/prompts.md` 追加记录
+| ❌ 错误 | ✅ 正确 | 适用类型 |
+|---|---|---|
+| 提示词写 `isometric view` | `pure top-down orthographic view` | Sprite |
+| 提示词写 `2.5D` | `bird's-eye view, looking straight down from above` | Sprite |
+| 角色又高又细（竖条形） | 矮椭圆/圆形 token 状 | Sprite |
+| 提示词用了 `transparent PNG background`（障碍物纹理） | 改为 `fills entire canvas edge to edge, no border` | Texture |
+| 提示词用了 `centered`（障碍物纹理） | 纹理不居中，填满整块 | Texture |
+| 生成了带白色边框的纹理 | 提示词加 `no border no frame no white margin` | Texture |
+| 保存 Texture 为 RGBA | `convert("RGB")` 再保存 | Texture |
+| 侧面阴影渐变 | 禁止，只有正下方小圆形阴影 | Sprite |
+
+---
+
+## 十、完整资产清单
+
+| 文件路径 | 类型 | 状态 |
+|---|---|---|
+| `sprites/player.png` | Sprite | ✅ 已生成 |
+| `sprites/marble.png` | Sprite | ✅ 已生成 |
+| `sprites/enemy-grunt.png` | Sprite | ✅ 已生成 |
+| `sprites/enemy-runner.png` | Sprite | ✅ 已生成（已修白底）|
+| `sprites/enemy-tank.png` | Sprite | ✅ 已生成（已修白底）|
+| `sprites/enemy-octopus.png` | Sprite | ✅ 已生成（已修白底）|
+| `sprites/enemy-hound.png` | Sprite | ✅ 已生成（已修白底）|
+| `sprites/enemy-boar.png` | Sprite | ✅ 已生成 |
+| `sprites/enemy-slime.png` | Sprite | ✅ 已生成（已修白底）|
+| `sprites/enemy-rabbit.png` | Sprite | ✅ 已生成（含水印，待重新生成）|
+| `sprites/enemy-bomb-bug.png` | Sprite | ✅ 已生成 |
+| `sprites/enemy-shield-crab.png` | Sprite | ✅ 已生成（已修白底）|
+| `sprites/enemy-voodoo-flower.png` | Sprite | ✅ 已生成 |
+| `sprites/enemy-eye-cannon.png` | Sprite | ✅ 已生成 |
+| `sprites/enemy-priest.png` | Sprite | ✅ 已生成 |
+| `sprites/obstacle-wood.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-stone.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-metal.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-glass.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-reflector.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-accelerator.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-thorns.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-oneway.png` | Texture | ✅ 已生成 |
+| `sprites/obstacle-bomb.png` | Texture | ✅ 已生成 |
+| `textures/floor.png` | Texture | ✅ 已生成 |
+| `textures/floor-cracked.png` | Texture | ✅ 已生成 |
+| `textures/floor-moss.png` | Texture | ✅ 已生成 |
+| `textures/floor-danger.png` | Texture | ✅ 已生成 |
