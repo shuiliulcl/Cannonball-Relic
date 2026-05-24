@@ -496,33 +496,34 @@ export class SceneView {
     const group = new THREE.Group();
 
     // 各类型的视觉参数
+    // size2d: square token size for top-down 2D view (≈ shadowR * 2.4)
     const cfg = monsterType === "runner" || monsterType === "hound"
-      ? { shadowR: 0.28, shadowColor: 0x1a1010, spriteW: 0.82, spriteH: 1.1, tint: 0xff6a6a }
+      ? { shadowR: 0.28, shadowColor: 0x1a1010, spriteW: 0.82, spriteH: 1.1,  size2d: 0.70, tint: 0xff6a6a }
       : monsterType === "boar"
-      ? { shadowR: 0.44, shadowColor: 0x24100a, spriteW: 1.24, spriteH: 1.28, tint: 0xff8a3a }
+      ? { shadowR: 0.44, shadowColor: 0x24100a, spriteW: 1.24, spriteH: 1.28, size2d: 1.05, tint: 0xff8a3a }
       : monsterType === "octopus"
-      ? { shadowR: 0.34, shadowColor: 0x101426, spriteW: 1.05, spriteH: 1.22, tint: 0x8edcff }
+      ? { shadowR: 0.34, shadowColor: 0x101426, spriteW: 1.05, spriteH: 1.22, size2d: 0.82, tint: 0x8edcff }
       : monsterType === "tank"
-      ? { shadowR: 0.52, shadowColor: 0x1a1208, spriteW: 1.42, spriteH: 1.72, tint: 0x8866ff }
+      ? { shadowR: 0.52, shadowColor: 0x1a1208, spriteW: 1.42, spriteH: 1.72, size2d: 1.25, tint: 0x8866ff }
       : monsterType === "slime"
-      ? { shadowR: 0.36, shadowColor: 0x0c2414, spriteW: 1.0, spriteH: 1.02, tint: 0x73d878 }
+      ? { shadowR: 0.36, shadowColor: 0x0c2414, spriteW: 1.0,  spriteH: 1.02, size2d: 0.86, tint: 0x73d878 }
       : monsterType === "rabbit"
-      ? { shadowR: 0.26, shadowColor: 0x16151f, spriteW: 0.78, spriteH: 1.16, tint: 0xd9f3ff }
+      ? { shadowR: 0.26, shadowColor: 0x16151f, spriteW: 0.78, spriteH: 1.16, size2d: 0.64, tint: 0xd9f3ff }
       : monsterType === "bombBug"
-      ? { shadowR: 0.32, shadowColor: 0x2a1008, spriteW: 0.92, spriteH: 1.05, tint: 0xff4f35 }
+      ? { shadowR: 0.32, shadowColor: 0x2a1008, spriteW: 0.92, spriteH: 1.05, size2d: 0.78, tint: 0xff4f35 }
       : monsterType === "shieldCrab"
-      ? { shadowR: 0.46, shadowColor: 0x111725, spriteW: 1.26, spriteH: 1.18, tint: 0x8aa4ff }
+      ? { shadowR: 0.46, shadowColor: 0x111725, spriteW: 1.26, spriteH: 1.18, size2d: 1.10, tint: 0x8aa4ff }
       : monsterType === "voodooFlower"
-      ? { shadowR: 0.34, shadowColor: 0x1f0d26, spriteW: 0.98, spriteH: 1.36, tint: 0xd86cff }
+      ? { shadowR: 0.34, shadowColor: 0x1f0d26, spriteW: 0.98, spriteH: 1.36, size2d: 0.82, tint: 0xd86cff }
       : monsterType === "eyeCannon"
-      ? { shadowR: 0.4, shadowColor: 0x1c1210, spriteW: 1.14, spriteH: 1.32, tint: 0xffdf72 }
+      ? { shadowR: 0.4,  shadowColor: 0x1c1210, spriteW: 1.14, spriteH: 1.32, size2d: 0.96, tint: 0xffdf72 }
       : monsterType === "priest"
-      ? { shadowR: 0.32, shadowColor: 0x211c10, spriteW: 0.94, spriteH: 1.28, tint: 0xfff1a6 }
-      : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, tint: 0xffffff };
+      ? { shadowR: 0.32, shadowColor: 0x211c10, spriteW: 0.94, spriteH: 1.28, size2d: 0.78, tint: 0xfff1a6 }
+      : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, size2d: 0.90, tint: 0xffffff };
 
-    const shadow = makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);
-    shadow.position.y = 0.03;
-    shadow.scale.z = 0.72;
+    // In 2D top-down view the shadow disc shows as a visible circle under the sprite — hide it.
+    const shadow = this.viewMode === "2d" ? null : makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);
+    if (shadow) { shadow.position.y = 0.03; shadow.scale.z = 0.72; }
 
     // Use per-monster skin slot; tint is applied when the slot still shares the grunt texture.
     const MONSTER_SKIN_KEY: Record<MonsterType, keyof typeof this.skin> = {
@@ -542,16 +543,19 @@ export class SceneView {
     };
     const skinKey = MONSTER_SKIN_KEY[monsterType] ?? "enemyGrunt";
     const spriteUrl = (this.skin[skinKey] as string);
-    const sprite = this.createSprite(spriteUrl, cfg.spriteW, cfg.spriteH);
-    sprite.position.y = cfg.spriteH * 0.68;
+    const sw = this.viewMode === "2d" ? cfg.size2d : cfg.spriteW;
+    const sh = this.viewMode === "2d" ? cfg.size2d : cfg.spriteH;
+    const sprite = this.createSprite(spriteUrl, sw, sh);
+    sprite.position.y = this.viewMode === "2d" ? 0.2 : cfg.spriteH * 0.68;
 
     // Apply tint when the slot uses the shared grunt sprite (dedicated art not yet available).
     if (monsterType !== "grunt" && spriteUrl === this.skin.enemyGrunt) {
       (sprite.material as THREE.SpriteMaterial).color.setHex(cfg.tint);
     }
 
-    group.add(shadow, sprite);
-    group.add(this.createMonsterHealthBar(cfg.spriteH));
+    if (shadow) group.add(shadow);
+    group.add(sprite);
+    group.add(this.createMonsterHealthBar(sh));
     return group;
   }
 
