@@ -6,6 +6,7 @@ import { Hud } from "./ui/Hud";
 import { LevelEditor } from "./editor/LevelEditor";
 import { levelToRuntime } from "./levels/convert";
 import { loadLocalLevel } from "./levels/storage";
+import type { LevelDefinition } from "./levels/types";
 
 const app = document.querySelector<HTMLElement>("#app");
 const sceneRoot = document.querySelector<HTMLDivElement>("#sceneRoot");
@@ -29,32 +30,55 @@ if (new URLSearchParams(window.location.search).get("mode") === "editor") {
   }
   new LevelEditor(app).mount();
 } else {
-
-if (
-  !sceneRoot ||
-  !stageShell ||
-  !startButton ||
-  !restartButton ||
-  !startOverlay ||
-  !resultOverlay ||
-  !pauseOverlay ||
-  !resumeButton ||
-  !pauseRestartButton ||
-  !upgradePanel ||
-  !upgradeChoices ||
-  !buffOverlay ||
-  !buffButton ||
-  !buffCloseButton
-) {
-  throw new Error("Missing required DOM nodes.");
+  void bootstrapGame();
 }
 
-const runtimeLevel = new URLSearchParams(window.location.search).get("level") === "local" ? loadLocalLevel() : undefined;
-const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
-const input = new Input(sceneRoot);
-const view = new SceneView(sceneRoot, convertedLevel?.obstacles, convertedLevel);
-const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
-const game = new Game(input, view, hud, convertedLevel);
+async function bootstrapGame(): Promise<void> {
+  if (
+    !sceneRoot ||
+    !stageShell ||
+    !startButton ||
+    !restartButton ||
+    !startOverlay ||
+    !resultOverlay ||
+    !pauseOverlay ||
+    !resumeButton ||
+    !pauseRestartButton ||
+    !upgradePanel ||
+    !upgradeChoices ||
+    !buffOverlay ||
+    !buffButton ||
+    !buffCloseButton
+  ) {
+    throw new Error("Missing required DOM nodes.");
+  }
+
+async function loadRequestedLevel(): Promise<LevelDefinition | undefined> {
+  const levelParam = new URLSearchParams(window.location.search).get("level");
+  if (!levelParam) {
+    return undefined;
+  }
+  if (levelParam === "local") {
+    return loadLocalLevel();
+  }
+  if (!/^[a-z0-9-]+$/i.test(levelParam)) {
+    console.warn(`Ignored unsafe level id: ${levelParam}`);
+    return undefined;
+  }
+  const response = await fetch(`/levels/${levelParam}.json`);
+  if (!response.ok) {
+    console.warn(`Level not found: ${levelParam}`);
+    return undefined;
+  }
+  return (await response.json()) as LevelDefinition;
+}
+
+  const runtimeLevel = await loadRequestedLevel();
+  const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
+  const input = new Input(sceneRoot);
+  const view = new SceneView(sceneRoot, convertedLevel?.obstacles, convertedLevel);
+  const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
+  const game = new Game(input, view, hud, convertedLevel);
 
 startButton.addEventListener("click", () => {
   startOverlay.hidden = true;
@@ -94,5 +118,5 @@ hud.onBuffClose(() => {
   game.closeBuffPanel();
 });
 
-game.renderIdle();
+  game.renderIdle();
 }

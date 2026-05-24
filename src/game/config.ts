@@ -4,11 +4,16 @@ export const ARENA = {
   wallHeight: 1.5,
 };
 
+export const DESIGN_UNITS = {
+  worldUnitMeters: 1,
+  note: "One gameplay world unit maps to one design-meter grid cell.",
+};
+
 export const PLAYER = {
-  radius: 0.32,
+  radius: 0.5,
   hp: 20,
-  speed: 4.8,
-  dashDistance: 1.9,
+  speed: 4.0,
+  dashDistance: 8.0,
   dashCooldown: 2.0,
   rollDuration: 0.5,
 };
@@ -22,14 +27,14 @@ export const HUMAN_CANNON = {
 };
 
 export const MARBLE = {
-  radius: 0.18,
-  baseSpeed: 8.4,
+  radius: 0.5,
+  baseSpeed: 10,
   maxChargeSeconds: 0.9,
-  baseRange: 18,
+  baseRange: 40,
   baseDamage: 1,
   maxBounces: 3,
   recallSpeed: 10,
-  knockback: 1.2,
+  knockback: 1,
   hp: 1,
   homingAngle: 10,
 };

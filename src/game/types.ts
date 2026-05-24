@@ -7,14 +7,53 @@ export type MarbleState = "ready" | "charging" | "flying" | "recalling" | "canno
 
 export type PlayerMode = "normal" | "humanCannon";
 
+export type FloorMaterial = "sandstone" | "cracked" | "moss" | "danger" | "fire" | "mud" | "ice" | "blood";
+
+export type ObstacleMaterial =
+  | "wood"
+  | "stone"
+  | "metal"
+  | "glass"
+  | "reflector"
+  | "accelerator"
+  | "thorns"
+  | "oneWay"
+  | "bomb";
+
+export type ObstacleBehavior = "solid" | "breakable" | "reflectBack" | "speedUp" | "pierceDamage" | "oneWay" | "explosive";
+
+export type InteractableType = "brazier" | "pinball" | "iceBall" | "alarmPost" | "doorSwitch";
+
+export type MonsterType =
+  | "grunt"
+  | "runner"
+  | "tank"
+  | "octopus"
+  | "hound"
+  | "boar"
+  | "slime"
+  | "rabbit"
+  | "bombBug"
+  | "shieldCrab"
+  | "voodooFlower"
+  | "eyeCannon"
+  | "priest";
+
+export type MonsterAiState = "idle" | "patrol" | "alert" | "returning";
+
 export type Monster = {
   id: number;
   position: Vec2;
+  spawnPosition?: Vec2;
+  patrolPath?: Vec2[];
   radius: number;
   hp: number;
   maxHp: number;
   speed: number;
-  monsterType: "grunt" | "runner" | "tank";
+  monsterType: MonsterType;
+  aiState?: MonsterAiState;
+  aggroRange?: number;
+  disengageRange?: number;
   noKnockback?: boolean;
 };
 
@@ -22,7 +61,10 @@ export type Obstacle = {
   id: string;
   position: Vec2;
   halfSize: Vec2;
-  material?: "wood" | "stone" | "metal";
+  material?: ObstacleMaterial;
+  behavior?: ObstacleBehavior;
+  facing?: "up" | "right" | "down" | "left";
+  hp?: number;
 };
 
 export type Marble = {

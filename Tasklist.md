@@ -207,4 +207,14 @@
 - [x] Summarize gaps between the current prototype and the Zodiac revision.
 - [x] Write a staged implementation plan for data, terrain, obstacles, interactables, monsters, cards, and 10-level content.
 - [x] Add the required plan/develop/verify/submit workflow to the development standards.
-- [ ] Start Phase 1 implementation: data model and numeric baseline.
+- [x] Start Phase 1 implementation: data model and numeric baseline.
+
+## Phase 26 - Zodiac Data Model Baseline
+
+- [x] Extend shared gameplay types for new terrain materials, obstacle behaviors, interactables, monster types, and monster AI states.
+- [x] Extend level schema with player start, interactables, patrol paths, aggro/disengage ranges, obstacle behavior, facing, and HP.
+- [x] Preserve old level compatibility while converting new fields into runtime data.
+- [x] Add direct `?level=<file-id>` loading from `public/levels/<file-id>.json`.
+- [x] Add `zodiac-schema-smoke.json` as a minimal new-schema validation level.
+- [x] Align core numeric constants with the Zodiac baseline for movement, roll, marble speed, range, and radius.
+- [ ] Implement runtime effects for the new terrain, obstacle, and interactable behaviors.

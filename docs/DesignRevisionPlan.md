@@ -114,3 +114,20 @@
 - 不要把“人间大炮”改回默认玩法；它仍然应作为钻石卡或特殊玩法模型出现。
 - 怪物 AI 不要一次性做 10 种。先做通用状态机，否则后续维护成本会很高。
 - 编辑器和运行时必须同步，避免“编辑器能摆，游戏里不生效”的问题再次出现。
+
+## Phase 1 落地记录
+
+已完成数据模型基线：
+
+- `src/game/types.ts` 新增新版地形、阻挡行为、交互物、怪物类型和怪物 AI 状态。
+- `src/levels/types.ts` 新增 `version: 2` 兼容 schema，可描述玩家出生点、交互物、巡逻路径、进战/脱战距离、障碍行为、朝向和 HP。
+- `src/levels/convert.ts` 会把新增字段转换到运行时对象，旧版 `version: 1` 关卡仍可继续读取。
+- `src/main.ts` 支持 `?level=<file-id>` 直接加载 `public/levels/<file-id>.json`，也继续支持 `?level=local`。
+- `public/levels/zodiac-schema-smoke.json` 是最小新 schema 验证关，用于后续系统接入前确认字段链路可用。
+- `src/game/config.ts` 已按 Zodiac 基线对齐移动、翻滚、弹珠速度、距离和半径等常量。
+
+尚未完成：
+
+- 新地形、阻挡、交互物目前只是被解析和传递，真实玩法效果放到 Phase 2 和 Phase 3。
+- 10 种怪物类型目前能进入数据和渲染链路，但专属 AI 行为放到 Phase 4。
+- 关卡编辑器还需要在后续阶段补齐新版材质、阻挡和交互物的完整友好编辑界面。

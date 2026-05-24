@@ -3,39 +3,39 @@ import type { FloorMaterial, LevelDefinition, LevelObstacle, LevelSpawn, Monster
 
 type Tool = "floor" | "obstacle" | "spawn" | "erase";
 
-const FLOOR_LABEL: Record<FloorMaterial, string> = {
+const FLOOR_LABEL: Record<string, string> = {
   sandstone: "砂岩",
   cracked: "碎石",
   moss: "苔痕",
   danger: "危险",
 };
 
-const OBSTACLE_LABEL: Record<ObstacleMaterial, string> = {
+const OBSTACLE_LABEL: Record<string, string> = {
   wood: "木箱",
   stone: "石柱",
   metal: "铁砧",
 };
 
-const MONSTER_LABEL: Record<MonsterType, string> = {
+const MONSTER_LABEL: Record<string, string> = {
   grunt: "木偶兵",
   runner: "疾行怪",
   tank: "重甲怪",
 };
 
-const FLOOR_ICON: Record<FloorMaterial, string> = {
+const FLOOR_ICON: Record<string, string> = {
   sandstone: "砂",
   cracked: "裂",
   moss: "苔",
   danger: "危",
 };
 
-const OBSTACLE_ICON: Record<ObstacleMaterial, string> = {
+const OBSTACLE_ICON: Record<string, string> = {
   wood: "箱",
   stone: "柱",
   metal: "砧",
 };
 
-const MONSTER_ICON: Record<MonsterType, string> = {
+const MONSTER_ICON: Record<string, string> = {
   grunt: "兵",
   runner: "疾",
   tank: "甲",

@@ -1,11 +1,11 @@
 import { HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./config";
 import { draftUpgrades, findUpgrade, DEFAULT_UPGRADE_STATS } from "./upgrades";
 import { add, applyHoming, bounceCircleFromObstacle, bounceInArena, calcBounceDamage, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
-import type { Marble, Monster, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
+import type { Marble, Monster, MonsterType, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
 import type { Input } from "./input";
 import type { SceneView } from "../render/SceneView";
 import type { Hud } from "../ui/Hud";
-import type { MonsterType, RuntimeLevel, RuntimeSpawn } from "../levels/types";
+import type { RuntimeLevel, RuntimeSpawn } from "../levels/types";
 
 type SpawnQueueItem = RuntimeSpawn & {
   remaining: number;
@@ -474,7 +474,7 @@ export class Game {
       const item = this.spawnQueue[i];
       item.timer -= dt;
       while (item.remaining > 0 && item.timer <= 0) {
-        this.spawnMonster(item.position, item.monsterType);
+        this.spawnMonster(item.position, item.monsterType, item);
         item.remaining -= 1;
         item.timer += Math.max(0.05, item.interval);
       }
@@ -484,16 +484,21 @@ export class Game {
     }
   }
 
-  private spawnMonster(position: Vec2, monsterType: MonsterType): void {
+  private spawnMonster(position: Vec2, monsterType: MonsterType, spawn?: RuntimeSpawn): void {
     const stats = this.monsterStats(monsterType);
     this.monsters.push({
       id: this.nextMonsterId,
       position: { ...position },
+      spawnPosition: { ...position },
       radius: stats.radius,
       hp: stats.hp + Math.floor(this.wave / 2),
       maxHp: stats.hp + Math.floor(this.wave / 2),
       speed: stats.speed + this.wave * 0.06,
       monsterType,
+      patrolPath: spawn?.patrolPath,
+      aiState: spawn?.patrolPath?.length ? "patrol" : "alert",
+      aggroRange: spawn?.aggroRange ?? 15,
+      disengageRange: spawn?.disengageRange ?? 25,
     });
     this.nextMonsterId += 1;
   }
@@ -522,7 +527,7 @@ export class Game {
 
   private createPlayer(): Player {
     return {
-      position: { x: 0, z: 3.9 },
+      position: this.runtimeLevel?.playerStart ?? { x: 0, z: 3.9 },
       velocity: { x: 0, z: 0 },
       radius: PLAYER.radius,
       hp: PLAYER.hp,

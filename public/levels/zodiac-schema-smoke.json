@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "name": "Zodiac Schema Smoke",
+  "description": "Minimal data-model smoke level for the Zodiac revision. It carries new terrain, obstacle, interactable, spawn, patrol, and player-start fields without requiring the later gameplay systems yet.",
+  "grid": {
+    "width": 12,
+    "height": 10,
+    "cellSize": 1
+  },
+  "playerStart": { "x": 2, "z": 5 },
+  "floors": [
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "fire", "sandstone", "sandstone", "mud", "sandstone", "sandstone", "ice", "sandstone", "sandstone", "blood", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone",
+    "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone", "sandstone"
+  ],
+  "obstacles": [
+    { "id": "wood-solid", "x": 5, "z": 4, "w": 1, "h": 2, "material": "wood", "behavior": "solid" },
+    { "id": "glass-breakable", "x": 7, "z": 4, "w": 1, "h": 2, "material": "glass", "behavior": "breakable", "hp": 1 },
+    { "id": "reflector-left", "x": 9, "z": 5, "w": 1, "h": 1, "material": "reflector", "behavior": "reflectBack", "facing": "left" },
+    { "id": "bomb-barrel", "x": 10, "z": 7, "w": 1, "h": 1, "material": "bomb", "behavior": "explosive", "hp": 1 }
+  ],
+  "interactables": [
+    { "id": "brazier-a", "x": 8, "z": 2, "type": "brazier" },
+    { "id": "ice-ball-a", "x": 3, "z": 7, "type": "iceBall", "cooldown": 6 },
+    { "id": "alarm-post-a", "x": 10, "z": 2, "type": "alarmPost" }
+  ],
+  "spawns": [
+    {
+      "id": "hound-patrol",
+      "x": 8,
+      "z": 5,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0.5,
+      "patrolPath": [
+        { "x": 8, "z": 5 },
+        { "x": 10, "z": 5 }
+      ],
+      "aggroRange": 15,
+      "disengageRange": 25
+    },
+    {
+      "id": "octopus-backline",
+      "x": 10,
+      "z": 3,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "octopus",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
+    }
+  ]
+}

@@ -1,8 +1,8 @@
-import type { Obstacle } from "../game/types";
+import type { FloorMaterial, InteractableType, MonsterType, Obstacle, ObstacleBehavior, ObstacleMaterial, Vec2 } from "../game/types";
 
-export type FloorMaterial = "sandstone" | "cracked" | "moss" | "danger";
-export type ObstacleMaterial = "wood" | "stone" | "metal";
-export type MonsterType = "grunt" | "runner" | "tank";
+export type { FloorMaterial, InteractableType, MonsterType, ObstacleBehavior, ObstacleMaterial };
+
+export type GridDirection = "up" | "right" | "down" | "left";
 
 export type LevelObstacle = {
   id: string;
@@ -11,6 +11,18 @@ export type LevelObstacle = {
   w: number;
   h: number;
   material: ObstacleMaterial;
+  behavior?: ObstacleBehavior;
+  facing?: GridDirection;
+  hp?: number;
+};
+
+export type LevelInteractable = {
+  id: string;
+  x: number;
+  z: number;
+  type: InteractableType;
+  wave?: number;
+  cooldown?: number;
 };
 
 export type LevelSpawn = {
@@ -21,34 +33,54 @@ export type LevelSpawn = {
   count: number;
   monsterType: MonsterType;
   interval: number;
+  patrolPath?: Array<{ x: number; z: number }>;
+  aggroRange?: number;
+  disengageRange?: number;
 };
 
 export type LevelDefinition = {
-  version: 1;
+  version: 1 | 2;
   name: string;
+  description?: string;
   grid: {
     width: number;
     height: number;
     cellSize: number;
   };
+  playerStart?: { x: number; z: number };
   floors: FloorMaterial[];
   obstacles: LevelObstacle[];
+  interactables?: LevelInteractable[];
   spawns: LevelSpawn[];
+};
+
+export type RuntimeInteractable = {
+  id: string;
+  position: Vec2;
+  type: InteractableType;
+  wave?: number;
+  cooldown?: number;
 };
 
 export type RuntimeSpawn = {
   id: string;
-  position: { x: number; z: number };
+  position: Vec2;
   wave: number;
   count: number;
   monsterType: MonsterType;
   interval: number;
+  patrolPath?: Vec2[];
+  aggroRange?: number;
+  disengageRange?: number;
 };
 
 export type RuntimeLevel = {
   name: string;
+  description?: string;
   grid: LevelDefinition["grid"];
+  playerStart?: Vec2;
   floors: FloorMaterial[];
   obstacles: Obstacle[];
+  interactables: RuntimeInteractable[];
   spawns: RuntimeSpawn[];
 };

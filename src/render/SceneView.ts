@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { ARENA, CAMERA, OBSTACLES } from "../game/config";
-import type { Marble, Monster, Obstacle, Player, Vec2 } from "../game/types";
+import type { Marble, Monster, MonsterType, Obstacle, Player, Vec2 } from "../game/types";
 import type { FloorMaterial, ObstacleMaterial, RuntimeLevel } from "../levels/types";
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
 import { Effects } from "./effects";
@@ -367,7 +367,7 @@ export class SceneView {
     }
   }
 
-  private createMonsterMesh(monsterType: "grunt" | "runner" | "tank" = "grunt"): THREE.Group {
+  private createMonsterMesh(monsterType: MonsterType = "grunt"): THREE.Group {
     const group = new THREE.Group();
 
     // 各类型的视觉参数

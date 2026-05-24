@@ -143,3 +143,32 @@ git push origin main
 - 障碍尺寸拖拽编辑。
 - 刷怪路线、精英怪、Boss 出场规则。
 - GitHub PR 模板，要求每个新关卡附截图和验证说明。
+## 8. Zodiac v2 关卡字段
+
+Zodiac 改版开始使用兼容的 `version: 2` 关卡 schema。旧 `version: 1` 关卡仍可读取。
+
+新增字段：
+
+- `description`: 关卡意图说明。
+- `playerStart`: 玩家出生格，格式为 `{ "x": 2, "z": 5 }`。
+- `floors`: 继续使用逐格数组，新增玩法材质 `fire`、`mud`、`ice`、`blood`。
+- `obstacles[].behavior`: 阻挡行为，可用 `solid`、`breakable`、`reflectBack`、`speedUp`、`pierceDamage`、`oneWay`、`explosive`。
+- `obstacles[].facing`: 单向门、弹反等方向型对象的朝向，可用 `up`、`right`、`down`、`left`。
+- `obstacles[].hp`: 可破坏或可爆炸对象的生命值。
+- `interactables`: 场地交互物列表，类型包括 `brazier`、`pinball`、`iceBall`、`alarmPost`、`doorSwitch`。
+- `spawns[].patrolPath`: 怪物巡逻路径。
+- `spawns[].aggroRange` / `spawns[].disengageRange`: 怪物进战和脱战距离。
+
+可以直接用文件名加载公共关卡：
+
+```text
+/?level=zodiac-schema-smoke
+```
+
+该 URL 会读取：
+
+```text
+public/levels/zodiac-schema-smoke.json
+```
+
+注意：当前阶段只完成数据解析和运行时传递。火焰扣血、泥沼减速、玻璃破坏、弹反、加倍、爆裂桶、火盆等真实玩法效果会在后续阶段逐个实现。
