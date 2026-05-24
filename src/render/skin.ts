@@ -41,26 +41,23 @@ export interface SkinAssets {
 export function resolveSkinAssets(): SkinAssets {
   const id = sanitizeSkinId(new URLSearchParams(window.location.search).get("skin"));
   const base = `/assets/skins/${id}`;
-  // Per-monster slots: swap to dedicated art once generated.
-  // Until then, all non-grunt types fall back to enemy-grunt and use a colour tint in SceneView.
-  const grunt = `${base}/sprites/enemy-grunt.png`;
   return {
     id,
     player: `${base}/sprites/player.png`,
     marble: `${base}/sprites/marble.png`,
-    enemyGrunt: grunt,
-    enemyRunner: grunt,
-    enemyTank: grunt,
-    enemyOctopus: grunt,
-    enemyHound: grunt,
-    enemyBoar: grunt,
-    enemySlime: grunt,
-    enemyRabbit: grunt,
-    enemyBombBug: grunt,
-    enemyShieldCrab: grunt,
-    enemyVoodooFlower: grunt,
-    enemyEyeCannon: grunt,
-    enemyPriest: grunt,
+    enemyGrunt: `${base}/sprites/enemy-grunt.png`,
+    enemyRunner: `${base}/sprites/enemy-runner.png`,
+    enemyTank: `${base}/sprites/enemy-tank.png`,
+    enemyOctopus: `${base}/sprites/enemy-octopus.png`,
+    enemyHound: `${base}/sprites/enemy-hound.png`,
+    enemyBoar: `${base}/sprites/enemy-boar.png`,
+    enemySlime: `${base}/sprites/enemy-slime.png`,
+    enemyRabbit: `${base}/sprites/enemy-rabbit.png`,
+    enemyBombBug: `${base}/sprites/enemy-bomb-bug.png`,
+    enemyShieldCrab: `${base}/sprites/enemy-shield-crab.png`,
+    enemyVoodooFlower: `${base}/sprites/enemy-voodoo-flower.png`,
+    enemyEyeCannon: `${base}/sprites/enemy-eye-cannon.png`,
+    enemyPriest: `${base}/sprites/enemy-priest.png`,
     obstacleCrate: `${base}/sprites/obstacle-crate.png`,
     obstacleStone: `${base}/sprites/obstacle-stone.png`,
     obstacleMetal: `${base}/sprites/obstacle-metal.png`,

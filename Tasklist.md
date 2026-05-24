@@ -319,7 +319,7 @@
 ## Phase 38 - Monster Pixel Sprites
 
 - [x] Add per-monster sprite slots to SkinAssets and skin.ts.
-- [ ] Generate pixel sprites for all 10+ Zodiac monster types. (pending art generation)
+- [x] Generate pixel sprites for all 12 non-grunt Zodiac monster types via Nano Banana Pro.
 - [x] Wire sprites into SceneView.createMonsterMesh (auto-switches tint→sprite when dedicated art added).
 - [x] Build verify both view modes.
 
