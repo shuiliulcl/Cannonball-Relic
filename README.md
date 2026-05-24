@@ -22,6 +22,12 @@ Submit the generated `dist` folder as the HTML5 resource package after final pol
 - Default / `?view=2d`: experimental pure 2D top-down arena, flat obstacle visuals, and top-down camera.
 - `?view=2.5d`: preserved 2.5D arena, walls, props, and sprite obstacle presentation.
 
+## Level Routes
+
+- `/`: default 10-room campaign, loading `zodiac-01` through `zodiac-10` in order.
+- `/?level=<file-id>`: single-level debug route, for example `/?level=zodiac-03`.
+- `/?level=local`: validates the current level-editor draft from localStorage.
+
 ## Controls
 
 - `WASD`: move.

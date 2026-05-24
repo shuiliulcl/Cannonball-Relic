@@ -362,3 +362,10 @@
 - [x] Extract configureRuntimeLevel / cloneBaseObstacles / cloneInteractables helpers.
 - [x] Default no-param URL runs full campaign; `?level=` still runs single level.
 - [x] Build verify and push campaign mode.
+
+## Phase 43 - Actor Obstacle Collision
+
+- [x] Make the player collide with runtime obstacles while preserving edge-slide movement.
+- [x] Make non-jumping monsters collide with runtime obstacles and stop boar charges on impact.
+- [x] Keep rabbit jump movement able to cross obstacles as its special behavior.
+- [x] Build verify actor obstacle collision.

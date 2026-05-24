@@ -292,6 +292,38 @@ export class Game {
     this.lastTime = performance.now();
   }
 
+  private moveActorWithObstacles(
+    position: Vec2,
+    velocity: Vec2,
+    radius: number,
+    dt: number,
+  ): { position: Vec2; velocity: Vec2; collided: boolean } {
+    let resolvedPosition = position;
+    let resolvedVelocity = { ...velocity };
+    let collided = false;
+
+    const moveAxes: Array<keyof Vec2> = ["x", "z"];
+    for (const axis of moveAxes) {
+      const stepVelocity = axis === "x" ? { x: resolvedVelocity.x, z: 0 } : { x: 0, z: resolvedVelocity.z };
+      resolvedPosition = clampToArena(add(resolvedPosition, scale(stepVelocity, dt)), radius, this.arena);
+
+      for (const obstacle of this.obstacles) {
+        if (!this.blocksActorMovement(obstacle)) {
+          continue;
+        }
+        const obstacleBounce = bounceCircleFromObstacle(resolvedPosition, stepVelocity, radius, obstacle);
+        if (!obstacleBounce.bounced) {
+          continue;
+        }
+        resolvedPosition = clampToArena(obstacleBounce.position, radius, this.arena);
+        resolvedVelocity = axis === "x" ? { ...resolvedVelocity, x: 0 } : { ...resolvedVelocity, z: 0 };
+        collided = true;
+      }
+    }
+
+    return { position: resolvedPosition, velocity: resolvedVelocity, collided };
+  }
+
   private updatePlayer(dt: number): void {
     if (this.player.mode === "humanCannon") {
       this.updateHumanCannon(dt);
@@ -305,17 +337,22 @@ export class Game {
     const speedMultiplier = floor === "mud" ? 0.5 : 1;
 
     if (this.player.rollTimer > 0) {
-      this.player.position = clampToArena(add(this.player.position, scale(this.player.rollVelocity, dt)), this.player.radius, this.arena);
+      const movementResult = this.moveActorWithObstacles(this.player.position, this.player.rollVelocity, this.player.radius, dt);
+      this.player.position = movementResult.position;
+      this.player.rollVelocity = movementResult.velocity;
       this.player.rollTimer = Math.max(0, this.player.rollTimer - dt);
       this.player.invulnTimer = Math.max(this.player.invulnTimer, this.player.rollTimer);
     } else if (floor === "ice") {
       const desiredVelocity = scale(movement, (this.player.speed + this.stats.speedBonus) * speedMultiplier);
       this.player.velocity = add(scale(this.player.velocity, 0.9), scale(desiredVelocity, 0.1));
-      this.player.position = clampToArena(add(this.player.position, scale(this.player.velocity, dt)), this.player.radius, this.arena);
+      const movementResult = this.moveActorWithObstacles(this.player.position, this.player.velocity, this.player.radius, dt);
+      this.player.position = movementResult.position;
+      this.player.velocity = movementResult.velocity;
     } else {
       this.player.velocity = scale(movement, (this.player.speed + this.stats.speedBonus) * speedMultiplier);
-      const delta = scale(this.player.velocity, dt);
-      this.player.position = clampToArena(add(this.player.position, delta), this.player.radius, this.arena);
+      const movementResult = this.moveActorWithObstacles(this.player.position, this.player.velocity, this.player.radius, dt);
+      this.player.position = movementResult.position;
+      this.player.velocity = movementResult.velocity;
     }
     this.applyPlayerTerrainEffects(dt);
 
@@ -492,11 +529,15 @@ export class Game {
       const speedMultiplier = floor === "mud" ? 0.5 : 1;
       const chargeMultiplier = (monster.chargeTimer ?? 0) > 0 ? 2.4 : 1;
       const jumpMultiplier = (monster.jumpTimer ?? 0) > 0 ? 3.2 : 1;
-      monster.position = clampToArena(
-        add(monster.position, scale(direction, monster.speed * speedMultiplier * chargeMultiplier * jumpMultiplier * dt)),
-        monster.radius,
-        this.arena,
-      );
+      const velocity = scale(direction, monster.speed * speedMultiplier * chargeMultiplier * jumpMultiplier);
+      const isJumpingRabbit = monster.monsterType === "rabbit" && (monster.jumpTimer ?? 0) > 0;
+      const movementResult = isJumpingRabbit
+        ? { position: clampToArena(add(monster.position, scale(velocity, dt)), monster.radius, this.arena), velocity, collided: false }
+        : this.moveActorWithObstacles(monster.position, velocity, monster.radius, dt);
+      monster.position = movementResult.position;
+      if (movementResult.collided && (monster.chargeTimer ?? 0) > 0) {
+        monster.chargeTimer = 0;
+      }
       this.updateMonsterAttack(monster);
       if (floor === "blood") {
         monster.hp = Math.min(monster.maxHp, monster.hp + dt);
@@ -1276,6 +1317,19 @@ export class Game {
       return "explosive";
     }
     return "solid";
+  }
+
+  private blocksActorMovement(obstacle: Obstacle): boolean {
+    const behavior = this.obstacleBehavior(obstacle);
+    return (
+      behavior === "solid" ||
+      behavior === "breakable" ||
+      behavior === "reflectBack" ||
+      behavior === "speedUp" ||
+      behavior === "pierceDamage" ||
+      behavior === "oneWay" ||
+      behavior === "explosive"
+    );
   }
 
   private shouldSkipOneWayObstacle(obstacle: Obstacle, velocity: Vec2): boolean {
