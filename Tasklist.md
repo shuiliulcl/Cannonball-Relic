@@ -318,10 +318,10 @@
 
 ## Phase 38 - Monster Pixel Sprites
 
-- [ ] Add per-monster sprite slots to SkinAssets and skin.ts.
-- [ ] Generate pixel sprites for all 10+ Zodiac monster types.
-- [ ] Wire sprites into SceneView.createMonsterMesh, remove color tints.
-- [ ] Build verify both view modes.
+- [x] Add per-monster sprite slots to SkinAssets and skin.ts.
+- [ ] Generate pixel sprites for all 10+ Zodiac monster types. (pending art generation)
+- [x] Wire sprites into SceneView.createMonsterMesh (auto-switches tint→sprite when dedicated art added).
+- [x] Build verify both view modes.
 
 ## Phase 39 - Polish and Submission Materials
 

@@ -14,6 +14,18 @@ export interface SkinAssets {
   readonly player: string;
   readonly marble: string;
   readonly enemyGrunt: string;
+  readonly enemyRunner: string;
+  readonly enemyTank: string;
+  readonly enemyOctopus: string;
+  readonly enemyHound: string;
+  readonly enemyBoar: string;
+  readonly enemySlime: string;
+  readonly enemyRabbit: string;
+  readonly enemyBombBug: string;
+  readonly enemyShieldCrab: string;
+  readonly enemyVoodooFlower: string;
+  readonly enemyEyeCannon: string;
+  readonly enemyPriest: string;
   readonly obstacleCrate: string;
   readonly obstacleStone: string;
   readonly obstacleMetal: string;
@@ -29,11 +41,26 @@ export interface SkinAssets {
 export function resolveSkinAssets(): SkinAssets {
   const id = sanitizeSkinId(new URLSearchParams(window.location.search).get("skin"));
   const base = `/assets/skins/${id}`;
+  // Per-monster slots: swap to dedicated art once generated.
+  // Until then, all non-grunt types fall back to enemy-grunt and use a colour tint in SceneView.
+  const grunt = `${base}/sprites/enemy-grunt.png`;
   return {
     id,
     player: `${base}/sprites/player.png`,
     marble: `${base}/sprites/marble.png`,
-    enemyGrunt: `${base}/sprites/enemy-grunt.png`,
+    enemyGrunt: grunt,
+    enemyRunner: grunt,
+    enemyTank: grunt,
+    enemyOctopus: grunt,
+    enemyHound: grunt,
+    enemyBoar: grunt,
+    enemySlime: grunt,
+    enemyRabbit: grunt,
+    enemyBombBug: grunt,
+    enemyShieldCrab: grunt,
+    enemyVoodooFlower: grunt,
+    enemyEyeCannon: grunt,
+    enemyPriest: grunt,
     obstacleCrate: `${base}/sprites/obstacle-crate.png`,
     obstacleStone: `${base}/sprites/obstacle-stone.png`,
     obstacleMetal: `${base}/sprites/obstacle-metal.png`,

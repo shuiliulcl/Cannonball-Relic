@@ -465,11 +465,29 @@ export class SceneView {
     shadow.position.y = 0.03;
     shadow.scale.z = 0.72;
 
-    const sprite = this.createSprite(this.skin.enemyGrunt, cfg.spriteW, cfg.spriteH);
+    // Use per-monster skin slot; tint is applied when the slot still shares the grunt texture.
+    const MONSTER_SKIN_KEY: Record<MonsterType, keyof typeof this.skin> = {
+      grunt: "enemyGrunt",
+      runner: "enemyRunner",
+      tank: "enemyTank",
+      octopus: "enemyOctopus",
+      hound: "enemyHound",
+      boar: "enemyBoar",
+      slime: "enemySlime",
+      rabbit: "enemyRabbit",
+      bombBug: "enemyBombBug",
+      shieldCrab: "enemyShieldCrab",
+      voodooFlower: "enemyVoodooFlower",
+      eyeCannon: "enemyEyeCannon",
+      priest: "enemyPriest",
+    };
+    const skinKey = MONSTER_SKIN_KEY[monsterType] ?? "enemyGrunt";
+    const spriteUrl = (this.skin[skinKey] as string);
+    const sprite = this.createSprite(spriteUrl, cfg.spriteW, cfg.spriteH);
     sprite.position.y = cfg.spriteH * 0.68;
 
-    // runner 偏红色调，tank 偏紫色调（通过颜色叠加区分）
-    if (monsterType !== "grunt") {
+    // Apply tint when the slot uses the shared grunt sprite (dedicated art not yet available).
+    if (monsterType !== "grunt" && spriteUrl === this.skin.enemyGrunt) {
       (sprite.material as THREE.SpriteMaterial).color.setHex(cfg.tint);
     }
 
