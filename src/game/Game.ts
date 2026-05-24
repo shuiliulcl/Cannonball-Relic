@@ -58,6 +58,7 @@ export class Game {
   private campaignIndex = 0;
   private pendingCampaignAdvance = false;
   private readonly campaignMode: boolean;
+  private readonly godMode = new URLSearchParams(window.location.search).get("god") === "1";
 
   constructor(
     private readonly input: Input,
@@ -1125,6 +1126,7 @@ export class Game {
 
   /** 护盾优先吸收伤害，剩余才扣 HP。若被完全吸收返回 0。 */
   private applyDamageToPlayer(amount: number): number {
+    if (this.godMode) return 0;
     if (this.stats.hasShieldTrait && this.player.shields > 0) {
       const absorbed = Math.min(amount, this.player.shields);
       this.player.shields -= absorbed;
