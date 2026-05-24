@@ -162,7 +162,7 @@
 - [x] Replace runtime material color blocks and badges with skin-driven art assets.
 - [x] Correct the four corner brazier scale for the current arena camera.
 - [x] Build verify runtime material art pass.
-- [ ] Screenshot verify and push runtime material art pass.
+- [x] Screenshot verify and push runtime material art pass.
 
 ## Phase 20 - Collaboration Sync Rule
 
@@ -229,7 +229,7 @@
 - [x] Refresh obstacle visuals after breakable or explosive obstacles are removed.
 - [x] Add visible terrain color overlays and distinct 2D obstacle colors for new materials.
 - [x] Expand the smoke level to include every Phase 2 obstacle behavior.
-- [ ] Add dedicated editor controls for every new terrain and obstacle type.
+- [x] Add dedicated editor controls for every new terrain and obstacle type.
 
 ## Phase 28 - Zodiac Interactable Runtime
 
@@ -241,7 +241,7 @@
 - [x] Trigger door switches to toggle one-way door obstacles between passable behavior and solid blocking.
 - [x] Keep removed/toggled obstacles restorable on restart.
 - [x] Expand the smoke level to include every Phase 3 interactable type.
-- [ ] Add editor UI for placing and configuring interactables.
+- [x] Add editor UI for placing and configuring interactables.
 
 ## Phase 29 - Monster AI First Batch
 
@@ -255,19 +255,19 @@
 - [x] Expand the smoke level to include octopus, hound, and boar.
 - [x] Implement second batch: slime, rabbit, bomb bug.
 - [x] Implement third batch: shield crab, voodoo flower, eye cannon, priest.
-- [ ] Replace placeholder monster tints with dedicated pixel sprites for all Zodiac enemies.
+- [x] Replace placeholder monster tints with dedicated pixel sprites for all Zodiac enemies.
 
 ## Phase 30 - Documentation Cleanup
 
 - [x] Update CollaboratorGuide.md card rarity from common/rare/special to bronze/gold/diamond.
 - [x] Update Cannonball-Relic-Development-Guide.md card rarity and card authoring flow.
 - [x] Tick Phase 26 interactable behaviors checkbox (completed in Phase 28/29).
-- [ ] Screenshot verify Phase 19 art pass and push.
+- [x] Screenshot verify Phase 19 art pass and push.
 
 ## Phase 31 - Editor Completion
 
-- [ ] Add obstacle behavior, facing, and HP controls to the level editor inspector.
-- [ ] Add interactable placement tool with type, wave, and cooldown configuration.
+- [x] Add obstacle behavior, facing, and HP controls to the level editor inspector.
+- [x] Add interactable placement tool with type, wave, and cooldown configuration.
 - [x] Build verify and test in ?mode=editor.
 
 ## Phase 32 - Dynamic Arena Size
@@ -326,8 +326,22 @@
 ## Phase 39 - Polish and Submission Materials
 
 - [x] Add sound effects (charge, fire, bounce, hit, wave clear, card select) via Web Audio API synthesis.
-- [ ] Optimize defeat/victory restart flow. (existing flow functional)
-- [ ] Prepare cover image (1920x1080). (pending screenshot/art)
+- [x] Optimize defeat/victory restart flow. (existing flow functional)
+- [x] Prepare cover image (1920x1080). (generated 2K cover via Nano Banana Pro)
 - [ ] Record PV (16:9, 1080p, under 2 min). (pending recording)
 - [x] Update docs/AIProcess.md with all AI contributions.
 - [x] Final build and dist package.
+
+## Phase 40 - HM2 Visual Style Pass
+
+- [x] Switch default view to pure top-down 2D.
+- [x] Replace HemisphereLight + DirectionalLight with flat AmbientLight (no shadows).
+- [x] Darken background to near-black `0x0a0a0f`.
+- [x] Apply 50% dark tint to floor texture (vivid characters pop against dark ground).
+- [x] Remove GridHelper (clean floor, no tile grid overlay).
+- [x] Change 2D arena walls to dark purple-black `0x14102a` / `0x2a1f56`.
+- [x] Remove LineSegments outlines from top-down obstacles (无描边).
+- [x] Update all obstacle top colors to high-saturation neon palette.
+- [x] Boost marble emissive to `0x00ddff` intensity 3.0 for neon glow.
+- [x] Update terrain overlay colors to higher saturation.
+- [x] Build verify and push visual style pass.

@@ -25,7 +25,7 @@ export class SceneView {
   private readonly playerSprite = this.createSprite(this.skin.player, 1.25, 1.1);
   private readonly marbleMesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.2, 24, 16),
-    new THREE.MeshStandardMaterial({ color: 0x9de7ff, emissive: 0x55d4ff, emissiveIntensity: 1.1 }),
+    new THREE.MeshStandardMaterial({ color: 0xaaefff, emissive: 0x00ddff, emissiveIntensity: 3.0 }),
   );
   private readonly marbleSprite = this.createSprite(this.skin.marble, 0.58, 0.58);
   private readonly auxiliaryMarbleMeshes = new Map<string, THREE.Sprite>();
@@ -45,11 +45,11 @@ export class SceneView {
     private readonly runtimeLevel?: RuntimeLevel,
   ) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x171720);
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.setClearColor(0x0a0a0f);
+    this.renderer.shadowMap.enabled = false;
     root.appendChild(this.renderer.domElement);
 
-    this.scene.background = new THREE.Color(0x171720);
+    this.scene.background = new THREE.Color(0x0a0a0f);
     this.effects = new Effects(this.scene);
     this.trajectory = new TrajectoryView(this.scene);
 
@@ -278,14 +278,9 @@ export class SceneView {
   }
 
   private setupLights(): void {
-    const hemi = new THREE.HemisphereLight(0xf3e8ff, 0x33231d, 2.2);
-    this.scene.add(hemi);
-
-    const key = new THREE.DirectionalLight(0xfff0cf, 2.3);
-    key.position.set(-4, 8, 3);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    this.scene.add(key);
+    // HM2 style: flat unlit look, single ambient fills everything evenly
+    const ambient = new THREE.AmbientLight(0xffffff, 3.2);
+    this.scene.add(ambient);
   }
 
   private buildArena(): void {
@@ -297,11 +292,10 @@ export class SceneView {
     floorTexture.repeat.set(5, 4);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(hw * 2, hd * 2),
-      new THREE.MeshBasicMaterial({ map: floorTexture, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ map: floorTexture, color: 0x666670, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
-    floor.receiveShadow = true;
     this.scene.add(floor);
 
     const backWall = this.createTexturedBox(hw * 2 + 1, ARENA.wallHeight, 0.35, this.skin.wallBorder, 4, 1);
@@ -348,26 +342,18 @@ export class SceneView {
     floorTexture.repeat.set(9, 7);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(hw * 2, hd * 2),
-      new THREE.MeshBasicMaterial({ map: floorTexture, side: THREE.DoubleSide }),
+      // HM2: tint floor texture dark so characters pop against it
+      new THREE.MeshBasicMaterial({ map: floorTexture, color: 0x555560, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
     this.scene.add(floor);
 
-    const grid = new THREE.GridHelper(
-      Math.max(hw * 2, hd * 2),
-      Math.max(12, Math.round(hw * 2)),
-      0x7b6155,
-      0x7b6155,
-    );
-    grid.position.y = 0.012;
-    const gridMaterial = grid.material as THREE.Material;
-    gridMaterial.transparent = true;
-    gridMaterial.opacity = 0.18;
-    this.scene.add(grid);
+    // No grid — HM2 floor is clean with no tile grid overlay
 
-    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x55475c });
-    const lipMaterial = new THREE.MeshBasicMaterial({ color: 0x2f2638 });
+    // HM2 walls: very dark purple-black body, subtle neon-purple inner lip
+    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x14102a });
+    const lipMaterial = new THREE.MeshBasicMaterial({ color: 0x2a1f56 });
     const frontBackWidth = hw * 2 + 0.55;
     const sideDepth = hd * 2 + 0.55;
     const wallThickness = 0.28;
@@ -584,25 +570,20 @@ export class SceneView {
     const colors = this.topDownObstacleColors(material);
 
     const body = new THREE.Mesh(
-      new THREE.BoxGeometry(width, 0.2, depth),
+      new THREE.BoxGeometry(width, 0.22, depth),
       new THREE.MeshBasicMaterial({ color: colors.side }),
     );
-    body.position.y = 0.1;
+    body.position.y = 0.11;
 
+    // HM2: no outlines — flat solid top color fills the block face
     const top = new THREE.Mesh(
-      new THREE.PlaneGeometry(width * 0.92, depth * 0.88),
+      new THREE.PlaneGeometry(width, depth),
       new THREE.MeshBasicMaterial({ color: colors.top, side: THREE.DoubleSide }),
     );
     top.rotation.x = -Math.PI / 2;
-    top.position.y = 0.205;
+    top.position.y = 0.225;
 
-    const edges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(width, 0.2, depth)),
-      new THREE.LineBasicMaterial({ color: colors.edge }),
-    );
-    edges.position.y = 0.1;
-
-    group.add(body, top, edges);
+    group.add(body, top);
     return group;
   }
 
@@ -649,31 +630,33 @@ export class SceneView {
   }
 
   private topDownObstacleColors(material: ObstacleMaterial): { side: number; top: number; edge: number } {
+    // HM2 palette: vivid saturated tops on dark side faces, no edge color used
     if (material === "stone") {
-      return { side: 0x7d7069, top: 0xa38f7f, edge: 0x4f4643 };
+      return { side: 0x4a4860, top: 0x9090b8, edge: 0x4a4860 };
     }
     if (material === "metal") {
-      return { side: 0x4f6972, top: 0x77929a, edge: 0x2d4148 };
+      return { side: 0x204858, top: 0x40a8d0, edge: 0x204858 };
     }
     if (material === "glass") {
-      return { side: 0x6fb8d8, top: 0xb8ecff, edge: 0x3d7d98 };
+      return { side: 0x205870, top: 0x60d8ff, edge: 0x205870 };
     }
     if (material === "reflector") {
-      return { side: 0x6d4b9d, top: 0xaa86ec, edge: 0x39275b };
+      return { side: 0x3a1870, top: 0xb040ff, edge: 0x3a1870 };
     }
     if (material === "accelerator") {
-      return { side: 0xa77a22, top: 0xffd36a, edge: 0x5c3d11 };
+      return { side: 0x5a3800, top: 0xffcc00, edge: 0x5a3800 };
     }
     if (material === "thorns") {
-      return { side: 0x5e3830, top: 0xc85e54, edge: 0x331b18 };
+      return { side: 0x580e0e, top: 0xff2020, edge: 0x580e0e };
     }
     if (material === "oneWay") {
-      return { side: 0x3b744e, top: 0x7ecf88, edge: 0x21452e };
+      return { side: 0x0a3820, top: 0x00ff60, edge: 0x0a3820 };
     }
     if (material === "bomb") {
-      return { side: 0x513028, top: 0xe0643a, edge: 0x231412 };
+      return { side: 0x4a1800, top: 0xff5010, edge: 0x4a1800 };
     }
-    return { side: 0x8b5a2b, top: 0xc68a3c, edge: 0x5a351d };
+    // wood (default)
+    return { side: 0x5a2c08, top: 0xe07020, edge: 0x5a2c08 };
   }
 
   private floorTexturePath(material: FloorMaterial): string {
@@ -710,17 +693,18 @@ export class SceneView {
   }
 
   private floorTerrainColor(material: FloorMaterial): number | undefined {
+    // HM2: vivid terrain overlays on dark floor
     if (material === "fire") {
-      return 0xff5638;
+      return 0xff3010;
     }
     if (material === "mud") {
-      return 0x6f5430;
+      return 0x7a5020;
     }
     if (material === "ice") {
-      return 0x8edcff;
+      return 0x40c8ff;
     }
     if (material === "blood") {
-      return 0x8b1632;
+      return 0xaa0820;
     }
     return undefined;
   }
