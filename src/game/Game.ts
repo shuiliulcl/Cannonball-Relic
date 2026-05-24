@@ -328,6 +328,11 @@ export class Game {
     }
 
     if (this.input.leftDown && this.marble.state === "ready") {
+      // 持有人间大炮时按发射键直接激活大炮模式，不走普通蓄力流程
+      if (this.ownedUpgrades.has("humanCannon")) {
+        this.activateHumanCannon();
+        return;
+      }
       this.marble.state = "charging";
       this.chargeSeconds = 0;
       startCharge();

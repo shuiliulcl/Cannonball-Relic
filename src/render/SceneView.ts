@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ARENA, CAMERA, OBSTACLES } from "../game/config";
+import { ARENA, CAMERA, MARBLE, OBSTACLES } from "../game/config";
 import type { EnemyProjectile, Marble, Monster, MonsterType, Obstacle, Player, Vec2 } from "../game/types";
 import type { FloorMaterial, ObstacleMaterial, RuntimeLevel } from "../levels/types";
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
@@ -98,6 +98,11 @@ export class SceneView {
     this.marbleSprite.visible = visible;
     this.marbleMesh.position.set(marble.position.x, 0.28, marble.position.z);
     this.marbleSprite.position.set(marble.position.x, 0.52, marble.position.z);
+    // Scale mesh to reflect marble.radius changes (e.g. hasGrowingMarble card).
+    const radiusRatio = marble.radius / MARBLE.radius;
+    this.marbleMesh.scale.setScalar(0.55 * radiusRatio);
+    const spriteSize = 0.58 * radiusRatio;
+    this.marbleSprite.scale.set(spriteSize, spriteSize, 1);
   }
 
   syncAuxiliaryMarbles(marbles: Marble[]): void {
