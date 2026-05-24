@@ -43,6 +43,15 @@ export class SceneView {
   private _camHalfW = 7.5;
   private _camHalfH = 4.0;
 
+  // Shared geometry/material for health bars — all monster instances reuse these
+  // so the GPU only uploads VBOs and compiles shaders once.
+  private readonly _hpBackGeo = new THREE.PlaneGeometry(0.82, 0.1);
+  private readonly _hpFillGeo = new THREE.PlaneGeometry(0.78, 0.06);
+  private readonly _hpBackMat = new THREE.MeshBasicMaterial({ color: 0x2a1110, side: THREE.DoubleSide });
+  private readonly _hpFillMat = new THREE.MeshBasicMaterial({ color: 0xe33b2f, side: THREE.DoubleSide });
+  // Cache SpriteMaterial by "url|tint" key — avoids per-spawn texture/shader upload stall.
+  private readonly _spriteMatCache = new Map<string, THREE.SpriteMaterial>();
+
   constructor(
     private readonly root: HTMLElement,
     initialObstacles: readonly Obstacle[] = OBSTACLES,
@@ -310,7 +319,22 @@ export class SceneView {
     this.camera.position.z = 0.001;
     this.camera.updateProjectionMatrix();
 
+    // Pre-build one mesh for each monster type so their geometry/material is
+    // uploaded to the GPU now, not on first in-game spawn (which stalls the frame).
+    const monsterTypes: MonsterType[] = [
+      "grunt", "runner", "tank", "octopus", "hound", "boar",
+      "slime", "rabbit", "bombBug", "shieldCrab", "voodooFlower", "eyeCannon", "priest",
+    ];
+    const dummies = monsterTypes.map((t) => {
+      const g = this.createMonsterMesh(t);
+      g.position.set(0, 0, 0); // within frustum so GPU uploads geometry/compiles shaders
+      this.scene.add(g);
+      return g;
+    });
+
     this.renderer.render(this.scene, this.camera);
+
+    for (const g of dummies) this.scene.remove(g);
 
     this.camera.left = left;
     this.camera.right = right;
@@ -536,6 +560,22 @@ export class SceneView {
     this.arenaGroup.add(mesh);
   }
 
+  private getSpriteMat(path: string, tint?: number): THREE.SpriteMaterial {
+    const key = tint !== undefined ? `${path}|${tint}` : path;
+    let mat = this._spriteMatCache.get(key);
+    if (!mat) {
+      mat = new THREE.SpriteMaterial({
+        map: this.loadTexture(path),
+        transparent: true,
+        alphaTest: 0.08,
+        depthWrite: false,
+      });
+      if (tint !== undefined) mat.color.setHex(tint);
+      this._spriteMatCache.set(key, mat);
+    }
+    return mat;
+  }
+
   private createMonsterMesh(monsterType: MonsterType = "grunt"): THREE.Group {
     const group = new THREE.Group();
 
@@ -589,13 +629,12 @@ export class SceneView {
     const spriteUrl = (this.skin[skinKey] as string);
     const sw = this.viewMode === "2d" ? cfg.size2d : cfg.spriteW;
     const sh = this.viewMode === "2d" ? cfg.size2d : cfg.spriteH;
-    const sprite = this.createSprite(spriteUrl, sw, sh);
+    // Apply tint when the slot still uses the grunt fallback texture.
+    const tint = (monsterType !== "grunt" && spriteUrl === this.skin.enemyGrunt) ? cfg.tint : undefined;
+    const mat = this.getSpriteMat(spriteUrl, tint);
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(sw, sh, 1);
     sprite.position.y = this.viewMode === "2d" ? 0.2 : cfg.spriteH * 0.68;
-
-    // Apply tint when the slot uses the shared grunt sprite (dedicated art not yet available).
-    if (monsterType !== "grunt" && spriteUrl === this.skin.enemyGrunt) {
-      (sprite.material as THREE.SpriteMaterial).color.setHex(cfg.tint);
-    }
 
     if (shadow) group.add(shadow);
     group.add(sprite);
@@ -611,16 +650,10 @@ export class SceneView {
       group.position.y = spriteHeight + 0.34;
     }
 
-    const back = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.82, 0.1),
-      new THREE.MeshBasicMaterial({ color: 0x2a1110, side: THREE.DoubleSide }),
-    );
+    const back = new THREE.Mesh(this._hpBackGeo, this._hpBackMat);
     back.position.z = 0.01;
 
-    const fill = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.78, 0.06),
-      new THREE.MeshBasicMaterial({ color: 0xe33b2f, side: THREE.DoubleSide }),
-    );
+    const fill = new THREE.Mesh(this._hpFillGeo, this._hpFillMat);
     fill.name = "hp-fill";
     fill.position.set(0, 0, 0.02);
 
@@ -866,10 +899,14 @@ export class SceneView {
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
     const aspect = width / height;
-    // Fixed world-space viewport: always show at least 15 × 8 m.
-    // Expand proportionally to fill the screen without letterboxing.
-    const halfH = Math.max(4.0, 7.5 / aspect);
-    const halfW = halfH * aspect;
+    // Show 60% of the arena in the most-constrained dimension, maintaining
+    // the window's aspect ratio (no distortion). This ensures the camera
+    // always needs to scroll regardless of window size.
+    const ratio = 0.75;
+    const hw = this.arenaHW;
+    const hd = this.arenaHD;
+    const halfW = Math.min(hw * ratio, hd * ratio * aspect);
+    const halfH = halfW / aspect;
     this._camHalfW = halfW;
     this._camHalfH = halfH;
     this.camera.left = -halfW;
