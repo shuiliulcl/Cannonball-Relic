@@ -325,9 +325,9 @@
 
 ## Phase 39 - Polish and Submission Materials
 
-- [ ] Add sound effects (charge, fire, bounce, hit, wave clear, card select).
-- [ ] Optimize defeat/victory restart flow.
-- [ ] Prepare cover image (1920x1080).
-- [ ] Record PV (16:9, 1080p, under 2 min).
-- [ ] Update docs/AIProcess.md with all AI contributions.
-- [ ] Final build and dist package.
+- [x] Add sound effects (charge, fire, bounce, hit, wave clear, card select) via Web Audio API synthesis.
+- [ ] Optimize defeat/victory restart flow. (existing flow functional)
+- [ ] Prepare cover image (1920x1080). (pending screenshot/art)
+- [ ] Record PV (16:9, 1080p, under 2 min). (pending recording)
+- [x] Update docs/AIProcess.md with all AI contributions.
+- [x] Final build and dist package.

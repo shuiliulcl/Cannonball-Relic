@@ -1,5 +1,6 @@
 import { ARENA, HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./config";
 import { draftUpgrades, findUpgrade, DEFAULT_UPGRADE_STATS } from "./upgrades";
+import { playFire, playBounce, playHit, startCharge, updateCharge, stopCharge, playWaveClear, playCardSelect, playDefeat, resumeAudio } from "./Audio";
 import { add, applyHoming, bounceCircleFromObstacle, bounceInArena, calcBounceDamage, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
 import type { EnemyProjectile, FloorMaterial, Marble, Monster, MonsterType, Obstacle, ObstacleBehavior, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
 import type { Input } from "./input";
@@ -96,6 +97,7 @@ export class Game {
     this.fragmentUsedThisShot = false;
     this.pausedForBuffPanel = false;
     this.wasPausedBeforeBuffPanel = false;
+    resumeAudio();
     this.spawnWave();
     this.running = true;
     this.paused = false;
@@ -137,6 +139,7 @@ export class Game {
       this.activateHumanCannon();
     }
 
+    playCardSelect();
     this.wave += 1;
     this.pausedForUpgrade = false;
     this.hud.hideUpgrades();
@@ -221,6 +224,7 @@ export class Game {
         return;
       }
       this.pausedForUpgrade = true;
+      playWaveClear();
       this.hud.showUpgrades(draftUpgrades(3, this.wave, this.blockedDiamondUpgrades, this.bronzeStreakCount));
     }
   }
@@ -263,16 +267,21 @@ export class Game {
     if (this.input.leftDown && this.marble.state === "ready") {
       this.marble.state = "charging";
       this.chargeSeconds = 0;
+      startCharge();
     }
 
     if (this.marble.state === "charging") {
       this.chargeSeconds = Math.min(MARBLE.maxChargeSeconds, this.chargeSeconds + dt);
+      const chargeRatio = this.chargeSeconds / MARBLE.maxChargeSeconds;
+      updateCharge(chargeRatio);
       const direction = this.aimDirection();
-      this.view.showTrajectory(makeTrajectory(this.player.position, direction, MARBLE.maxBounces + this.stats.maxBouncesBonus, this.obstacles, 0.2, MARBLE.radius + this.stats.marbleRadiusBonus, this.arena), this.chargeSeconds / MARBLE.maxChargeSeconds);
+      this.view.showTrajectory(makeTrajectory(this.player.position, direction, MARBLE.maxBounces + this.stats.maxBouncesBonus, this.obstacles, 0.2, MARBLE.radius + this.stats.marbleRadiusBonus, this.arena), chargeRatio);
     }
 
     if (this.input.consumeLeftRelease() && this.marble.state === "charging") {
       const direction = this.aimDirection();
+      stopCharge();
+      playFire();
       this.marble.state = "flying";
       this.marble.position = { ...this.player.position };
       this.marble.velocity = scale(direction, MARBLE.baseSpeed * this.stats.marbleSpeedMultiplier);
@@ -341,6 +350,7 @@ export class Game {
       this.marble.bounces += 1;
       this.marble.hitIds.clear();
       this.view.spark(this.marble.position, 0xffdf72, 12);
+      playBounce();
       if (this.stats.hasGrowingMarble) {
         this.marble.radius += 0.08;
       }
@@ -544,6 +554,7 @@ export class Game {
             monster.frozenTimer = (monster.frozenTimer ?? 0) + 2.0;
             monster.aiState = "idle";
           }
+          if (marble === this.marble) playHit();
           this.view.damageText(String(finalDamage), monster.position);
           this.view.spark(monster.position, finalDamage < damage ? 0x8edcff : 0x9de7ff, finalDamage < damage ? 20 : 14);
           if (!monster.noKnockback && monster.hp > 0) {
@@ -1019,6 +1030,7 @@ export class Game {
     if (this.marble.state === "charging") {
       this.marble.state = "ready";
       this.chargeSeconds = 0;
+      stopCharge();
       this.view.hideTrajectory();
     }
     this.input.clearPointerActions();
@@ -1341,6 +1353,9 @@ export class Game {
     this.paused = false;
     this.pausedForUpgrade = false;
     this.pausedForBuffPanel = false;
+    stopCharge();
+    if (kind === "defeat") playDefeat();
+    else playWaveClear();
     this.view.hideTrajectory();
     this.hud.hidePause();
     this.hud.hideBuffs();

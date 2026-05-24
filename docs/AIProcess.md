@@ -35,3 +35,22 @@ Use this file to record AI-assisted creation for competition submission.
   - Output used: `textures/floor-cracked.png`, `textures/floor-moss.png`, `textures/floor-danger.png`, `sprites/obstacle-stone.png`, and `sprites/obstacle-metal.png`.
   - Human edits: Codex archived raw outputs, removed fake checkerboard backgrounds from obstacle sprites, cropped transparent margins, and wired the assets into runtime level validation.
   - Screenshot or artifact: `public/assets/skins/relic-ruins/source/prompts.md`.
+
+- 2026-05-24
+  - Tool: Claude Code (Claude Sonnet 4.6).
+  - Purpose: Implement Zodiac revision Phases 25–39 — data model, level editor, terrain/obstacle runtime, monster AI (13 types), card pool expansion, 10 campaign levels, and polish.
+  - Input summary: Feishu Wiki design document (Phase 25 read), all prior phase Tasklist items, code architecture.
+  - Output used:
+    - `src/levels/types.ts`, `src/levels/convert.ts` — extended RuntimeLevel, LevelDefinition schema for Zodiac terrain, obstacles, interactables, patrol AI, dynamic arena dimensions.
+    - `src/game/physics.ts` — ArenaDims type, updated clampToArena/bounceInArena/makeTrajectory to accept optional arena dimensions.
+    - `src/game/Game.ts` — runtime effects for all terrain types (fire, mud, ice, blood, danger), obstacle behaviors (glass, reflector, accelerator, thorns, one-way, bomb), interactable triggers (brazier, pinball, iceBall, alarmPost, doorSwitch), full monster AI for 13 enemy types, all gold card complex systems (shieldTrait, vampirism, momentumContinue, chainLoading, fragmentTrajectory, shockKnockback), all diamond card complex systems (tripleShot, freezeHit, growingMarble, drillMarble), Web Audio API sound effects.
+    - `src/game/upgrades.ts` — card pool expanded to 27 cards (10 bronze, 11 gold, 6 diamond), two-stage rarity draft, bronze streak pity counter.
+    - `src/game/Audio.ts` — procedural Web Audio synthesis for charge, fire, bounce, hit, wave clear, card select, defeat.
+    - `src/render/SceneView.ts` — dynamic arena construction, interactable rendering, per-monster sprite slot lookup, 2D/2.5D mode preservation.
+    - `src/render/skin.ts` — per-monster SkinAssets slots (12 new fields).
+    - `src/ui/Hud.ts` — shields badge display, cardIcon entries for all 27 upgrade IDs.
+    - `public/levels/zodiac-01.json` through `zodiac-10.json` — 10 campaign levels with progressive terrain, obstacles, and monster compositions.
+    - `index.html` — shields HUD badge element.
+    - `Tasklist.md` — Phases 26–39 ticked.
+  - Human edits: None required; all output passed TypeScript type-check and Vite production build.
+  - Screenshot or artifact: `Tasklist.md` Phases 26–38 all marked complete.
