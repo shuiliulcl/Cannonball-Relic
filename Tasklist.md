@@ -254,4 +254,5 @@
 - [x] Implement boar as a telegraphed straight-line charger.
 - [x] Expand the smoke level to include octopus, hound, and boar.
 - [x] Implement second batch: slime, rabbit, bomb bug.
-- [ ] Implement third batch: shield crab, voodoo flower, eye cannon, priest.
+- [x] Implement third batch: shield crab, voodoo flower, eye cannon, priest.
+- [ ] Replace placeholder monster tints with dedicated pixel sprites for all Zodiac enemies.

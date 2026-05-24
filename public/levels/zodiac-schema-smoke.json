@@ -106,6 +106,50 @@
       "interval": 0.5,
       "aggroRange": 15,
       "disengageRange": 25
+    },
+    {
+      "id": "shield-crab",
+      "x": 7,
+      "z": 6,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "shieldCrab",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
+    },
+    {
+      "id": "voodoo-flower",
+      "x": 2,
+      "z": 8,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "voodooFlower",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
+    },
+    {
+      "id": "eye-cannon",
+      "x": 11,
+      "z": 5,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "eyeCannon",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
+    },
+    {
+      "id": "priest-support",
+      "x": 8,
+      "z": 8,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "priest",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
     }
   ]
 }

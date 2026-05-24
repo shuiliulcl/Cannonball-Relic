@@ -63,6 +63,8 @@ export type Monster = {
   jumpCooldown?: number;
   splitLevel?: number;
   fuseTimer?: number;
+  shieldFacing?: Vec2;
+  supportCooldown?: number;
   aggroRange?: number;
   disengageRange?: number;
   noKnockback?: boolean;

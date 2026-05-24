@@ -445,6 +445,14 @@ export class SceneView {
       ? { shadowR: 0.26, shadowColor: 0x16151f, spriteW: 0.78, spriteH: 1.16, tint: 0xd9f3ff }
       : monsterType === "bombBug"
       ? { shadowR: 0.32, shadowColor: 0x2a1008, spriteW: 0.92, spriteH: 1.05, tint: 0xff4f35 }
+      : monsterType === "shieldCrab"
+      ? { shadowR: 0.46, shadowColor: 0x111725, spriteW: 1.26, spriteH: 1.18, tint: 0x8aa4ff }
+      : monsterType === "voodooFlower"
+      ? { shadowR: 0.34, shadowColor: 0x1f0d26, spriteW: 0.98, spriteH: 1.36, tint: 0xd86cff }
+      : monsterType === "eyeCannon"
+      ? { shadowR: 0.4, shadowColor: 0x1c1210, spriteW: 1.14, spriteH: 1.32, tint: 0xffdf72 }
+      : monsterType === "priest"
+      ? { shadowR: 0.32, shadowColor: 0x211c10, spriteW: 0.94, spriteH: 1.28, tint: 0xfff1a6 }
       : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, tint: 0xffffff };
 
     const shadow = makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);

@@ -505,10 +505,11 @@ export class Game {
           continue;
         }
         if (distance(marble.position, monster.position) <= marble.radius + monster.radius) {
-          monster.hp -= damage;
+          const finalDamage = this.mitigatedMonsterDamage(monster, marble.position, damage);
+          monster.hp -= finalDamage;
           marble.hitIds.add(monster.id);
-          this.view.damageText(String(damage), monster.position);
-          this.view.spark(monster.position, 0x9de7ff, 14);
+          this.view.damageText(String(finalDamage), monster.position);
+          this.view.spark(monster.position, finalDamage < damage ? 0x8edcff : 0x9de7ff, finalDamage < damage ? 20 : 14);
           if (!monster.noKnockback && monster.hp > 0) {
             const knockDir = normalize(sub(monster.position, marble.position));
             monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius);
@@ -620,6 +621,8 @@ export class Game {
       attackCooldown: monsterType === "octopus" ? 1.2 : 0,
       jumpCooldown: monsterType === "rabbit" ? 0.8 : undefined,
       splitLevel: monsterType === "slime" ? 0 : undefined,
+      supportCooldown: monsterType === "voodooFlower" || monsterType === "priest" ? 1.2 : undefined,
+      noKnockback: monsterType === "shieldCrab" ? true : undefined,
       aggroRange: spawn?.aggroRange ?? 15,
       disengageRange: spawn?.disengageRange ?? 25,
       ...overrides,
@@ -652,6 +655,18 @@ export class Game {
     if (monsterType === "bombBug") {
       return { radius: MONSTER.radius * 0.86, hp: Math.max(2, MONSTER.hp - 1), speed: MONSTER.speed * 1.35 };
     }
+    if (monsterType === "shieldCrab") {
+      return { radius: MONSTER.radius * 1.08, hp: MONSTER.hp + 3, speed: MONSTER.speed * 0.62 };
+    }
+    if (monsterType === "voodooFlower") {
+      return { radius: MONSTER.radius * 0.96, hp: MONSTER.hp + 1, speed: 0 };
+    }
+    if (monsterType === "eyeCannon") {
+      return { radius: MONSTER.radius * 1.0, hp: MONSTER.hp + 2, speed: 0 };
+    }
+    if (monsterType === "priest") {
+      return { radius: MONSTER.radius * 0.9, hp: MONSTER.hp + 1, speed: MONSTER.speed * 0.82 };
+    }
     return { radius: MONSTER.radius, hp: MONSTER.hp, speed: MONSTER.speed };
   }
 
@@ -661,6 +676,19 @@ export class Game {
       marbles.unshift(this.marble);
     }
     return marbles;
+  }
+
+  private mitigatedMonsterDamage(monster: Monster, sourcePosition: Vec2, damage: number): number {
+    if (monster.monsterType !== "shieldCrab") {
+      return damage;
+    }
+    const facing = monster.shieldFacing ?? normalize(sub(this.player.position, monster.position));
+    const incomingSide = normalize(sub(sourcePosition, monster.position));
+    const isShieldedHit = facing.x * incomingSide.x + facing.z * incomingSide.z > 0.2;
+    if (!isShieldedHit) {
+      return damage;
+    }
+    return Math.max(1, Math.ceil(damage * 0.35));
   }
 
   private updateMonsterAiState(monster: Monster, dt: number): void {
@@ -675,6 +703,9 @@ export class Game {
     }
     if (monster.aiState === "returning" && monster.spawnPosition && distance(monster.position, monster.spawnPosition) < 0.2) {
       monster.aiState = monster.patrolPath?.length ? "patrol" : "idle";
+    }
+    if (monster.monsterType === "shieldCrab" && monster.aiState === "alert") {
+      monster.shieldFacing = normalize(sub(this.player.position, monster.position));
     }
     if (monster.monsterType === "boar" && monster.aiState === "alert" && (monster.chargeTimer ?? 0) <= 0 && distToPlayer <= 7) {
       monster.chargeVelocity = scale(normalize(sub(this.player.position, monster.position)), monster.speed * 2.4);
@@ -695,6 +726,9 @@ export class Game {
     if ((monster.chargeTimer ?? 0) > 0) {
       monster.chargeTimer = Math.max(0, (monster.chargeTimer ?? 0) - dt);
     }
+    if (monster.supportCooldown !== undefined) {
+      monster.supportCooldown = Math.max(0, monster.supportCooldown - dt);
+    }
   }
 
   private monsterMoveDirection(monster: Monster, dt: number): Vec2 {
@@ -704,7 +738,7 @@ export class Game {
     if ((monster.chargeTimer ?? 0) > 0 && monster.chargeVelocity) {
       return normalize(monster.chargeVelocity);
     }
-    if (monster.monsterType === "octopus") {
+    if (monster.monsterType === "octopus" || monster.monsterType === "voodooFlower" || monster.monsterType === "eyeCannon") {
       return { x: 0, z: 0 };
     }
     if (monster.aiState === "alert") {
@@ -727,24 +761,70 @@ export class Game {
   }
 
   private updateMonsterAttack(monster: Monster): void {
-    if (monster.aiState !== "alert" || monster.monsterType !== "octopus" || (monster.attackCooldown ?? 0) > 0) {
+    if (monster.aiState !== "alert") {
       return;
     }
-    if (!this.hasLineOfSight(monster.position, this.player.position)) {
+    if (monster.monsterType === "voodooFlower") {
+      this.updateVoodooFlowerAttack(monster);
+      return;
+    }
+    if (monster.monsterType === "priest") {
+      this.updatePriestSupport(monster);
+      return;
+    }
+    if (monster.monsterType !== "octopus" && monster.monsterType !== "eyeCannon") {
+      return;
+    }
+    if ((monster.attackCooldown ?? 0) > 0 || !this.hasLineOfSight(monster.position, this.player.position)) {
       return;
     }
     const direction = normalize(sub(this.player.position, monster.position));
+    const isEyeCannon = monster.monsterType === "eyeCannon";
     this.enemyProjectiles.push({
       id: this.nextProjectileId,
       position: { ...monster.position },
-      velocity: scale(direction, 5.4),
-      radius: 0.16,
-      damage: 1,
-      ttl: 4,
+      velocity: scale(direction, isEyeCannon ? 7.4 : 5.4),
+      radius: isEyeCannon ? 0.2 : 0.16,
+      damage: isEyeCannon ? 2 : 1,
+      ttl: isEyeCannon ? 3.2 : 4,
     });
     this.nextProjectileId += 1;
-    monster.attackCooldown = 1.55;
-    this.view.spark(monster.position, 0xffdf72, 8);
+    monster.attackCooldown = isEyeCannon ? 2.15 : 1.55;
+    this.view.spark(monster.position, isEyeCannon ? 0xff4fdf : 0xffdf72, isEyeCannon ? 14 : 8);
+  }
+
+  private updateVoodooFlowerAttack(monster: Monster): void {
+    if ((monster.supportCooldown ?? 0) > 0 || distance(monster.position, this.player.position) > 4.6) {
+      return;
+    }
+    monster.supportCooldown = 2.35;
+    this.view.spark(this.player.position, 0xb86cff, 18);
+    if (this.player.invulnTimer > 0) {
+      return;
+    }
+    this.player.hp -= 1;
+    this.player.invulnTimer = 0.75;
+    this.view.damageText("-1", this.player.position);
+    if (this.player.hp <= 0) {
+      this.endRun("defeat");
+    }
+  }
+
+  private updatePriestSupport(monster: Monster): void {
+    if ((monster.supportCooldown ?? 0) > 0) {
+      return;
+    }
+    const candidates = this.monsters
+      .filter((target) => target.id !== monster.id && target.hp < target.maxHp && distance(target.position, monster.position) <= 4.2)
+      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+    const target = candidates[0];
+    if (!target) {
+      return;
+    }
+    target.hp = Math.min(target.maxHp, target.hp + 2);
+    monster.supportCooldown = 2.1;
+    this.view.damageText("+2", target.position);
+    this.view.spark(target.position, 0xfff1a6, 16);
   }
 
   private updateBombBugFuse(monster: Monster, index: number, dt: number): boolean {
