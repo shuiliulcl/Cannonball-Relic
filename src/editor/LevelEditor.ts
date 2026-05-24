@@ -1,7 +1,28 @@
-import { saveLocalLevel } from "../levels/storage";
+import { loadCurrentEditorLevel, loadEditorLevels, saveEditorLevel, saveLocalLevel, setCurrentEditorLevelId, type SavedEditorLevel } from "../levels/storage";
 import type { FloorMaterial, GridDirection, InteractableType, LevelDefinition, LevelInteractable, LevelObstacle, LevelSpawn, MonsterType, ObstacleBehavior, ObstacleMaterial } from "../levels/types";
 
 type Tool = "floor" | "void" | "playerStart" | "obstacle" | "spawn" | "interactable" | "erase";
+
+type ProjectEditorLevel = {
+  id: string;
+  name: string;
+  level: LevelDefinition;
+};
+
+const PROJECT_LEVEL_IDS = [
+  "zodiac-01",
+  "zodiac-02",
+  "zodiac-03",
+  "zodiac-04",
+  "zodiac-05",
+  "zodiac-06",
+  "zodiac-07",
+  "zodiac-08",
+  "zodiac-09",
+  "zodiac-10",
+];
+
+const GITHUB_LEVEL_UPLOAD_URL = "https://github.com/shuiliulcl/Cannonball-Relic/upload/main/public/levels";
 
 const FLOOR_LABEL: Record<string, string> = {
   sandstone: "砂岩",
@@ -117,6 +138,10 @@ const MONSTER_ICON: Record<string, string> = {
 
 export class LevelEditor {
   private readonly level: LevelDefinition = this.createInitialLevel();
+  private currentLevelId = this.createLevelId();
+  private currentProjectLevelId: string | undefined;
+  private savedLevels: SavedEditorLevel[] = [];
+  private projectLevels: ProjectEditorLevel[] = [];
   private tool: Tool = "floor";
   private floorMaterial: FloorMaterial = "sandstone";
   private obstacleMaterial: ObstacleMaterial = "wood";
@@ -149,6 +174,7 @@ export class LevelEditor {
   constructor(private readonly root: HTMLElement) {}
 
   mount(): void {
+    this.loadInitialEditorLevel();
     this.root.className = "editor-app";
     this.root.innerHTML = `
       <section class="editor-shell">
@@ -156,12 +182,16 @@ export class LevelEditor {
           <div>
             <span class="editor-kicker">Cannonball Relic</span>
             <h1>关卡编辑器</h1>
+            <div id="currentLevelStatus" class="editor-current-level"></div>
           </div>
           <nav class="editor-top-actions">
             <a href="/" class="editor-link">返回游戏</a>
+            <select id="editorLevelSelect" class="editor-level-select" data-level-select aria-label="当前编辑关卡"></select>
+            <button id="editorNewLevel" type="button">新建关卡</button>
             <button id="editorSaveLocal" type="button">保存本地草稿</button>
             <button id="editorPlaytest" type="button">游戏内验证</button>
             <button id="editorDownload" type="button">下载关卡</button>
+            <button id="editorUploadCurrent" type="button">上传当前关卡</button>
             <button id="editorCopy" type="button">复制 JSON</button>
             <button id="editorResetView" type="button">重置视图</button>
             <a href="https://github.com/shuiliulcl/Cannonball-Relic/tree/main/public/levels" target="_blank" rel="noreferrer" class="editor-link">GitHub 关卡目录</a>
@@ -210,6 +240,74 @@ export class LevelEditor {
     this.outputElement = this.root.querySelector<HTMLTextAreaElement>("#editorOutput") ?? undefined;
     this.bindEvents();
     this.render();
+    void this.loadProjectLevels();
+  }
+
+  private loadInitialEditorLevel(): void {
+    this.savedLevels = loadEditorLevels();
+    const saved = loadCurrentEditorLevel();
+    if (!saved) {
+      return;
+    }
+    this.currentLevelId = saved.id;
+    this.applyLevelDocument(saved.level);
+  }
+
+  private saveCurrentEditorLevel(): void {
+    const savedId = this.currentProjectLevelId ? `draft:${this.currentProjectLevelId}` : this.currentLevelId;
+    this.currentLevelId = savedId;
+    this.currentProjectLevelId = undefined;
+    saveEditorLevel(savedId, this.level);
+    this.savedLevels = loadEditorLevels();
+    this.message = `已保存：${this.level.name}`;
+    this.render();
+  }
+
+  private startNewLevel(): void {
+    const fresh = this.createInitialLevel();
+    fresh.name = this.nextNewLevelName();
+    this.currentLevelId = this.createLevelId();
+    this.currentProjectLevelId = undefined;
+    this.applyLevelDocument(fresh);
+    this.message = `正在编辑新关卡：${fresh.name}`;
+    this.resetView();
+    this.render();
+  }
+
+  private async loadProjectLevels(): Promise<void> {
+    const levels = await Promise.all(
+      PROJECT_LEVEL_IDS.map(async (id): Promise<ProjectEditorLevel | undefined> => {
+        try {
+          const response = await fetch(`/levels/${id}.json`);
+          if (!response.ok) {
+            return undefined;
+          }
+          const level = (await response.json()) as LevelDefinition;
+          return { id, name: level.name || id, level };
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    this.projectLevels = levels.filter((level): level is ProjectEditorLevel => Boolean(level));
+    this.renderLevelStatus();
+  }
+
+  private renderLevelStatus(): void {
+    const status = this.root.querySelector<HTMLElement>("#currentLevelStatus");
+    if (status) {
+      const saved = this.savedLevels.find((item) => item.id === this.currentLevelId);
+      const project = this.currentProjectLevelId ? `项目关卡 ${this.currentProjectLevelId} · ` : "";
+      const savedAt = saved ? `上次保存 ${this.formatSavedTime(saved.updatedAt)}` : "尚未保存";
+      status.textContent = `当前编辑：${project}${this.level.name} · ${savedAt}`;
+    }
+
+    const options = this.levelSelectOptions();
+    this.root.querySelectorAll<HTMLSelectElement>("[data-level-select]").forEach((select) => {
+      select.disabled = false;
+      select.innerHTML = options;
+      select.value = this.currentLevelId;
+    });
   }
 
   private bindEvents(): void {
@@ -223,7 +321,51 @@ export class LevelEditor {
 
     this.root.querySelector<HTMLInputElement>("#levelName")?.addEventListener("input", (event) => {
       this.level.name = (event.target as HTMLInputElement).value || "未命名关卡";
+      this.renderLevelStatus();
       this.syncOutput();
+    });
+
+    this.root.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement) || !target.matches("[data-level-select]")) {
+        return;
+      }
+      const levelId = target.value;
+      if (levelId === this.currentLevelId) {
+        return;
+      }
+      if (levelId.startsWith("project:")) {
+        const projectLevelId = levelId.slice("project:".length);
+        const projectLevel = this.projectLevels.find((item) => item.id === projectLevelId);
+        if (!projectLevel) {
+          target.value = this.currentLevelId;
+          return;
+        }
+        this.currentLevelId = levelId;
+        this.currentProjectLevelId = projectLevel.id;
+        this.applyLevelDocument(projectLevel.level);
+        this.message = `正在编辑项目关卡：${projectLevel.id}`;
+        this.resetView();
+        this.render();
+        return;
+      }
+
+      const saved = this.savedLevels.find((item) => item.id === levelId);
+      if (!saved) {
+        target.value = this.currentLevelId;
+        return;
+      }
+      setCurrentEditorLevelId(saved.id);
+      this.currentLevelId = saved.id;
+      this.currentProjectLevelId = undefined;
+      this.applyLevelDocument(saved.level);
+      this.message = `正在编辑：${saved.name}`;
+      this.resetView();
+      this.render();
+    });
+
+    this.root.querySelector<HTMLButtonElement>("#editorNewLevel")?.addEventListener("click", () => {
+      this.startNewLevel();
     });
 
     this.root.querySelector<HTMLButtonElement>("#editorCopy")?.addEventListener("click", async () => {
@@ -235,16 +377,21 @@ export class LevelEditor {
     });
 
     this.root.querySelector<HTMLButtonElement>("#editorSaveLocal")?.addEventListener("click", () => {
-      saveLocalLevel(this.level);
+      this.saveCurrentEditorLevel();
     });
 
     this.root.querySelector<HTMLButtonElement>("#editorPlaytest")?.addEventListener("click", () => {
+      this.saveCurrentEditorLevel();
       saveLocalLevel(this.level);
       window.location.href = "/?level=local";
     });
 
     this.root.querySelector<HTMLButtonElement>("#editorDownload")?.addEventListener("click", () => {
       this.downloadLevel();
+    });
+
+    this.root.querySelector<HTMLButtonElement>("#editorUploadCurrent")?.addEventListener("click", () => {
+      this.uploadCurrentLevel();
     });
 
     this.root.querySelector<HTMLButtonElement>("#editorImport")?.addEventListener("click", () => {
@@ -409,6 +556,8 @@ export class LevelEditor {
     this.renderToolbar();
     this.renderGrid();
     this.renderInspector();
+    this.renderLevelStatus();
+    this.syncLevelNameInput();
     this.syncOutput();
   }
 
@@ -504,6 +653,11 @@ export class LevelEditor {
     const stats = `${this.level.obstacles.length} 个障碍，${this.level.spawns.length} 个刷怪点，${(this.level.interactables ?? []).length} 个交互物，${(this.level.voids ?? []).length} 个空洞格`;
 
     this.inspectorElement.innerHTML = `
+      <section class="editor-panel editor-current-panel">
+        <h2>当前编辑关卡</h2>
+        <select class="editor-level-select inspector-level-select" data-level-select aria-label="当前编辑关卡"></select>
+        <p>新建或保存后，可以在这里切换本地草稿。</p>
+      </section>
       <section class="editor-panel">
         <h2>当前工具</h2>
         <strong>${this.toolLabel()}</strong>
@@ -834,6 +988,13 @@ export class LevelEditor {
     }
   }
 
+  private syncLevelNameInput(): void {
+    const input = this.root.querySelector<HTMLInputElement>("#levelName");
+    if (input && document.activeElement !== input) {
+      input.value = this.level.name;
+    }
+  }
+
   private toJson(): string {
     return JSON.stringify(this.level, null, 2);
   }
@@ -848,6 +1009,12 @@ export class LevelEditor {
     URL.revokeObjectURL(url);
   }
 
+  private uploadCurrentLevel(): void {
+    this.saveCurrentEditorLevel();
+    this.downloadLevel();
+    window.open(GITHUB_LEVEL_UPLOAD_URL, "_blank", "noopener,noreferrer");
+  }
+
   private slugify(value: string): string {
     return (
       value
@@ -859,10 +1026,21 @@ export class LevelEditor {
   }
 
   private applyImport(imported: LevelDefinition): void {
+    this.currentLevelId = this.createLevelId();
+    this.currentProjectLevelId = undefined;
+    this.applyLevelDocument(imported);
+    this.message = `已导入新关卡：${this.level.name}`;
+  }
+
+  private applyLevelDocument(imported: LevelDefinition): void {
     if (!imported.grid || !Array.isArray(imported.floors)) {
       throw new Error("Invalid level.");
     }
-    Object.assign(this.level, imported);
+    this.level.description = undefined;
+    this.level.playerStart = undefined;
+    this.level.voids = [];
+    this.level.interactables = [];
+    Object.assign(this.level, structuredClone(imported));
     if (!this.level.interactables) {
       this.level.interactables = [];
     }
@@ -927,6 +1105,60 @@ export class LevelEditor {
 
   private indexOf(x: number, y: number): number {
     return y * this.level.grid.width + x;
+  }
+
+  private levelSelectOptions(): string {
+    const hasSavedCurrent = this.savedLevels.some((item) => item.id === this.currentLevelId);
+    const hasProjectCurrent = this.projectLevels.some((item) => `project:${item.id}` === this.currentLevelId);
+    const currentOption = hasSavedCurrent
+      || hasProjectCurrent
+      ? ""
+      : `<option value="${this.escapeHtml(this.currentLevelId)}">${this.escapeHtml(this.level.name)}（当前未保存）</option>`;
+    const savedOptions = this.savedLevels
+      .map((item) => {
+        const savedAt = this.formatSavedTime(item.updatedAt);
+        return `<option value="${this.escapeHtml(item.id)}">本地草稿 · ${this.escapeHtml(item.name)} · ${savedAt}</option>`;
+      })
+      .join("");
+    const projectOptions = this.projectLevels
+      .map((item) => {
+        const value = `project:${item.id}`;
+        return `<option value="${this.escapeHtml(value)}">项目关卡 · ${this.escapeHtml(item.id)} · ${this.escapeHtml(item.name)}</option>`;
+      })
+      .join("");
+    return currentOption + savedOptions + projectOptions;
+  }
+
+  private createLevelId(): string {
+    return `level-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private nextNewLevelName(): string {
+    const names = new Set(this.savedLevels.map((item) => item.name));
+    let index = this.savedLevels.length + 1;
+    let name = `新关卡 ${index}`;
+    while (names.has(name)) {
+      index += 1;
+      name = `新关卡 ${index}`;
+    }
+    return name;
+  }
+
+  private formatSavedTime(updatedAt: number): string {
+    return new Intl.DateTimeFormat("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(updatedAt));
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   private createInitialLevel(): LevelDefinition {

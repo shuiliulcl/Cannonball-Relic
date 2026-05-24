@@ -379,3 +379,14 @@
 - [x] Add editor player-start tool and default missing player starts to the upper-left cell.
 - [x] Add editor viewport zoom, pan, and reset view controls.
 - [ ] Add gameplay collision against void-cell boundaries for player, marbles, monsters, and trajectory preview.
+
+## Phase 42 - Editor Level Draft Management
+
+- [x] Show the current level name and saved state in the level editor header.
+- [x] Add local editor draft storage for multiple editable levels.
+- [x] Add level draft selector and new-level creation flow.
+- [x] Save the active editor draft before local playtest.
+- [x] Update level editor documentation for local draft management.
+- [x] Load project zodiac-01 through zodiac-10 levels into the editor level selector.
+- [x] Add upload-current-level action for downloading JSON and opening GitHub upload.
+- [x] Build verify.

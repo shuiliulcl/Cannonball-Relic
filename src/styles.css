@@ -717,7 +717,7 @@ button:focus-visible {
   height: 100vh;
   display: grid;
   grid-template-columns: 120px minmax(560px, 1fr) 360px;
-  grid-template-rows: 76px minmax(0, 1fr);
+  grid-template-rows: 88px minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
   background:
@@ -758,6 +758,14 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.editor-current-level {
+  margin-top: 4px;
+  color: #6b3f25;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
 .editor-topbar h1 {
   margin: 0;
   color: #4b2a19;
@@ -786,6 +794,30 @@ button:focus-visible {
   font-weight: 900;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.editor-level-select {
+  min-height: 44px;
+  max-width: 220px;
+  flex: 0 0 190px;
+  border: 2px solid #7b5933;
+  border-radius: 8px;
+  background: #fff4ce;
+  color: #2b170e;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.inspector-level-select {
+  width: 100%;
+  max-width: none;
+  margin-bottom: 8px;
+}
+
+.editor-current-panel {
+  padding-bottom: 14px;
 }
 
 .editor-toolbar {
