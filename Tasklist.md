@@ -345,3 +345,20 @@
 - [x] Boost marble emissive to `0x00ddff` intensity 3.0 for neon glow.
 - [x] Update terrain overlay colors to higher saturation.
 - [x] Build verify and push visual style pass.
+
+## Phase 41 - Art Spec And Sprite Quality Pass
+
+- [x] Write ArtAssetSpec v1.1: distinguish Sprite vs Texture Tile asset types.
+- [x] Document white-border root cause and corrected texture-tile prompts.
+- [x] Add per-type post-processing workflows and acceptance checklists.
+- [x] Regenerate all 13 monster sprites with pure top-down orthographic prompts.
+- [x] Apply BFS flood-fill white-background removal to regenerated sprites.
+- [x] Build verify and push art spec + sprite regeneration.
+
+## Phase 42 - Campaign Mode
+
+- [x] Pre-load all 10 zodiac levels on startup (zodiac-01 through zodiac-10).
+- [x] Chain levels sequentially: clear level → pick upgrade → advance to next level.
+- [x] Extract configureRuntimeLevel / cloneBaseObstacles / cloneInteractables helpers.
+- [x] Default no-param URL runs full campaign; `?level=` still runs single level.
+- [x] Build verify and push campaign mode.
