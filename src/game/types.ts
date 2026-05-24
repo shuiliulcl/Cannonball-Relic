@@ -68,6 +68,7 @@ export type Obstacle = {
 };
 
 export type Marble = {
+  id: string;
   position: Vec2;
   velocity: Vec2;
   radius: number;
@@ -76,6 +77,7 @@ export type Marble = {
   distanceLeft: number;
   hitIds: Set<number>;
   obstacleHitIds: Set<string>;
+  interactableHitIds: Set<string>;
   bonusDamage: number;
   hp: number;
 };

@@ -28,8 +28,10 @@ export class SceneView {
     new THREE.MeshStandardMaterial({ color: 0x9de7ff, emissive: 0x55d4ff, emissiveIntensity: 1.1 }),
   );
   private readonly marbleSprite = this.createSprite(this.skin.marble, 0.58, 0.58);
+  private readonly auxiliaryMarbleMeshes = new Map<string, THREE.Sprite>();
   private readonly monsterMeshes = new Map<number, THREE.Group>();
   private readonly obstacleMeshes = new Map<string, THREE.Group>();
+  private readonly interactableMeshes = new Map<string, THREE.Group>();
   private readonly trajectory: TrajectoryView;
   private readonly effects: Effects;
   private readonly _raycaster = new THREE.Raycaster();
@@ -59,6 +61,7 @@ export class SceneView {
     }
     this.applyLevelFloors();
     this.setObstacles(initialObstacles);
+    this.setInteractables(this.runtimeLevel?.interactables ?? []);
 
     this.playerMesh.position.y = 0.34;
     this.playerMesh.visible = false;
@@ -99,6 +102,27 @@ export class SceneView {
     this.marbleSprite.position.set(marble.position.x, 0.52, marble.position.z);
   }
 
+  syncAuxiliaryMarbles(marbles: Marble[]): void {
+    const liveIds = new Set(marbles.map((marble) => marble.id));
+    for (const [id, mesh] of this.auxiliaryMarbleMeshes) {
+      if (!liveIds.has(id)) {
+        this.scene.remove(mesh);
+        this.auxiliaryMarbleMeshes.delete(id);
+      }
+    }
+
+    for (const marble of marbles) {
+      let sprite = this.auxiliaryMarbleMeshes.get(marble.id);
+      if (!sprite) {
+        sprite = this.createSprite(this.skin.marble, 0.48, 0.48);
+        (sprite.material as THREE.SpriteMaterial).color.setHex(0xb8f4ff);
+        this.auxiliaryMarbleMeshes.set(marble.id, sprite);
+        this.scene.add(sprite);
+      }
+      sprite.position.set(marble.position.x, 0.52, marble.position.z);
+    }
+  }
+
   syncMonsters(monsters: Monster[]): void {
     const aliveIds = new Set(monsters.map((monster) => monster.id));
     for (const [id, mesh] of this.monsterMeshes) {
@@ -132,6 +156,10 @@ export class SceneView {
       this.scene.remove(mesh);
     }
     this.monsterMeshes.clear();
+    for (const mesh of this.auxiliaryMarbleMeshes.values()) {
+      this.scene.remove(mesh);
+    }
+    this.auxiliaryMarbleMeshes.clear();
     this.hideTrajectory();
   }
 
@@ -189,6 +217,20 @@ export class SceneView {
     }
     this.obstacleMeshes.clear();
     this.syncObstacles(obstacles);
+  }
+
+  setInteractables(interactables: ReadonlyArray<RuntimeLevel["interactables"][number]>): void {
+    for (const mesh of this.interactableMeshes.values()) {
+      this.scene.remove(mesh);
+    }
+    this.interactableMeshes.clear();
+    for (const interactable of interactables) {
+      const group = new THREE.Group();
+      group.position.set(interactable.position.x, 0, interactable.position.z);
+      group.add(this.createInteractableMesh(interactable.type));
+      this.interactableMeshes.set(interactable.id, group);
+      this.scene.add(group);
+    }
   }
 
   pointerToPlane(pointer: THREE.Vector2): Vec2 {
@@ -483,6 +525,48 @@ export class SceneView {
 
     group.add(body, top, edges);
     return group;
+  }
+
+  private createInteractableMesh(type: RuntimeLevel["interactables"][number]["type"]): THREE.Object3D {
+    const color = this.interactableColor(type);
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.32, 0.36, 0.16, 18),
+      new THREE.MeshBasicMaterial({ color: 0x3b2c25 }),
+    );
+    base.position.y = 0.08;
+
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 16, 10),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 }),
+    );
+    marker.position.y = 0.34;
+
+    if (this.viewMode === "2.5d" && type === "brazier") {
+      const brazier = this.createSprite(this.skin.brazier, 0.5, 0.68);
+      brazier.position.y = 0.48;
+      group.add(brazier);
+      return group;
+    }
+
+    group.add(base, marker);
+    return group;
+  }
+
+  private interactableColor(type: RuntimeLevel["interactables"][number]["type"]): number {
+    if (type === "brazier") {
+      return 0xff7a24;
+    }
+    if (type === "pinball") {
+      return 0x9de7ff;
+    }
+    if (type === "iceBall") {
+      return 0x8edcff;
+    }
+    if (type === "alarmPost") {
+      return 0xffdf72;
+    }
+    return 0x7ecf88;
   }
 
   private topDownObstacleColors(material: ObstacleMaterial): { side: number; top: number; edge: number } {

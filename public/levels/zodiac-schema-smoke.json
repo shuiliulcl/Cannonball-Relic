@@ -31,8 +31,10 @@
   ],
   "interactables": [
     { "id": "brazier-a", "x": 8, "z": 2, "type": "brazier" },
+    { "id": "pinball-a", "x": 5, "z": 2, "type": "pinball" },
     { "id": "ice-ball-a", "x": 3, "z": 7, "type": "iceBall", "cooldown": 6 },
-    { "id": "alarm-post-a", "x": 10, "z": 2, "type": "alarmPost" }
+    { "id": "alarm-post-a", "x": 10, "z": 2, "type": "alarmPost" },
+    { "id": "door-switch-a", "x": 2, "z": 2, "type": "doorSwitch" }
   ],
   "spawns": [
     {

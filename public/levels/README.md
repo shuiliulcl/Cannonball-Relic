@@ -22,4 +22,4 @@ Open it with:
 /?level=zodiac-schema-smoke
 ```
 
-Current limitation: terrain and core obstacle effects are implemented, while interactables are still scheduled for later phases.
+Current limitation: terrain, core obstacle effects, and interactables have first-pass runtime behavior. Editor UI support for all new types is still scheduled for later phases.

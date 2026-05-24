@@ -5,7 +5,7 @@ import type { FloorMaterial, Marble, Monster, MonsterType, Obstacle, ObstacleBeh
 import type { Input } from "./input";
 import type { SceneView } from "../render/SceneView";
 import type { Hud } from "../ui/Hud";
-import type { RuntimeLevel, RuntimeSpawn } from "../levels/types";
+import type { RuntimeInteractable, RuntimeLevel, RuntimeSpawn } from "../levels/types";
 
 type SpawnQueueItem = RuntimeSpawn & {
   remaining: number;
@@ -16,6 +16,7 @@ export class Game {
   private player: Player = this.createPlayer();
   private stats: UpgradeStats = DEFAULT_UPGRADE_STATS();
   private marble: Marble = this.createMarble();
+  private auxiliaryMarbles: Marble[] = [];
   private monsters: Monster[] = [];
   private chargeSeconds = 0;
   private running = false;
@@ -34,7 +35,9 @@ export class Game {
   private terrainDamageTimer = 0;
   private pausedForBuffPanel = false;
   private wasPausedBeforeBuffPanel = false;
+  private readonly baseObstacles: Obstacle[];
   private obstacles: Obstacle[];
+  private interactables: RuntimeInteractable[];
   private readonly levelSpawns;
 
   constructor(
@@ -43,10 +46,15 @@ export class Game {
     private readonly hud: Hud,
     private readonly runtimeLevel?: RuntimeLevel,
   ) {
-    this.obstacles = (runtimeLevel?.obstacles ?? OBSTACLES).map((obstacle) => ({
+    this.baseObstacles = (runtimeLevel?.obstacles ?? OBSTACLES).map((obstacle) => ({
       ...obstacle,
       position: { ...obstacle.position },
       halfSize: { ...obstacle.halfSize },
+    }));
+    this.obstacles = this.cloneObstacles();
+    this.interactables = (runtimeLevel?.interactables ?? []).map((interactable) => ({
+      ...interactable,
+      position: { ...interactable.position },
     }));
     this.levelSpawns = runtimeLevel?.spawns ?? [];
   }
@@ -54,10 +62,13 @@ export class Game {
   start(): void {
     this.player = this.createPlayer();
     this.marble = this.createMarble();
+    this.auxiliaryMarbles = [];
     this.monsters = [];
     this.spawnQueue = [];
+    this.obstacles = this.cloneObstacles();
     this.view.clearTransientObjects();
     this.view.setObstacles(this.obstacles);
+    this.view.setInteractables(this.interactables);
     this.score = 0;
     this.wave = 1;
     this.nextMonsterId = 1;
@@ -175,6 +186,7 @@ export class Game {
   private update(dt: number): void {
     this.updatePlayer(dt);
     this.updateMarble(dt);
+    this.updateAuxiliaryMarbles(dt);
     this.updateSpawnQueue(dt);
     this.updateMonsters(dt);
     this.handleHits();
@@ -293,6 +305,7 @@ export class Game {
         break;
       }
     }
+    this.handleMarbleInteractables(this.marble);
 
     if (didBounce && this.marble.state === "flying") {
       this.marble.bounces += 1;
@@ -307,6 +320,44 @@ export class Game {
     if (this.marble.distanceLeft <= 0 && this.marble.state === "flying") {
       this.marble.state = "recalling";
       this.marble.hitIds.clear();
+    }
+  }
+
+  private updateAuxiliaryMarbles(dt: number): void {
+    for (let i = this.auxiliaryMarbles.length - 1; i >= 0; i -= 1) {
+      const marble = this.auxiliaryMarbles[i];
+      const step = scale(marble.velocity, dt);
+      marble.position = add(marble.position, step);
+      marble.distanceLeft -= Math.hypot(step.x, step.z);
+
+      const bounce = bounceInArena(marble.position, marble.velocity, marble.radius);
+      marble.position = bounce.position;
+      marble.velocity = bounce.velocity;
+      if (bounce.bounced) {
+        marble.bounces += 1;
+        marble.hitIds.clear();
+      }
+      for (const obstacle of [...this.obstacles]) {
+        if (this.shouldSkipOneWayObstacle(obstacle, marble.velocity)) {
+          continue;
+        }
+        const obstacleBounce = bounceCircleFromObstacle(marble.position, marble.velocity, marble.radius, obstacle);
+        if (obstacleBounce.bounced) {
+          const original = this.marble;
+          this.marble = marble;
+          const result = this.applyMarbleObstacleBehavior(obstacle, obstacleBounce.position, obstacleBounce.velocity);
+          this.marble = original;
+          if (result.bounced) {
+            marble.bounces += 1;
+            marble.hitIds.clear();
+          }
+          break;
+        }
+      }
+      this.handleMarbleInteractables(marble);
+      if (marble.distanceLeft <= 0 || marble.hp <= 0) {
+        this.auxiliaryMarbles.splice(i, 1);
+      }
     }
   }
 
@@ -397,36 +448,40 @@ export class Game {
   }
 
   private handleHits(): void {
-    if (this.marble.state !== "flying" && this.marble.state !== "recalling") {
+    const activeMarbles = this.activeDamageMarbles();
+
+    if (activeMarbles.length === 0) {
       return;
     }
 
-    const baseDamage = calcBounceDamage(this.marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage) + this.marble.bonusDamage;
-    const damage = this.marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus : baseDamage;
+    for (const marble of activeMarbles) {
+      const baseDamage = calcBounceDamage(marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage) + marble.bonusDamage;
+      const damage = marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus : baseDamage;
 
-    for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
-      const monster = this.monsters[i];
-      if (this.marble.hitIds.has(monster.id)) {
-        continue;
-      }
-      if (distance(this.marble.position, monster.position) <= this.marble.radius + monster.radius) {
-        monster.hp -= damage;
-        this.marble.hitIds.add(monster.id);
-        this.view.damageText(String(damage), monster.position);
-        this.view.spark(monster.position, 0x9de7ff, 14);
-        if (!monster.noKnockback && monster.hp > 0) {
-          const knockDir = normalize(sub(monster.position, this.marble.position));
-          monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius);
+      for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
+        const monster = this.monsters[i];
+        if (marble.hitIds.has(monster.id)) {
+          continue;
         }
-        if (monster.hp <= 0) {
-          this.score += 10 + this.marble.bounces * 5;
-          this.monsters.splice(i, 1);
-        }
-        if (this.marble.state === "flying") {
-          this.marble.hp -= 1;
-          if (this.marble.hp <= 0) {
-            this.marble.state = "recalling";
-            this.marble.hitIds.clear();
+        if (distance(marble.position, monster.position) <= marble.radius + monster.radius) {
+          monster.hp -= damage;
+          marble.hitIds.add(monster.id);
+          this.view.damageText(String(damage), monster.position);
+          this.view.spark(monster.position, 0x9de7ff, 14);
+          if (!monster.noKnockback && monster.hp > 0) {
+            const knockDir = normalize(sub(monster.position, marble.position));
+            monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius);
+          }
+          if (monster.hp <= 0) {
+            this.score += 10 + marble.bounces * 5;
+            this.monsters.splice(i, 1);
+          }
+          if (marble.state === "flying") {
+            marble.hp -= 1;
+            if (marble.hp <= 0 && marble === this.marble) {
+              this.marble.state = "recalling";
+              this.marble.hitIds.clear();
+            }
           }
         }
       }
@@ -436,6 +491,7 @@ export class Game {
   private sync(): void {
     this.view.syncPlayer(this.player);
     this.view.syncMarble(this.marble);
+    this.view.syncAuxiliaryMarbles(this.auxiliaryMarbles);
     this.view.syncMonsters(this.monsters);
     this.hud.update({
       score: this.score,
@@ -534,6 +590,14 @@ export class Game {
     return { radius: MONSTER.radius, hp: MONSTER.hp, speed: MONSTER.speed };
   }
 
+  private activeDamageMarbles(): Marble[] {
+    const marbles = [...this.auxiliaryMarbles];
+    if (this.marble.state === "flying" || this.marble.state === "recalling") {
+      marbles.unshift(this.marble);
+    }
+    return marbles;
+  }
+
   private hasPendingSpawns(): boolean {
     return this.spawnQueue.some((item) => item.remaining > 0);
   }
@@ -608,6 +672,7 @@ export class Game {
 
   private createMarble(): Marble {
     return {
+      id: "main",
       position: { ...this.player.position },
       velocity: { x: 0, z: 0 },
       radius: MARBLE.radius,
@@ -616,9 +681,35 @@ export class Game {
       distanceLeft: 0,
       hitIds: new Set<number>(),
       obstacleHitIds: new Set<string>(),
+      interactableHitIds: new Set<string>(),
       bonusDamage: 0,
       hp: this.stats.marbleHp,
     };
+  }
+
+  private createAuxiliaryMarble(position: Vec2, velocity: Vec2, source: Marble): Marble {
+    return {
+      id: `aux-${performance.now()}-${this.auxiliaryMarbles.length}`,
+      position: { ...position },
+      velocity: { ...velocity },
+      radius: source.radius,
+      state: "flying",
+      bounces: source.bounces,
+      distanceLeft: Math.min(source.distanceLeft, 12),
+      hitIds: new Set<number>(),
+      obstacleHitIds: new Set<string>(),
+      interactableHitIds: new Set<string>(),
+      bonusDamage: source.bonusDamage,
+      hp: Math.max(1, source.hp),
+    };
+  }
+
+  private cloneObstacles(): Obstacle[] {
+    return this.baseObstacles.map((obstacle) => ({
+      ...obstacle,
+      position: { ...obstacle.position },
+      halfSize: { ...obstacle.halfSize },
+    }));
   }
 
   private floorAt(position: Vec2): FloorMaterial {
@@ -757,6 +848,83 @@ export class Game {
       if (this.player.hp <= 0) {
         this.endRun("defeat");
       }
+    }
+  }
+
+  private handleMarbleInteractables(marble: Marble): void {
+    if (marble.state !== "flying") {
+      return;
+    }
+    for (const interactable of this.interactables) {
+      if (marble.interactableHitIds.has(interactable.id)) {
+        continue;
+      }
+      if (distance(marble.position, interactable.position) > marble.radius + 0.42) {
+        continue;
+      }
+      marble.interactableHitIds.add(interactable.id);
+      this.triggerInteractable(interactable, marble);
+    }
+  }
+
+  private triggerInteractable(interactable: RuntimeInteractable, source: Marble): void {
+    if (interactable.type === "brazier") {
+      this.damageMonstersInRadius(interactable.position, 1.5, 5, 16);
+      this.view.spark(interactable.position, 0xff7a24, 34);
+      return;
+    }
+    if (interactable.type === "pinball") {
+      this.auxiliaryMarbles.push(this.createAuxiliaryMarble(interactable.position, source.velocity, source));
+      this.view.spark(interactable.position, 0x9de7ff, 24);
+      return;
+    }
+    if (interactable.type === "iceBall") {
+      for (const monster of this.monsters) {
+        if (distance(monster.position, interactable.position) <= 1.8) {
+          monster.aiState = "idle";
+          monster.speed *= 0.45;
+        }
+      }
+      this.view.spark(interactable.position, 0x8edcff, 32);
+      return;
+    }
+    if (interactable.type === "alarmPost") {
+      for (const monster of this.monsters) {
+        monster.aiState = "alert";
+      }
+      this.view.spark(interactable.position, 0xffdf72, 28);
+      return;
+    }
+    this.toggleDoorObstacles();
+    this.view.spark(interactable.position, 0x7ecf88, 24);
+  }
+
+  private damageMonstersInRadius(position: Vec2, radius: number, damage: number, scoreValue: number): void {
+    for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
+      const monster = this.monsters[i];
+      if (distance(monster.position, position) > radius) {
+        continue;
+      }
+      monster.hp -= damage;
+      this.view.damageText(String(damage), monster.position);
+      if (monster.hp <= 0) {
+        this.score += scoreValue;
+        this.monsters.splice(i, 1);
+      }
+    }
+  }
+
+  private toggleDoorObstacles(): void {
+    let changed = false;
+    for (const obstacle of this.obstacles) {
+      if (obstacle.behavior !== "oneWay" && obstacle.material !== "oneWay") {
+        continue;
+      }
+      obstacle.behavior = obstacle.behavior === "oneWay" ? "solid" : "oneWay";
+      changed = true;
+    }
+    if (changed) {
+      this.view.setObstacles(this.obstacles);
     }
   }
 

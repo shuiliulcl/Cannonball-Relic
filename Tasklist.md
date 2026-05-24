@@ -230,3 +230,15 @@
 - [x] Add visible terrain color overlays and distinct 2D obstacle colors for new materials.
 - [x] Expand the smoke level to include every Phase 2 obstacle behavior.
 - [ ] Add dedicated editor controls for every new terrain and obstacle type.
+
+## Phase 28 - Zodiac Interactable Runtime
+
+- [x] Render level interactables in both 2D and 2.5D view modes.
+- [x] Trigger brazier area damage when hit by a marble.
+- [x] Trigger pinball interactables to spawn temporary auxiliary marbles.
+- [x] Trigger ice balls to slow/freeze nearby monsters.
+- [x] Trigger alarm posts to put all active monsters into alert state.
+- [x] Trigger door switches to toggle one-way door obstacles between passable behavior and solid blocking.
+- [x] Keep removed/toggled obstacles restorable on restart.
+- [x] Expand the smoke level to include every Phase 3 interactable type.
+- [ ] Add editor UI for placing and configuring interactables.
