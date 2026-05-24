@@ -463,9 +463,11 @@ export class SceneView {
       ? { shadowR: 0.32, shadowColor: 0x211c10, spriteW: 0.94, spriteH: 1.28, size2d: 0.78, tint: 0xfff1a6 }
       : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, size2d: 0.90, tint: 0xffffff };
 
-    const shadow = makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);
-    shadow.position.y = 0.03;
-    shadow.scale.z = 0.72;
+    const shadow = this.viewMode === "2d" ? null : makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);
+    if (shadow) {
+      shadow.position.y = 0.03;
+      shadow.scale.z = 0.72;
+    }
 
     // Use per-monster skin slot; tint is applied when the slot still shares the grunt texture.
     const MONSTER_SKIN_KEY: Record<MonsterType, keyof typeof this.skin> = {
@@ -496,7 +498,8 @@ export class SceneView {
       (sprite.material as THREE.SpriteMaterial).color.setHex(cfg.tint);
     }
 
-    group.add(shadow, sprite);
+    if (shadow) group.add(shadow);
+    group.add(sprite);
     group.add(this.createMonsterHealthBar(sh));
     return group;
   }
