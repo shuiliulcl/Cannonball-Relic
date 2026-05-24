@@ -390,3 +390,11 @@
 - [x] Load project zodiac-01 through zodiac-10 levels into the editor level selector.
 - [x] Add upload-current-level action for downloading JSON and opening GitHub upload.
 - [x] Build verify.
+
+## Phase 43 - Actor Collision Runtime Pass
+
+- [x] Make player movement resolve against blocking obstacle materials and behaviors.
+- [x] Make monster movement resolve against blocking obstacle materials and behaviors.
+- [x] Block player and monster movement from entering editor void cells.
+- [x] Keep knockback and slime split spawns from pushing actors through blocked cells.
+- [x] Build verify.
