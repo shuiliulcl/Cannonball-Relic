@@ -349,14 +349,7 @@ export class SceneView {
         }
         let material = materials.get(materialName);
         if (!material) {
-          const texture = preparePixelTexture(this.textureLoader.load(this.floorTexturePath(materialName)));
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          texture.repeat.set(1, 1);
-          material = new THREE.MeshBasicMaterial({
-            map: texture,
-            side: THREE.DoubleSide,
-          });
+          material = this.createFloorMaterial(materialName);
           materials.set(materialName, material);
         }
         const tile = new THREE.Mesh(new THREE.PlaneGeometry(cellSize, cellSize), material);
@@ -467,11 +460,7 @@ export class SceneView {
     const group = new THREE.Group();
     const width = obstacle.halfSize.x * 2;
     const depth = obstacle.halfSize.z * 2;
-    const colors = material === "stone"
-      ? { side: 0x7d7069, top: 0xa38f7f, edge: 0x4f4643 }
-      : material === "metal"
-      ? { side: 0x4f6972, top: 0x77929a, edge: 0x2d4148 }
-      : { side: 0x8b5a2b, top: 0xc68a3c, edge: 0x5a351d };
+    const colors = this.topDownObstacleColors(material);
 
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(width, 0.2, depth),
@@ -496,6 +485,34 @@ export class SceneView {
     return group;
   }
 
+  private topDownObstacleColors(material: ObstacleMaterial): { side: number; top: number; edge: number } {
+    if (material === "stone") {
+      return { side: 0x7d7069, top: 0xa38f7f, edge: 0x4f4643 };
+    }
+    if (material === "metal") {
+      return { side: 0x4f6972, top: 0x77929a, edge: 0x2d4148 };
+    }
+    if (material === "glass") {
+      return { side: 0x6fb8d8, top: 0xb8ecff, edge: 0x3d7d98 };
+    }
+    if (material === "reflector") {
+      return { side: 0x6d4b9d, top: 0xaa86ec, edge: 0x39275b };
+    }
+    if (material === "accelerator") {
+      return { side: 0xa77a22, top: 0xffd36a, edge: 0x5c3d11 };
+    }
+    if (material === "thorns") {
+      return { side: 0x5e3830, top: 0xc85e54, edge: 0x331b18 };
+    }
+    if (material === "oneWay") {
+      return { side: 0x3b744e, top: 0x7ecf88, edge: 0x21452e };
+    }
+    if (material === "bomb") {
+      return { side: 0x513028, top: 0xe0643a, edge: 0x231412 };
+    }
+    return { side: 0x8b5a2b, top: 0xc68a3c, edge: 0x5a351d };
+  }
+
   private floorTexturePath(material: FloorMaterial): string {
     if (material === "cracked") {
       return this.skin.floorCracked;
@@ -507,6 +524,42 @@ export class SceneView {
       return this.skin.floorDanger;
     }
     return this.skin.floor;
+  }
+
+  private createFloorMaterial(material: FloorMaterial): THREE.MeshBasicMaterial {
+    const terrainColor = this.floorTerrainColor(material);
+    if (terrainColor !== undefined) {
+      return new THREE.MeshBasicMaterial({
+        color: terrainColor,
+        transparent: true,
+        opacity: 0.58,
+        side: THREE.DoubleSide,
+      });
+    }
+    const texture = preparePixelTexture(this.textureLoader.load(this.floorTexturePath(material)));
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1);
+    return new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+    });
+  }
+
+  private floorTerrainColor(material: FloorMaterial): number | undefined {
+    if (material === "fire") {
+      return 0xff5638;
+    }
+    if (material === "mud") {
+      return 0x6f5430;
+    }
+    if (material === "ice") {
+      return 0x8edcff;
+    }
+    if (material === "blood") {
+      return 0x8b1632;
+    }
+    return undefined;
   }
 
   private resize(): void {

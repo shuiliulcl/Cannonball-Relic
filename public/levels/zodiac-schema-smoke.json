@@ -24,6 +24,9 @@
     { "id": "wood-solid", "x": 5, "z": 4, "w": 1, "h": 2, "material": "wood", "behavior": "solid" },
     { "id": "glass-breakable", "x": 7, "z": 4, "w": 1, "h": 2, "material": "glass", "behavior": "breakable", "hp": 1 },
     { "id": "reflector-left", "x": 9, "z": 5, "w": 1, "h": 1, "material": "reflector", "behavior": "reflectBack", "facing": "left" },
+    { "id": "accelerator-pad", "x": 4, "z": 7, "w": 1, "h": 1, "material": "accelerator", "behavior": "speedUp" },
+    { "id": "thorn-block", "x": 6, "z": 7, "w": 1, "h": 1, "material": "thorns", "behavior": "pierceDamage" },
+    { "id": "one-way-door", "x": 8, "z": 7, "w": 1, "h": 1, "material": "oneWay", "behavior": "oneWay", "facing": "right" },
     { "id": "bomb-barrel", "x": 10, "z": 7, "w": 1, "h": 1, "material": "bomb", "behavior": "explosive", "hp": 1 }
   ],
   "interactables": [

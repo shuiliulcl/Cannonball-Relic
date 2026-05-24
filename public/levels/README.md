@@ -22,4 +22,4 @@ Open it with:
 /?level=zodiac-schema-smoke
 ```
 
-Current limitation: these new fields are parsed and converted, but their full gameplay effects are implemented in later phases.
+Current limitation: terrain and core obstacle effects are implemented, while interactables are still scheduled for later phases.

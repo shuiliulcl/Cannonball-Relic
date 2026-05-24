@@ -217,4 +217,16 @@
 - [x] Add direct `?level=<file-id>` loading from `public/levels/<file-id>.json`.
 - [x] Add `zodiac-schema-smoke.json` as a minimal new-schema validation level.
 - [x] Align core numeric constants with the Zodiac baseline for movement, roll, marble speed, range, and radius.
-- [ ] Implement runtime effects for the new terrain, obstacle, and interactable behaviors.
+- [x] Implement runtime effects for the new terrain and core obstacle behaviors.
+- [ ] Implement runtime effects for interactable behaviors.
+
+## Phase 27 - Zodiac Terrain And Obstacle Runtime
+
+- [x] Apply fire/danger terrain damage to the player.
+- [x] Apply mud slowdown and ice inertia to player movement.
+- [x] Let blood terrain regenerate monsters standing on it.
+- [x] Implement glass break, reflector return, accelerator speed-up, thorn pierce damage, one-way pass direction, and bomb explosion behavior.
+- [x] Refresh obstacle visuals after breakable or explosive obstacles are removed.
+- [x] Add visible terrain color overlays and distinct 2D obstacle colors for new materials.
+- [x] Expand the smoke level to include every Phase 2 obstacle behavior.
+- [ ] Add dedicated editor controls for every new terrain and obstacle type.

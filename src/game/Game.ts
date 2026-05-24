@@ -1,7 +1,7 @@
-import { HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./config";
+import { ARENA, HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./config";
 import { draftUpgrades, findUpgrade, DEFAULT_UPGRADE_STATS } from "./upgrades";
 import { add, applyHoming, bounceCircleFromObstacle, bounceInArena, calcBounceDamage, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
-import type { Marble, Monster, MonsterType, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
+import type { FloorMaterial, Marble, Monster, MonsterType, Obstacle, ObstacleBehavior, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
 import type { Input } from "./input";
 import type { SceneView } from "../render/SceneView";
 import type { Hud } from "../ui/Hud";
@@ -31,9 +31,10 @@ export class Game {
   private waveSpawnTotal = 0;
   private readonly ownedUpgrades = new Map<UpgradeId, number>();
   private readonly blockedDiamondUpgrades = new Set<UpgradeId>();
+  private terrainDamageTimer = 0;
   private pausedForBuffPanel = false;
   private wasPausedBeforeBuffPanel = false;
-  private readonly obstacles;
+  private obstacles: Obstacle[];
   private readonly levelSpawns;
 
   constructor(
@@ -42,7 +43,11 @@ export class Game {
     private readonly hud: Hud,
     private readonly runtimeLevel?: RuntimeLevel,
   ) {
-    this.obstacles = runtimeLevel?.obstacles ?? OBSTACLES;
+    this.obstacles = (runtimeLevel?.obstacles ?? OBSTACLES).map((obstacle) => ({
+      ...obstacle,
+      position: { ...obstacle.position },
+      halfSize: { ...obstacle.halfSize },
+    }));
     this.levelSpawns = runtimeLevel?.spawns ?? [];
   }
 
@@ -60,6 +65,7 @@ export class Game {
     this.stats = DEFAULT_UPGRADE_STATS();
     this.ownedUpgrades.clear();
     this.blockedDiamondUpgrades.clear();
+    this.terrainDamageTimer = 0;
     this.pausedForBuffPanel = false;
     this.wasPausedBeforeBuffPanel = false;
     this.spawnWave();
@@ -192,15 +198,23 @@ export class Game {
     const movement = this.input.movement();
     this.player.dashTimer = Math.max(0, this.player.dashTimer - dt);
     this.player.invulnTimer = Math.max(0, this.player.invulnTimer - dt);
+    const floor = this.floorAt(this.player.position);
+    const speedMultiplier = floor === "mud" ? 0.5 : 1;
 
     if (this.player.rollTimer > 0) {
       this.player.position = clampToArena(add(this.player.position, scale(this.player.rollVelocity, dt)), this.player.radius);
       this.player.rollTimer = Math.max(0, this.player.rollTimer - dt);
       this.player.invulnTimer = Math.max(this.player.invulnTimer, this.player.rollTimer);
+    } else if (floor === "ice") {
+      const desiredVelocity = scale(movement, this.player.speed * speedMultiplier);
+      this.player.velocity = add(scale(this.player.velocity, 0.9), scale(desiredVelocity, 0.1));
+      this.player.position = clampToArena(add(this.player.position, scale(this.player.velocity, dt)), this.player.radius);
     } else {
-      const delta = scale(movement, this.player.speed * dt);
+      this.player.velocity = scale(movement, this.player.speed * speedMultiplier);
+      const delta = scale(this.player.velocity, dt);
       this.player.position = clampToArena(add(this.player.position, delta), this.player.radius);
     }
+    this.applyPlayerTerrainEffects(dt);
 
     if (this.input.keys.has(" ") && this.player.dashTimer <= 0 && this.player.rollTimer <= 0 && (movement.x !== 0 || movement.z !== 0)) {
       this.player.rollTimer = PLAYER.rollDuration;
@@ -268,12 +282,14 @@ export class Game {
     this.marble.velocity = bounce.velocity;
     let didBounce = bounce.bounced;
 
-    for (const obstacle of this.obstacles) {
+    for (const obstacle of [...this.obstacles]) {
+      if (this.shouldSkipOneWayObstacle(obstacle, this.marble.velocity)) {
+        continue;
+      }
       const obstacleBounce = bounceCircleFromObstacle(this.marble.position, this.marble.velocity, this.marble.radius, obstacle);
       if (obstacleBounce.bounced) {
-        this.marble.position = obstacleBounce.position;
-        this.marble.velocity = obstacleBounce.velocity;
-        didBounce = true;
+        const result = this.applyMarbleObstacleBehavior(obstacle, obstacleBounce.position, obstacleBounce.velocity);
+        didBounce = result.bounced || didBounce;
         break;
       }
     }
@@ -298,7 +314,12 @@ export class Game {
     for (const monster of this.monsters) {
       const toPlayer = sub(this.player.position, monster.position);
       const direction = normalize(toPlayer);
-      monster.position = add(monster.position, scale(direction, monster.speed * dt));
+      const floor = this.floorAt(monster.position);
+      const speedMultiplier = floor === "mud" ? 0.5 : 1;
+      monster.position = add(monster.position, scale(direction, monster.speed * speedMultiplier * dt));
+      if (floor === "blood") {
+        monster.hp = Math.min(monster.maxHp, monster.hp + dt);
+      }
       if (
         this.player.mode === "normal" &&
         this.marble.state !== "flying" &&
@@ -380,7 +401,7 @@ export class Game {
       return;
     }
 
-    const baseDamage = calcBounceDamage(this.marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage);
+    const baseDamage = calcBounceDamage(this.marble.bounces, MARBLE.baseDamage, this.stats.bounceBonusDamage) + this.marble.bonusDamage;
     const damage = this.marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus : baseDamage;
 
     for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
@@ -594,8 +615,149 @@ export class Game {
       bounces: 0,
       distanceLeft: 0,
       hitIds: new Set<number>(),
+      obstacleHitIds: new Set<string>(),
+      bonusDamage: 0,
       hp: this.stats.marbleHp,
     };
+  }
+
+  private floorAt(position: Vec2): FloorMaterial {
+    if (!this.runtimeLevel) {
+      return "sandstone";
+    }
+    const { grid, floors } = this.runtimeLevel;
+    const cellSize = grid.cellSize || 1;
+    const x = Math.floor((position.x + ARENA.halfWidth) / cellSize);
+    const z = Math.floor((position.z + ARENA.halfDepth) / cellSize);
+    if (x < 0 || z < 0 || x >= grid.width || z >= grid.height) {
+      return "sandstone";
+    }
+    return floors[z * grid.width + x] ?? "sandstone";
+  }
+
+  private applyPlayerTerrainEffects(dt: number): void {
+    const floor = this.floorAt(this.player.position);
+    if (floor !== "fire" && floor !== "danger") {
+      this.terrainDamageTimer = 0;
+      return;
+    }
+    if (this.player.invulnTimer > 0) {
+      return;
+    }
+    this.terrainDamageTimer += dt;
+    if (this.terrainDamageTimer < 0.65) {
+      return;
+    }
+    this.terrainDamageTimer = 0;
+    this.player.hp -= 1;
+    this.player.invulnTimer = 0.4;
+    this.view.damageText("-1", this.player.position);
+    this.view.spark(this.player.position, 0xff4f4f, 12);
+    if (this.player.hp <= 0) {
+      this.endRun("defeat");
+    }
+  }
+
+  private applyMarbleObstacleBehavior(obstacle: Obstacle, bouncedPosition: Vec2, bouncedVelocity: Vec2): { bounced: boolean } {
+    const behavior = this.obstacleBehavior(obstacle);
+    if (behavior === "breakable") {
+      obstacle.hp = (obstacle.hp ?? 1) - 1;
+      this.view.spark(obstacle.position, 0x9de7ff, 18);
+      if (obstacle.hp <= 0) {
+        this.removeObstacle(obstacle.id);
+      }
+      return { bounced: false };
+    }
+    if (behavior === "pierceDamage") {
+      if (!this.marble.obstacleHitIds.has(obstacle.id)) {
+        this.marble.obstacleHitIds.add(obstacle.id);
+        this.marble.bonusDamage += 1;
+        this.view.spark(obstacle.position, 0xff6f6f, 14);
+      }
+      return { bounced: false };
+    }
+    if (behavior === "explosive") {
+      this.explodeObstacle(obstacle);
+      return { bounced: false };
+    }
+    this.marble.position = bouncedPosition;
+    this.marble.velocity = behavior === "reflectBack" ? scale(this.marble.velocity, -1) : bouncedVelocity;
+    if (behavior === "speedUp") {
+      const speed = Math.hypot(this.marble.velocity.x, this.marble.velocity.z);
+      this.marble.velocity = scale(normalize(this.marble.velocity), Math.min(18, Math.max(MARBLE.baseSpeed, speed * 2)));
+    }
+    return { bounced: true };
+  }
+
+  private obstacleBehavior(obstacle: Obstacle): ObstacleBehavior {
+    if (obstacle.behavior) {
+      return obstacle.behavior;
+    }
+    if (obstacle.material === "glass") {
+      return "breakable";
+    }
+    if (obstacle.material === "reflector") {
+      return "reflectBack";
+    }
+    if (obstacle.material === "accelerator") {
+      return "speedUp";
+    }
+    if (obstacle.material === "thorns") {
+      return "pierceDamage";
+    }
+    if (obstacle.material === "oneWay") {
+      return "oneWay";
+    }
+    if (obstacle.material === "bomb") {
+      return "explosive";
+    }
+    return "solid";
+  }
+
+  private shouldSkipOneWayObstacle(obstacle: Obstacle, velocity: Vec2): boolean {
+    if (this.obstacleBehavior(obstacle) !== "oneWay") {
+      return false;
+    }
+    const direction = obstacle.facing ?? "right";
+    if (direction === "right") {
+      return velocity.x > 0;
+    }
+    if (direction === "left") {
+      return velocity.x < 0;
+    }
+    if (direction === "down") {
+      return velocity.z > 0;
+    }
+    return velocity.z < 0;
+  }
+
+  private removeObstacle(id: string): void {
+    this.obstacles = this.obstacles.filter((obstacle) => obstacle.id !== id);
+    this.view.setObstacles(this.obstacles);
+  }
+
+  private explodeObstacle(obstacle: Obstacle): void {
+    this.removeObstacle(obstacle.id);
+    this.view.spark(obstacle.position, 0xffa23a, 36);
+    for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
+      const monster = this.monsters[i];
+      if (distance(monster.position, obstacle.position) <= 1.5) {
+        monster.hp -= 4;
+        this.view.damageText("4", monster.position);
+        if (monster.hp <= 0) {
+          this.score += 12;
+          this.monsters.splice(i, 1);
+        }
+      }
+    }
+    if (distance(this.player.position, obstacle.position) <= 1.5 && this.player.invulnTimer <= 0) {
+      this.player.hp -= 2;
+      this.player.invulnTimer = 0.6;
+      this.view.damageText("-2", this.player.position);
+      if (this.player.hp <= 0) {
+        this.endRun("defeat");
+      }
+    }
   }
 
   private endRun(kind: "victory" | "defeat"): void {

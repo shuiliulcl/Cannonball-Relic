@@ -75,6 +75,8 @@ export type Marble = {
   bounces: number;
   distanceLeft: number;
   hitIds: Set<number>;
+  obstacleHitIds: Set<string>;
+  bonusDamage: number;
   hp: number;
 };
 
