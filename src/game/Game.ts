@@ -97,6 +97,7 @@ export class Game {
     this.view.clearTransientObjects();
     this.view.setObstacles(this.obstacles);
     this.view.setInteractables(this.interactables);
+    this.view.warmupGPU();
     this.score = 0;
     this.wave = 1;
     this.nextMonsterId = 1;
@@ -292,6 +293,7 @@ export class Game {
     this.player.rollVelocity = { x: 0, z: 0 };
     this.marble = this.createMarble();
     this.view.clearTransientObjects();
+    this.view.warmupGPU();
     this.spawnWave();
     this.lastTime = performance.now();
   }

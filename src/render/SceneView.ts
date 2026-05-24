@@ -284,6 +284,38 @@ export class SceneView {
     this.resize();
   }
 
+  /**
+   * Pre-upload all scene geometry and compile all shaders by rendering one frame
+   * with the camera covering the entire arena. Call after all static level content
+   * (obstacles, floor, interactables) is in the scene. Without this, objects that
+   * first enter the camera frustum during scrolling trigger synchronous GPU stalls.
+   */
+  warmupGPU(): void {
+    const hw = this.arenaHW + 1;
+    const hd = this.arenaHD + 1;
+    const { left, right, top, bottom } = this.camera;
+    const px = this.camera.position.x;
+    const pz = this.camera.position.z;
+
+    this.camera.left = -hw;
+    this.camera.right = hw;
+    this.camera.top = hd;
+    this.camera.bottom = -hd;
+    this.camera.position.x = 0;
+    this.camera.position.z = 0.001;
+    this.camera.updateProjectionMatrix();
+
+    this.renderer.render(this.scene, this.camera);
+
+    this.camera.left = left;
+    this.camera.right = right;
+    this.camera.top = top;
+    this.camera.bottom = bottom;
+    this.camera.position.x = px;
+    this.camera.position.z = pz;
+    this.camera.updateProjectionMatrix();
+  }
+
   pointerToPlane(pointer: THREE.Vector2): Vec2 {
     this._raycaster.setFromCamera(pointer, this.camera);
     this._raycaster.ray.intersectPlane(this._groundPlane, this._planeHit);
