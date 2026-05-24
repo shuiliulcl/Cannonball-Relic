@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ARENA, CAMERA, MARBLE, OBSTACLES } from "../game/config";
+import { ARENA, CAMERA, OBSTACLES } from "../game/config";
 import type { EnemyProjectile, Marble, Monster, MonsterType, Obstacle, Player, Vec2 } from "../game/types";
 import type { FloorMaterial, ObstacleMaterial, RuntimeLevel } from "../levels/types";
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
@@ -39,9 +39,6 @@ export class SceneView {
   private readonly _raycaster = new THREE.Raycaster();
   private readonly _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly _planeHit = new THREE.Vector3();
-  // Half-extents of the current camera frustum in world units (updated by resize())
-  private _camHalfW = 7.5;
-  private _camHalfH = 4.0;
 
   constructor(
     private readonly root: HTMLElement,
@@ -93,19 +90,6 @@ export class SceneView {
     const cannonScale = player.mode === "humanCannon" ? 1.35 : 1;
     this.playerMesh.scale.set(cannonScale, cannonScale, cannonScale);
     this.playerSprite.scale.set(1.25 * cannonScale, 1.1 * cannonScale, 1);
-    // Camera follow — clamp to arena bounds so walls stay visible
-    if (this.viewMode === "2d") {
-      const hw = this.arenaHW;
-      const hd = this.arenaHD;
-      const halfW = this._camHalfW;
-      const halfH = this._camHalfH;
-      const maxX = Math.max(0, hw - halfW);
-      const maxZ = Math.max(0, hd - halfH);
-      const camX = Math.max(-maxX, Math.min(maxX, player.position.x));
-      const camZ = Math.max(-maxZ, Math.min(maxZ, player.position.z));
-      this.camera.position.x = camX;
-      this.camera.position.z = camZ + 0.001;
-    }
   }
 
   syncMarble(marble: Marble): void {
@@ -114,11 +98,6 @@ export class SceneView {
     this.marbleSprite.visible = visible;
     this.marbleMesh.position.set(marble.position.x, 0.28, marble.position.z);
     this.marbleSprite.position.set(marble.position.x, 0.52, marble.position.z);
-    // Scale mesh to reflect marble.radius changes (e.g. hasGrowingMarble card).
-    const radiusRatio = marble.radius / MARBLE.radius;
-    this.marbleMesh.scale.setScalar(0.55 * radiusRatio);
-    const spriteSize = 0.58 * radiusRatio;
-    this.marbleSprite.scale.set(spriteSize, spriteSize, 1);
   }
 
   syncAuxiliaryMarbles(marbles: Marble[]): void {
@@ -453,42 +432,58 @@ export class SceneView {
         this.arenaGroup.add(tile);
       }
     }
+    this.applyVoidCells(originX, originZ, cellSize);
+  }
+
+  private applyVoidCells(originX: number, originZ: number, cellSize: number): void {
+    if (!this.runtimeLevel?.voids.length) {
+      return;
+    }
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x050308,
+      transparent: true,
+      opacity: 0.96,
+      side: THREE.DoubleSide,
+    });
+    for (const cell of this.runtimeLevel.voids) {
+      const tile = new THREE.Mesh(new THREE.PlaneGeometry(cellSize, cellSize), material);
+      tile.rotation.x = -Math.PI / 2;
+      tile.position.set(originX + cell.x * cellSize, -0.006, originZ + cell.z * cellSize);
+      this.arenaGroup.add(tile);
+    }
   }
 
   private createMonsterMesh(monsterType: MonsterType = "grunt"): THREE.Group {
     const group = new THREE.Group();
 
     // 各类型的视觉参数
-    // size2d: square token size for top-down 2D view (≈ shadowR * 2.4)
     const cfg = monsterType === "runner" || monsterType === "hound"
-      ? { shadowR: 0.28, shadowColor: 0x1a1010, spriteW: 0.82, spriteH: 1.1,  size2d: 0.70, tint: 0xff6a6a }
+      ? { shadowR: 0.28, shadowColor: 0x1a1010, spriteW: 0.82, spriteH: 1.1, tint: 0xff6a6a }
       : monsterType === "boar"
-      ? { shadowR: 0.44, shadowColor: 0x24100a, spriteW: 1.24, spriteH: 1.28, size2d: 1.05, tint: 0xff8a3a }
+      ? { shadowR: 0.44, shadowColor: 0x24100a, spriteW: 1.24, spriteH: 1.28, tint: 0xff8a3a }
       : monsterType === "octopus"
-      ? { shadowR: 0.34, shadowColor: 0x101426, spriteW: 1.05, spriteH: 1.22, size2d: 0.82, tint: 0x8edcff }
+      ? { shadowR: 0.34, shadowColor: 0x101426, spriteW: 1.05, spriteH: 1.22, tint: 0x8edcff }
       : monsterType === "tank"
-      ? { shadowR: 0.52, shadowColor: 0x1a1208, spriteW: 1.42, spriteH: 1.72, size2d: 1.25, tint: 0x8866ff }
+      ? { shadowR: 0.52, shadowColor: 0x1a1208, spriteW: 1.42, spriteH: 1.72, tint: 0x8866ff }
       : monsterType === "slime"
-      ? { shadowR: 0.36, shadowColor: 0x0c2414, spriteW: 1.0,  spriteH: 1.02, size2d: 0.86, tint: 0x73d878 }
+      ? { shadowR: 0.36, shadowColor: 0x0c2414, spriteW: 1.0, spriteH: 1.02, tint: 0x73d878 }
       : monsterType === "rabbit"
-      ? { shadowR: 0.26, shadowColor: 0x16151f, spriteW: 0.78, spriteH: 1.16, size2d: 0.64, tint: 0xd9f3ff }
+      ? { shadowR: 0.26, shadowColor: 0x16151f, spriteW: 0.78, spriteH: 1.16, tint: 0xd9f3ff }
       : monsterType === "bombBug"
-      ? { shadowR: 0.32, shadowColor: 0x2a1008, spriteW: 0.92, spriteH: 1.05, size2d: 0.78, tint: 0xff4f35 }
+      ? { shadowR: 0.32, shadowColor: 0x2a1008, spriteW: 0.92, spriteH: 1.05, tint: 0xff4f35 }
       : monsterType === "shieldCrab"
-      ? { shadowR: 0.46, shadowColor: 0x111725, spriteW: 1.26, spriteH: 1.18, size2d: 1.10, tint: 0x8aa4ff }
+      ? { shadowR: 0.46, shadowColor: 0x111725, spriteW: 1.26, spriteH: 1.18, tint: 0x8aa4ff }
       : monsterType === "voodooFlower"
-      ? { shadowR: 0.34, shadowColor: 0x1f0d26, spriteW: 0.98, spriteH: 1.36, size2d: 0.82, tint: 0xd86cff }
+      ? { shadowR: 0.34, shadowColor: 0x1f0d26, spriteW: 0.98, spriteH: 1.36, tint: 0xd86cff }
       : monsterType === "eyeCannon"
-      ? { shadowR: 0.4,  shadowColor: 0x1c1210, spriteW: 1.14, spriteH: 1.32, size2d: 0.95, tint: 0xffdf72 }
+      ? { shadowR: 0.4, shadowColor: 0x1c1210, spriteW: 1.14, spriteH: 1.32, tint: 0xffdf72 }
       : monsterType === "priest"
-      ? { shadowR: 0.32, shadowColor: 0x211c10, spriteW: 0.94, spriteH: 1.28, size2d: 0.78, tint: 0xfff1a6 }
-      : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, size2d: 0.90, tint: 0xffffff };
+      ? { shadowR: 0.32, shadowColor: 0x211c10, spriteW: 0.94, spriteH: 1.28, tint: 0xfff1a6 }
+      : { shadowR: 0.38, shadowColor: 0x2a1b16, spriteW: 1.08, spriteH: 1.35, tint: 0xffffff };
 
-    const shadow = this.viewMode === "2d" ? null : makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);
-    if (shadow) {
-      shadow.position.y = 0.03;
-      shadow.scale.z = 0.72;
-    }
+    const shadow = makeCylinder(cfg.shadowR, 0.04, cfg.shadowColor);
+    shadow.position.y = 0.03;
+    shadow.scale.z = 0.72;
 
     // Use per-monster skin slot; tint is applied when the slot still shares the grunt texture.
     const MONSTER_SKIN_KEY: Record<MonsterType, keyof typeof this.skin> = {
@@ -508,20 +503,16 @@ export class SceneView {
     };
     const skinKey = MONSTER_SKIN_KEY[monsterType] ?? "enemyGrunt";
     const spriteUrl = (this.skin[skinKey] as string);
-    // In 2D top-down view use a square token; in 2.5D keep the tall standing sprite.
-    const sw = this.viewMode === "2d" ? cfg.size2d : cfg.spriteW;
-    const sh = this.viewMode === "2d" ? cfg.size2d : cfg.spriteH;
-    const sprite = this.createSprite(spriteUrl, sw, sh);
-    sprite.position.y = this.viewMode === "2d" ? 0.2 : cfg.spriteH * 0.68;
+    const sprite = this.createSprite(spriteUrl, cfg.spriteW, cfg.spriteH);
+    sprite.position.y = cfg.spriteH * 0.68;
 
     // Apply tint when the slot uses the shared grunt sprite (dedicated art not yet available).
     if (monsterType !== "grunt" && spriteUrl === this.skin.enemyGrunt) {
       (sprite.material as THREE.SpriteMaterial).color.setHex(cfg.tint);
     }
 
-    if (shadow) group.add(shadow);
-    group.add(sprite);
-    group.add(this.createMonsterHealthBar(sh));
+    group.add(shadow, sprite);
+    group.add(this.createMonsterHealthBar(cfg.spriteH));
     return group;
   }
 
@@ -774,16 +765,15 @@ export class SceneView {
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
     const aspect = width / height;
-    // Fixed world-space viewport: always show at least 15 × 8 m.
-    // Expand proportionally to fill the screen without letterboxing.
-    const halfH = Math.max(4.0, 7.5 / aspect);
-    const halfW = halfH * aspect;
-    this._camHalfW = halfW;
-    this._camHalfH = halfH;
-    this.camera.left = -halfW;
-    this.camera.right = halfW;
-    this.camera.top = halfH;
-    this.camera.bottom = -halfH;
+    // Camera half-height covers the full arena depth with a small margin for walls.
+    const camH = this.arenaHD + 0.5;
+    // Also ensure full arena width is visible.
+    const camW = this.arenaHW + 0.5;
+    const size = Math.max(camH, camW / aspect);
+    this.camera.left = -size * aspect;
+    this.camera.right = size * aspect;
+    this.camera.top = size;
+    this.camera.bottom = -size;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
   }

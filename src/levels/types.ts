@@ -38,6 +38,11 @@ export type LevelSpawn = {
   disengageRange?: number;
 };
 
+export type LevelVoidCell = {
+  x: number;
+  z: number;
+};
+
 export type LevelDefinition = {
   version: 1 | 2;
   name: string;
@@ -49,6 +54,7 @@ export type LevelDefinition = {
   };
   playerStart?: { x: number; z: number };
   floors: FloorMaterial[];
+  voids?: LevelVoidCell[];
   obstacles: LevelObstacle[];
   interactables?: LevelInteractable[];
   spawns: LevelSpawn[];
@@ -82,6 +88,7 @@ export type RuntimeLevel = {
   arenaHalfDepth: number;
   playerStart?: Vec2;
   floors: FloorMaterial[];
+  voids: LevelVoidCell[];
   obstacles: Obstacle[];
   interactables: RuntimeInteractable[];
   spawns: RuntimeSpawn[];

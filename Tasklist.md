@@ -346,7 +346,7 @@
 - [x] Update terrain overlay colors to higher saturation.
 - [x] Build verify and push visual style pass.
 
-## Phase 41 - Art Spec And Sprite Quality Pass
+## Phase 41 - Art Spec And Sprite Regeneration
 
 - [x] Write ArtAssetSpec v1.1: distinguish Sprite vs Texture Tile asset types.
 - [x] Document white-border root cause and corrected texture-tile prompts.
@@ -369,3 +369,13 @@
 - [x] Make non-jumping monsters collide with runtime obstacles and stop boar charges on impact.
 - [x] Keep rabbit jump movement able to cross obstacles as its special behavior.
 - [x] Build verify actor obstacle collision.
+
+## Phase 44 - Editor Void Cell Tool
+
+- [x] Add optional level `voids` data for custom non-rectangular layout masks.
+- [x] Add an editor 空洞 tool that clears objects from void cells and blocks object placement there.
+- [x] Render void cells in the editor grid and runtime level view.
+- [x] Add editor grid width/height controls with confirmation before cropping objects or void cells.
+- [x] Add editor player-start tool and default missing player starts to the upper-left cell.
+- [x] Add editor viewport zoom, pan, and reset view controls.
+- [ ] Add gameplay collision against void-cell boundaries for player, marbles, monsters, and trajectory preview.

@@ -10,6 +10,7 @@ export function levelToRuntime(level: LevelDefinition): RuntimeLevel {
     x: originX + x * cellSize,
     z: originZ + z * cellSize,
   });
+  const playerStart = level.playerStart ?? { x: 0, z: 0 };
 
   return {
     name: level.name,
@@ -17,8 +18,9 @@ export function levelToRuntime(level: LevelDefinition): RuntimeLevel {
     grid: level.grid,
     arenaHalfWidth,
     arenaHalfDepth,
-    playerStart: level.playerStart ? gridToWorld(level.playerStart.x, level.playerStart.z) : undefined,
+    playerStart: gridToWorld(playerStart.x, playerStart.z),
     floors: level.floors,
+    voids: level.voids ?? [],
     obstacles: level.obstacles.map((item) => ({
       id: item.id,
       material: item.material,
