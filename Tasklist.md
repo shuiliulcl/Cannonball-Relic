@@ -253,4 +253,5 @@
 - [x] Implement hound as a patrol-to-chase melee pressure enemy.
 - [x] Implement boar as a telegraphed straight-line charger.
 - [x] Expand the smoke level to include octopus, hound, and boar.
-- [ ] Implement second batch: slime, rabbit, bomb bug.
+- [x] Implement second batch: slime, rabbit, bomb bug.
+- [ ] Implement third batch: shield crab, voodoo flower, eye cannon, priest.

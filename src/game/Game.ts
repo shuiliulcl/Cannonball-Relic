@@ -367,18 +367,26 @@ export class Game {
   }
 
   private updateMonsters(dt: number): void {
-    for (const monster of this.monsters) {
+    for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
+      const monster = this.monsters[i];
       monster.frozenTimer = Math.max(0, (monster.frozenTimer ?? 0) - dt);
       monster.attackCooldown = Math.max(0, (monster.attackCooldown ?? 0) - dt);
       if ((monster.frozenTimer ?? 0) > 0) {
         continue;
       }
       this.updateMonsterAiState(monster, dt);
+      if (this.updateBombBugFuse(monster, i, dt)) {
+        continue;
+      }
       const direction = this.monsterMoveDirection(monster, dt);
       const floor = this.floorAt(monster.position);
       const speedMultiplier = floor === "mud" ? 0.5 : 1;
       const chargeMultiplier = (monster.chargeTimer ?? 0) > 0 ? 2.4 : 1;
-      monster.position = add(monster.position, scale(direction, monster.speed * speedMultiplier * chargeMultiplier * dt));
+      const jumpMultiplier = (monster.jumpTimer ?? 0) > 0 ? 3.2 : 1;
+      monster.position = clampToArena(
+        add(monster.position, scale(direction, monster.speed * speedMultiplier * chargeMultiplier * jumpMultiplier * dt)),
+        monster.radius,
+      );
       this.updateMonsterAttack(monster);
       if (floor === "blood") {
         monster.hp = Math.min(monster.maxHp, monster.hp + dt);
@@ -465,8 +473,7 @@ export class Game {
         this.view.damageText(String(damage), monster.position);
         this.view.spark(monster.position, 0xffa23a, 18);
         if (monster.hp <= 0) {
-          this.score += 18 + this.player.cannonBounces * 8;
-          this.monsters.splice(i, 1);
+          this.defeatMonster(i, 18 + this.player.cannonBounces * 8);
         }
       }
     }
@@ -507,8 +514,7 @@ export class Game {
             monster.position = clampToArena(add(monster.position, scale(knockDir, MARBLE.knockback)), monster.radius);
           }
           if (monster.hp <= 0) {
-            this.score += 10 + marble.bounces * 5;
-            this.monsters.splice(i, 1);
+            this.defeatMonster(i, 10 + marble.bounces * 5);
           }
           if (marble.state === "flying") {
             marble.hp -= 1;
@@ -596,23 +602,27 @@ export class Game {
     }
   }
 
-  private spawnMonster(position: Vec2, monsterType: MonsterType, spawn?: RuntimeSpawn): void {
+  private spawnMonster(position: Vec2, monsterType: MonsterType, spawn?: RuntimeSpawn, overrides: Partial<Monster> = {}): void {
     const stats = this.monsterStats(monsterType);
+    const hp = overrides.hp ?? stats.hp + Math.floor(this.wave / 2);
     this.monsters.push({
       id: this.nextMonsterId,
       position: { ...position },
       spawnPosition: { ...position },
       radius: stats.radius,
-      hp: stats.hp + Math.floor(this.wave / 2),
-      maxHp: stats.hp + Math.floor(this.wave / 2),
-      speed: stats.speed + this.wave * 0.06,
+      hp,
+      maxHp: overrides.maxHp ?? hp,
+      speed: overrides.speed ?? stats.speed + this.wave * 0.06,
       monsterType,
       patrolPath: spawn?.patrolPath,
       patrolIndex: 0,
       aiState: spawn?.patrolPath?.length ? "patrol" : "alert",
       attackCooldown: monsterType === "octopus" ? 1.2 : 0,
+      jumpCooldown: monsterType === "rabbit" ? 0.8 : undefined,
+      splitLevel: monsterType === "slime" ? 0 : undefined,
       aggroRange: spawn?.aggroRange ?? 15,
       disengageRange: spawn?.disengageRange ?? 25,
+      ...overrides,
     });
     this.nextMonsterId += 1;
   }
@@ -632,6 +642,15 @@ export class Game {
     }
     if (monsterType === "tank") {
       return { radius: MONSTER.radius * 1.18, hp: MONSTER.hp + 3, speed: MONSTER.speed * 0.72 };
+    }
+    if (monsterType === "slime") {
+      return { radius: MONSTER.radius * 1.05, hp: MONSTER.hp + 1, speed: MONSTER.speed * 0.76 };
+    }
+    if (monsterType === "rabbit") {
+      return { radius: MONSTER.radius * 0.82, hp: MONSTER.hp, speed: MONSTER.speed * 1.18 };
+    }
+    if (monsterType === "bombBug") {
+      return { radius: MONSTER.radius * 0.86, hp: Math.max(2, MONSTER.hp - 1), speed: MONSTER.speed * 1.35 };
     }
     return { radius: MONSTER.radius, hp: MONSTER.hp, speed: MONSTER.speed };
   }
@@ -663,12 +682,25 @@ export class Game {
       monster.aiState = "alert";
       this.view.spark(monster.position, 0xffa23a, 12);
     }
+    if (monster.monsterType === "rabbit") {
+      monster.jumpCooldown = Math.max(0, (monster.jumpCooldown ?? 0) - dt);
+      monster.jumpTimer = Math.max(0, (monster.jumpTimer ?? 0) - dt);
+      if (monster.aiState === "alert" && (monster.jumpCooldown ?? 0) <= 0 && distToPlayer >= 1.2 && distToPlayer <= 6) {
+        monster.jumpVelocity = scale(normalize(sub(this.player.position, monster.position)), monster.speed * 3.2);
+        monster.jumpTimer = 0.36;
+        monster.jumpCooldown = 1.35;
+        this.view.spark(monster.position, 0xd9f3ff, 10);
+      }
+    }
     if ((monster.chargeTimer ?? 0) > 0) {
       monster.chargeTimer = Math.max(0, (monster.chargeTimer ?? 0) - dt);
     }
   }
 
   private monsterMoveDirection(monster: Monster, dt: number): Vec2 {
+    if ((monster.jumpTimer ?? 0) > 0 && monster.jumpVelocity) {
+      return normalize(monster.jumpVelocity);
+    }
     if ((monster.chargeTimer ?? 0) > 0 && monster.chargeVelocity) {
       return normalize(monster.chargeVelocity);
     }
@@ -713,6 +745,40 @@ export class Game {
     this.nextProjectileId += 1;
     monster.attackCooldown = 1.55;
     this.view.spark(monster.position, 0xffdf72, 8);
+  }
+
+  private updateBombBugFuse(monster: Monster, index: number, dt: number): boolean {
+    if (monster.monsterType !== "bombBug") {
+      return false;
+    }
+    const distToPlayer = distance(monster.position, this.player.position);
+    if (monster.aiState === "alert" && monster.fuseTimer === undefined && distToPlayer <= 1.35) {
+      monster.fuseTimer = 0.72;
+      monster.speed *= 0.35;
+      this.view.spark(monster.position, 0xff4f4f, 16);
+    }
+    if (monster.fuseTimer === undefined) {
+      return false;
+    }
+    monster.fuseTimer -= dt;
+    if (monster.fuseTimer > 0) {
+      return false;
+    }
+    const position = { ...monster.position };
+    this.monsters.splice(index, 1);
+    this.view.damageText("爆", position);
+    this.view.spark(position, 0xff3b22, 42);
+    if (distance(this.player.position, position) <= 1.65 && this.player.invulnTimer <= 0) {
+      this.player.hp -= 2;
+      this.player.invulnTimer = 0.85;
+      this.view.damageText("-2", this.player.position);
+      this.view.spark(this.player.position, 0xff4f4f, 18);
+      if (this.player.hp <= 0) {
+        this.endRun("defeat");
+      }
+    }
+    this.damageMonstersInRadius(position, 1.6, 3, 10);
+    return true;
   }
 
   private hasLineOfSight(from: Vec2, to: Vec2): boolean {
@@ -986,8 +1052,7 @@ export class Game {
         monster.hp -= 4;
         this.view.damageText("4", monster.position);
         if (monster.hp <= 0) {
-          this.score += 12;
-          this.monsters.splice(i, 1);
+          this.defeatMonster(i, 12);
         }
       }
     }
@@ -1058,10 +1123,50 @@ export class Game {
       monster.hp -= damage;
       this.view.damageText(String(damage), monster.position);
       if (monster.hp <= 0) {
-        this.score += scoreValue;
-        this.monsters.splice(i, 1);
+        this.defeatMonster(i, scoreValue);
       }
     }
+  }
+
+  private defeatMonster(index: number, scoreValue: number): void {
+    const monster = this.monsters[index];
+    if (!monster) {
+      return;
+    }
+    this.score += scoreValue;
+    this.monsters.splice(index, 1);
+    if (monster.monsterType !== "slime") {
+      return;
+    }
+    const splitLevel = monster.splitLevel ?? 0;
+    if (splitLevel >= 2 || monster.radius < MONSTER.radius * 0.55) {
+      return;
+    }
+    const childRadius = monster.radius * 0.72;
+    const childHp = Math.max(1, Math.ceil(monster.maxHp * 0.45));
+    const childSpeed = monster.speed * 1.18;
+    const offsets: Vec2[] = [
+      { x: -childRadius * 1.15, z: childRadius * 0.65 },
+      { x: childRadius * 1.15, z: -childRadius * 0.65 },
+    ];
+    for (const offset of offsets) {
+      this.spawnMonster(
+        clampToArena(add(monster.position, offset), childRadius),
+        "slime",
+        undefined,
+        {
+          radius: childRadius,
+          hp: childHp,
+          maxHp: childHp,
+          speed: childSpeed,
+          splitLevel: splitLevel + 1,
+          aiState: "alert",
+          aggroRange: monster.aggroRange,
+          disengageRange: monster.disengageRange,
+        },
+      );
+    }
+    this.view.spark(monster.position, 0x7ecf88, 18);
   }
 
   private toggleDoorObstacles(): void {

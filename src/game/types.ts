@@ -58,6 +58,11 @@ export type Monster = {
   frozenTimer?: number;
   chargeVelocity?: Vec2;
   chargeTimer?: number;
+  jumpVelocity?: Vec2;
+  jumpTimer?: number;
+  jumpCooldown?: number;
+  splitLevel?: number;
+  fuseTimer?: number;
   aggroRange?: number;
   disengageRange?: number;
   noKnockback?: boolean;

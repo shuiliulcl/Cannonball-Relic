@@ -73,6 +73,39 @@
       "interval": 0.5,
       "aggroRange": 15,
       "disengageRange": 25
+    },
+    {
+      "id": "slime-splitter",
+      "x": 6,
+      "z": 8,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "slime",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
+    },
+    {
+      "id": "rabbit-leaper",
+      "x": 3,
+      "z": 4,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "rabbit",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
+    },
+    {
+      "id": "bomb-bug",
+      "x": 4,
+      "z": 8,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "bombBug",
+      "interval": 0.5,
+      "aggroRange": 15,
+      "disengageRange": 25
     }
   ]
 }
