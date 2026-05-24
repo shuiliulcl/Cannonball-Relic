@@ -82,6 +82,11 @@ export class SceneView {
     this.renderer.render(this.scene, this.camera);
   }
 
+  rendererInfo(): { calls: number; triangles: number; textures: number; geometries: number } {
+    const { render, memory } = this.renderer.info;
+    return { calls: render.calls, triangles: render.triangles, textures: memory.textures, geometries: memory.geometries };
+  }
+
   updateEffects(dt: number): void {
     this.effects.update(dt);
     this.trajectory.update(dt);

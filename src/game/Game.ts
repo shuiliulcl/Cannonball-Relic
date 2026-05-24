@@ -48,6 +48,9 @@ export class Game {
   private baseObstacles: Obstacle[];
   private obstacles: Obstacle[];
   private solidObstacles: Obstacle[] = [];
+  // Flat boolean lookup for void cells — O(1) vs O(N) voids.some() in isVoidCell
+  private voidCells: boolean[] = [];
+  private voidGridWidth = 0;
   private interactables: RuntimeInteractable[];
   private levelSpawns: RuntimeSpawn[] = [];
   private levelMaxWave = RUN.maxWaves;
@@ -72,6 +75,7 @@ export class Game {
     this.interactables = this.cloneInteractables(this.runtimeLevel);
     this.levelSpawns = this.runtimeLevel?.spawns ?? [];
     this.levelMaxWave = this.maxWaveForLevel(this.runtimeLevel);
+    this.rebuildVoidCells();
   }
 
   private get arena() {
@@ -1230,7 +1234,23 @@ export class Game {
     this.interactables = this.cloneInteractables(runtimeLevel);
     this.levelSpawns = runtimeLevel?.spawns ?? [];
     this.levelMaxWave = this.maxWaveForLevel(runtimeLevel);
+    this.rebuildVoidCells();
     this.view.setRuntimeLevel(runtimeLevel, this.baseObstacles);
+  }
+
+  private rebuildVoidCells(): void {
+    const level = this.runtimeLevel;
+    if (!level?.voids.length) {
+      this.voidCells = [];
+      this.voidGridWidth = 0;
+      return;
+    }
+    const { width, height } = level.grid;
+    this.voidGridWidth = width;
+    this.voidCells = new Array(width * height).fill(false);
+    for (const cell of level.voids) {
+      this.voidCells[cell.z * width + cell.x] = true;
+    }
   }
 
   private cloneBaseObstacles(runtimeLevel: RuntimeLevel | undefined): Obstacle[] {
@@ -1303,7 +1323,8 @@ export class Game {
   }
 
   private isVoidCell(x: number, z: number): boolean {
-    return Boolean(this.runtimeLevel?.voids.some((cell) => cell.x === x && cell.z === z));
+    if (!this.voidCells.length) return false;
+    return this.voidCells[z * this.voidGridWidth + x] === true;
   }
 
   private circleIntersectsGridCell(position: Vec2, radius: number, x: number, z: number): boolean {

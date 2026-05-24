@@ -8,6 +8,31 @@ import { levelToRuntime } from "./levels/convert";
 import { loadLocalLevel } from "./levels/storage";
 import type { LevelDefinition } from "./levels/types";
 
+// ?perf=1 enables the performance overlay (stats.js FPS/MS + renderer info)
+function mountPerfOverlay(view: SceneView): void {
+  if (new URLSearchParams(window.location.search).get("perf") !== "1") return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  import("stats.js").then(({ default: Stats }) => {
+    const fps = new Stats(); fps.showPanel(0); fps.dom.style.cssText = "position:fixed;top:0;left:0;z-index:9999;";
+    const ms  = new Stats(); ms.showPanel(1);  ms.dom.style.cssText  = "position:fixed;top:0;left:80px;z-index:9999;";
+    document.body.appendChild(fps.dom);
+    document.body.appendChild(ms.dom);
+
+    const info = document.createElement("div");
+    info.style.cssText = "position:fixed;top:0;left:160px;z-index:9999;background:#000a;color:#0f0;font:11px monospace;padding:4px 6px;line-height:1.5;";
+    document.body.appendChild(info);
+
+    const origRender = view.render.bind(view);
+    view.render = () => {
+      fps.begin(); ms.begin();
+      origRender();
+      const r = view.rendererInfo();
+      info.textContent = `draw:${r.calls}  tri:${r.triangles}  tex:${r.textures}  geo:${r.geometries}`;
+      ms.end(); fps.end();
+    };
+  });
+}
+
 const app = document.querySelector<HTMLElement>("#app");
 const sceneRoot = document.querySelector<HTMLDivElement>("#sceneRoot");
 const stageShell = document.querySelector<HTMLElement>("#stageShell");
@@ -101,6 +126,7 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
   const firstCampaignLevel = campaignLevels[0];
   const viewLevel = convertedLevel ?? firstCampaignLevel;
   const view = new SceneView(sceneRoot, viewLevel?.obstacles, viewLevel);
+  mountPerfOverlay(view);
   const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
   const game = new Game(input, view, hud, convertedLevel, { campaignLevels });
 
