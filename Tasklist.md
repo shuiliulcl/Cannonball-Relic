@@ -310,11 +310,11 @@
 
 ## Phase 37 - Diamond Card Complex Systems
 
-- [ ] 一键三连: fire three marbles in a spread.
-- [ ] 冻住不许走: hits apply freeze to monsters.
-- [ ] 是你吗沙师弟: marble grows in radius on each bounce.
-- [ ] 我的钻头: marble HP +2 and full pierce (ignore hitIds).
-- [ ] Build verify.
+- [x] 一键三连: fire three marbles in a spread.
+- [x] 冻住不许走: hits apply freeze to monsters.
+- [x] 是你吗沙师弟: marble grows in radius on each bounce.
+- [x] 我的钻头: marble HP +2 and full pierce (ignore hitIds).
+- [x] Build verify.
 
 ## Phase 38 - Monster Pixel Sprites
 

@@ -282,6 +282,9 @@ export class Game {
       this.marble.bonusDamage = this.pendingChainBonus;
       this.pendingChainBonus = 0;
       this.fragmentUsedThisShot = false;
+      if (this.stats.hasTripleShot) {
+        this.spawnFragmentMarbles(this.marble.position, this.marble.velocity, this.marble);
+      }
       this.chargeSeconds = 0;
       this.view.hideTrajectory();
     }
@@ -338,6 +341,9 @@ export class Game {
       this.marble.bounces += 1;
       this.marble.hitIds.clear();
       this.view.spark(this.marble.position, 0xffdf72, 12);
+      if (this.stats.hasGrowingMarble) {
+        this.marble.radius += 0.08;
+      }
       if (bounce.bounced && this.stats.hasShockKnockback) {
         this.damageMonstersInRadius(this.marble.position, 1.8, 1, 0);
       }
@@ -519,17 +525,24 @@ export class Game {
       const baseDamage = calcBounceDamage(marble.bounces, MARBLE.baseDamage + this.stats.baseDamageBonus, this.stats.bounceBonusDamage) + marble.bonusDamage;
       const damage = marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus : baseDamage;
 
+      const isDrill = this.stats.hasDrillMarble && marble === this.marble;
       for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
         const monster = this.monsters[i];
-        if (marble.hitIds.has(monster.id)) {
+        if (!isDrill && marble.hitIds.has(monster.id)) {
           continue;
         }
         if (distance(marble.position, monster.position) <= marble.radius + monster.radius) {
           const finalDamage = this.mitigatedMonsterDamage(monster, marble.position, damage);
           monster.hp -= finalDamage;
-          marble.hitIds.add(monster.id);
+          if (!isDrill) {
+            marble.hitIds.add(monster.id);
+          }
           if (marble.state === "recalling" && this.stats.hasChainLoading) {
             this.pendingChainBonus += 3;
+          }
+          if (this.stats.hasFreezeHit) {
+            monster.frozenTimer = (monster.frozenTimer ?? 0) + 2.0;
+            monster.aiState = "idle";
           }
           this.view.damageText(String(finalDamage), monster.position);
           this.view.spark(monster.position, finalDamage < damage ? 0x8edcff : 0x9de7ff, finalDamage < damage ? 20 : 14);

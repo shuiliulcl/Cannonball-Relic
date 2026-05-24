@@ -200,6 +200,43 @@ export const UPGRADES: Upgrade[] = [
     weight: 4,
     apply: (stats) => { stats.hasShockKnockback = true; },
   },
+  // ── 钻石卡 ──
+  {
+    id: "tripleShot",
+    rarity: "diamond",
+    title: "一键三连",
+    description: "每次发射时，同时向两侧各派生一枚辅助弹珠。",
+    weight: 2,
+    uniquePerRun: true,
+    apply: (stats) => { stats.hasTripleShot = true; },
+  },
+  {
+    id: "freezeHit",
+    rarity: "diamond",
+    title: "冻住不许走",
+    description: "弹珠命中怪物时，使其冻结 2 秒，无法行动。",
+    weight: 2,
+    uniquePerRun: true,
+    apply: (stats) => { stats.hasFreezeHit = true; },
+  },
+  {
+    id: "growingMarble",
+    rarity: "diamond",
+    title: "是你吗沙师弟",
+    description: "弹珠每次弹射后半径增大，命中范围越来越大。",
+    weight: 2,
+    uniquePerRun: true,
+    apply: (stats) => { stats.hasGrowingMarble = true; },
+  },
+  {
+    id: "drillMarble",
+    rarity: "diamond",
+    title: "我的钻头",
+    description: "弹珠血量 +2，可穿透所有敌人，无冷却命中。",
+    weight: 2,
+    uniquePerRun: true,
+    apply: (stats) => { stats.marbleHp += 2; stats.hasDrillMarble = true; },
+  },
 ];
 
 export function findUpgrade(id: string): Upgrade | undefined {
@@ -226,6 +263,10 @@ export const DEFAULT_UPGRADE_STATS = () => ({
   hasChainLoading: false,
   hasFragment: false,
   hasShockKnockback: false,
+  hasTripleShot: false,
+  hasFreezeHit: false,
+  hasGrowingMarble: false,
+  hasDrillMarble: false,
 });
 
 /**

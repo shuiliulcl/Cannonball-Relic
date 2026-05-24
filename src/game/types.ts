@@ -109,6 +109,7 @@ export type Player = {
   velocity: Vec2;
   radius: number;
   hp: number;
+  shields: number;
   mode: PlayerMode;
   cannonTimeLeft: number;
   cannonBounces: number;
@@ -138,6 +139,7 @@ export type GameSnapshot = {
   chargeRatio: number;
   hp: number;
   maxHp: number;
+  shields: number;
   waveProgress: number;
   dashCooldownRatio: number;
   dashCooldownText: string;
@@ -161,7 +163,17 @@ export type UpgradeId =
   | "hunterCalibration"
   | "swiftRecall"
   | "rapidThrow"
-  | "crisisConcentration";
+  | "crisisConcentration"
+  | "shieldTrait"
+  | "vampirism"
+  | "momentumContinue"
+  | "chainLoading"
+  | "fragmentTrajectory"
+  | "shockKnockback"
+  | "tripleShot"
+  | "freezeHit"
+  | "growingMarble"
+  | "drillMarble";
 
 export type UpgradeRarity = "bronze" | "gold" | "diamond";
 
@@ -179,6 +191,16 @@ export type UpgradeStats = {
   marbleRadiusBonus: number;
   baseDamageBonus: number;
   recallSpeedMultiplier: number;
+  hasShieldTrait: boolean;
+  hasVampirism: boolean;
+  hasMomentumContinue: boolean;
+  hasChainLoading: boolean;
+  hasFragment: boolean;
+  hasShockKnockback: boolean;
+  hasTripleShot: boolean;
+  hasFreezeHit: boolean;
+  hasGrowingMarble: boolean;
+  hasDrillMarble: boolean;
 };
 
 export type Upgrade = {

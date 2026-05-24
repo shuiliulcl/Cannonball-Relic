@@ -233,6 +233,10 @@ export class Hud {
       chainLoading: "连",
       fragmentTrajectory: "碎",
       shockKnockback: "震",
+      tripleShot: "三",
+      freezeHit: "冰",
+      growingMarble: "长",
+      drillMarble: "钻",
     };
     return icons[upgradeId];
   }
