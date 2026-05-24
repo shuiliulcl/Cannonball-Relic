@@ -33,6 +33,7 @@ export class SceneView {
   private readonly monsterMeshes = new Map<number, THREE.Group>();
   private readonly obstacleMeshes = new Map<string, THREE.Group>();
   private readonly interactableMeshes = new Map<string, THREE.Group>();
+  private readonly arenaGroup = new THREE.Group();
   private readonly trajectory: TrajectoryView;
   private readonly effects: Effects;
   private readonly _raycaster = new THREE.Raycaster();
@@ -42,7 +43,7 @@ export class SceneView {
   constructor(
     private readonly root: HTMLElement,
     initialObstacles: readonly Obstacle[] = OBSTACLES,
-    private readonly runtimeLevel?: RuntimeLevel,
+    private runtimeLevel?: RuntimeLevel,
   ) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x0a0a0f);
@@ -52,15 +53,11 @@ export class SceneView {
     this.scene.background = new THREE.Color(0x0a0a0f);
     this.effects = new Effects(this.scene);
     this.trajectory = new TrajectoryView(this.scene);
+    this.scene.add(this.arenaGroup);
 
     this.setupCamera();
     this.setupLights();
-    if (this.viewMode === "2d") {
-      this.buildTopDownArena();
-    } else {
-      this.buildArena();
-    }
-    this.applyLevelFloors();
+    this.rebuildArena();
     this.setObstacles(initialObstacles);
     this.setInteractables(this.runtimeLevel?.interactables ?? []);
 
@@ -258,6 +255,14 @@ export class SceneView {
     }
   }
 
+  setRuntimeLevel(runtimeLevel: RuntimeLevel | undefined, obstacles: readonly Obstacle[]): void {
+    this.runtimeLevel = runtimeLevel;
+    this.rebuildArena();
+    this.setObstacles(obstacles);
+    this.setInteractables(runtimeLevel?.interactables ?? []);
+    this.resize();
+  }
+
   pointerToPlane(pointer: THREE.Vector2): Vec2 {
     this._raycaster.setFromCamera(pointer, this.camera);
     this._raycaster.ray.intersectPlane(this._groundPlane, this._planeHit);
@@ -283,6 +288,16 @@ export class SceneView {
     this.scene.add(ambient);
   }
 
+  private rebuildArena(): void {
+    this.arenaGroup.clear();
+    if (this.viewMode === "2d") {
+      this.buildTopDownArena();
+    } else {
+      this.buildArena();
+    }
+    this.applyLevelFloors();
+  }
+
   private buildArena(): void {
     const hw = this.arenaHW;
     const hd = this.arenaHD;
@@ -296,29 +311,29 @@ export class SceneView {
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
-    this.scene.add(floor);
+    this.arenaGroup.add(floor);
 
     const backWall = this.createTexturedBox(hw * 2 + 1, ARENA.wallHeight, 0.35, this.skin.wallBorder, 4, 1);
     backWall.position.set(0, ARENA.wallHeight / 2, -hd - 0.2);
-    this.scene.add(backWall);
+    this.arenaGroup.add(backWall);
 
     const frontWall = backWall.clone();
     frontWall.position.z = hd + 0.2;
-    this.scene.add(frontWall);
+    this.arenaGroup.add(frontWall);
 
     const leftWall = this.createTexturedBox(0.35, ARENA.wallHeight, hd * 2 + 1, this.skin.wallBorder, 1, 4);
     leftWall.position.set(-hw - 0.2, ARENA.wallHeight / 2, 0);
-    this.scene.add(leftWall);
+    this.arenaGroup.add(leftWall);
 
     const rightWall = leftWall.clone();
     rightWall.position.x = hw + 0.2;
-    this.scene.add(rightWall);
+    this.arenaGroup.add(rightWall);
 
     for (const x of [-hw - 0.45, hw + 0.45]) {
       for (const z of [-4, 0, 4]) {
         const pillar = this.createSprite(this.skin.pillar, 1.0, 1.9);
         pillar.position.set(x, 1.05, z);
-        this.scene.add(pillar);
+        this.arenaGroup.add(pillar);
       }
     }
 
@@ -328,7 +343,7 @@ export class SceneView {
       for (const z of [-bz, bz]) {
         const brazier = this.createSprite(this.skin.brazier, 0.46, 0.62);
         brazier.position.set(x, 0.43, z);
-        this.scene.add(brazier);
+        this.arenaGroup.add(brazier);
       }
     }
   }
@@ -347,7 +362,7 @@ export class SceneView {
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
-    this.scene.add(floor);
+    this.arenaGroup.add(floor);
 
     // No grid — HM2 floor is clean with no tile grid overlay
 
@@ -360,35 +375,35 @@ export class SceneView {
 
     const backWall = new THREE.Mesh(new THREE.BoxGeometry(frontBackWidth, 0.2, wallThickness), wallMaterial);
     backWall.position.set(0, 0.08, -hd - wallThickness / 2);
-    this.scene.add(backWall);
+    this.arenaGroup.add(backWall);
 
     const frontWall = backWall.clone();
     frontWall.position.z = hd + wallThickness / 2;
-    this.scene.add(frontWall);
+    this.arenaGroup.add(frontWall);
 
     const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, 0.2, sideDepth), wallMaterial);
     leftWall.position.set(-hw - wallThickness / 2, 0.08, 0);
-    this.scene.add(leftWall);
+    this.arenaGroup.add(leftWall);
 
     const rightWall = leftWall.clone();
     rightWall.position.x = hw + wallThickness / 2;
-    this.scene.add(rightWall);
+    this.arenaGroup.add(rightWall);
 
     const topLip = new THREE.Mesh(new THREE.BoxGeometry(frontBackWidth, 0.06, 0.08), lipMaterial);
     topLip.position.set(0, 0.16, -hd - 0.08);
-    this.scene.add(topLip);
+    this.arenaGroup.add(topLip);
 
     const bottomLip = topLip.clone();
     bottomLip.position.z = hd + 0.08;
-    this.scene.add(bottomLip);
+    this.arenaGroup.add(bottomLip);
 
     const leftLip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, sideDepth), lipMaterial);
     leftLip.position.set(-hw - 0.08, 0.16, 0);
-    this.scene.add(leftLip);
+    this.arenaGroup.add(leftLip);
 
     const rightLip = leftLip.clone();
     rightLip.position.x = hw + 0.08;
-    this.scene.add(rightLip);
+    this.arenaGroup.add(rightLip);
   }
 
   private applyLevelFloors(): void {
@@ -414,7 +429,7 @@ export class SceneView {
         const tile = new THREE.Mesh(new THREE.PlaneGeometry(cellSize, cellSize), material);
         tile.rotation.x = -Math.PI / 2;
         tile.position.set(originX + x * cellSize, -0.018, originZ + y * cellSize);
-        this.scene.add(tile);
+        this.arenaGroup.add(tile);
       }
     }
   }
@@ -575,11 +590,20 @@ export class SceneView {
     );
     body.position.y = 0.11;
 
-    // HM2: no outlines — flat solid top color fills the block face
-    const top = new THREE.Mesh(
-      new THREE.PlaneGeometry(width, depth),
-      new THREE.MeshBasicMaterial({ color: colors.top, side: THREE.DoubleSide }),
+    // Top face: start with flat color fallback, load sprite texture async when available.
+    const topMaterial = new THREE.MeshBasicMaterial({ color: colors.top, side: THREE.DoubleSide });
+    const texPath = `/assets/skins/${this.skin.id}/sprites/obstacle-${material.toLowerCase()}.png`;
+    this.textureLoader.load(
+      texPath,
+      (tex) => {
+        preparePixelTexture(tex);
+        topMaterial.map = tex;
+        topMaterial.color.setHex(0xffffff); // neutral tint — let sprite colors show through
+        topMaterial.needsUpdate = true;
+      },
     );
+
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), topMaterial);
     top.rotation.x = -Math.PI / 2;
     top.position.y = 0.225;
 
