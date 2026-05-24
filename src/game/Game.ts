@@ -47,6 +47,7 @@ export class Game {
   private wasPausedBeforeBuffPanel = false;
   private baseObstacles: Obstacle[];
   private obstacles: Obstacle[];
+  private solidObstacles: Obstacle[] = [];
   private interactables: RuntimeInteractable[];
   private levelSpawns: RuntimeSpawn[] = [];
   private levelMaxWave = RUN.maxWaves;
@@ -67,6 +68,7 @@ export class Game {
     this.runtimeLevel = this.campaignMode ? this.campaignLevels[0] : runtimeLevel;
     this.baseObstacles = this.cloneBaseObstacles(this.runtimeLevel);
     this.obstacles = this.cloneObstacles();
+    this.solidObstacles = this.rebuildSolidObstacles();
     this.interactables = this.cloneInteractables(this.runtimeLevel);
     this.levelSpawns = this.runtimeLevel?.spawns ?? [];
     this.levelMaxWave = this.maxWaveForLevel(this.runtimeLevel);
@@ -91,6 +93,7 @@ export class Game {
     this.enemyProjectiles = [];
     this.spawnQueue = [];
     this.obstacles = this.cloneObstacles();
+    this.solidObstacles = this.rebuildSolidObstacles();
     this.view.clearTransientObjects();
     this.view.setObstacles(this.obstacles);
     this.view.setInteractables(this.interactables);
@@ -278,6 +281,7 @@ export class Game {
     this.auxiliaryMarbles = [];
     this.spawnQueue = [];
     this.obstacles = this.cloneObstacles();
+    this.solidObstacles = this.rebuildSolidObstacles();
     this.player.position = this.runtimeLevel?.playerStart ?? { x: 0, z: 3.9 };
     this.player.velocity = { x: 0, z: 0 };
     this.player.mode = "normal";
@@ -312,8 +316,14 @@ export class Game {
       }
 
       resolvedPosition = candidate;
-      for (const obstacle of this.obstacles) {
-        if (!this.blocksActorMovement(obstacle)) {
+      for (const obstacle of this.solidObstacles) {
+        // AABB broad-phase: skip if circle cannot possibly overlap obstacle
+        if (
+          resolvedPosition.x < obstacle.position.x - obstacle.halfSize.x - radius ||
+          resolvedPosition.x > obstacle.position.x + obstacle.halfSize.x + radius ||
+          resolvedPosition.z < obstacle.position.z - obstacle.halfSize.z - radius ||
+          resolvedPosition.z > obstacle.position.z + obstacle.halfSize.z + radius
+        ) {
           continue;
         }
         const obstacleBounce = bounceCircleFromObstacle(resolvedPosition, stepVelocity, radius, obstacle);
@@ -1398,6 +1408,10 @@ export class Game {
     );
   }
 
+  private rebuildSolidObstacles(): Obstacle[] {
+    return this.obstacles.filter((o) => this.blocksActorMovement(o));
+  }
+
   private shouldSkipOneWayObstacle(obstacle: Obstacle, velocity: Vec2): boolean {
     if (this.obstacleBehavior(obstacle) !== "oneWay") {
       return false;
@@ -1417,6 +1431,7 @@ export class Game {
 
   private removeObstacle(id: string): void {
     this.obstacles = this.obstacles.filter((obstacle) => obstacle.id !== id);
+    this.solidObstacles = this.rebuildSolidObstacles();
     this.view.setObstacles(this.obstacles);
   }
 

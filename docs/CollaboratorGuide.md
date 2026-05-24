@@ -89,12 +89,19 @@ Current default skin:
 
 - `relic-ruins`: first-pass Nano Banana Pro pixel-art skin with player, marble, enemy, obstacle, and floor slots.
 
+## Current Status
+
+The local prototype now follows the Feishu Wiki design document `弹珠超人_佐迪亚克改版`: default play is a 10-room top-down Zodiac campaign, with terrain effects, obstacle behaviors, interactables, 10 Zodiac enemy types, rarity-based card drafts, monster sprites, sound effects, and campaign chaining.
+
+Most old prototype TODOs are complete. Treat `Tasklist.md` as the source of truth before starting new work.
+
 ## Good Next Tasks
 
-- Add more monster types and room layouts.
-- Improve aiming preview with segmented bounce markers.
-- Replace placeholder geometry with generated original art assets.
-- Add sound effects and a short PV capture plan.
+- Record the final PV: 16:9, 1080p, under 2 minutes.
+- Run a full 10-room campaign pass and tune level pressure against the Wiki design goals: short high-pressure rooms, geometry reads, active recall damage, and build expression.
+- Fill remaining optional Wiki card ideas that are not yet implemented, such as curved trajectory, fire trail, nearest-enemy ricochet, timed auto-shot, and one-ball extreme mode.
+- Polish readability for support ranges, laser windows, shield-crab facing, breakable glass, explosions, freeze, and interactable triggers.
+- Rebuild the submission package after PV/tuning changes.
 
 ## Card Authoring
 
@@ -104,6 +111,4 @@ Cards live in `src/game/upgrades.ts`. Add a unique `id`, `rarity`, `title`, `des
 - `gold`: stronger build-shaping upgrades.
 - `diamond`: unusual rule-bending cards that change the play model. These should preserve the base game unless selected by the player. Diamond cards can only be drafted once per run.
 
-Current diamond card:
-
-- `humanCannon`: selected after a wave, then launches the player as a temporary projectile. This is intentionally a card effect, not the default control scheme.
+Implemented diamond cards include `humanCannon`, `tripleShot`, `freezeHit`, `growingMarble`, and `drillMarble`. `humanCannon` is intentionally a card effect, not the default control scheme.

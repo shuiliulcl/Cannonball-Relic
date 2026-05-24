@@ -398,3 +398,10 @@
 - [x] Block player and monster movement from entering editor void cells.
 - [x] Keep knockback and slime split spawns from pushing actors through blocked cells.
 - [x] Build verify.
+
+## Phase 45 - TODO Cleanup Against Zodiac Design
+
+- [x] Re-read Feishu Wiki design document `弹珠超人_佐迪亚克改版`.
+- [x] Remove stale next-task guidance that referred to already completed monster, level, aim preview, art, and audio work.
+- [x] Update collaborator guidance with current remaining work: final PV, full campaign tuning, optional remaining design cards, and readability polish.
+- [x] Refresh `docs/DesignRevisionPlan.md` so it reflects current implementation status instead of the initial planning slice.

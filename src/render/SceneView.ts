@@ -301,7 +301,7 @@ export class SceneView {
   private buildArena(): void {
     const hw = this.arenaHW;
     const hd = this.arenaHD;
-    const floorTexture = preparePixelTexture(this.textureLoader.load(this.skin.floor));
+    const floorTexture = this.loadTexture(this.skin.floor);
     floorTexture.wrapS = THREE.RepeatWrapping;
     floorTexture.wrapT = THREE.RepeatWrapping;
     floorTexture.repeat.set(5, 4);
@@ -351,7 +351,7 @@ export class SceneView {
   private buildTopDownArena(): void {
     const hw = this.arenaHW;
     const hd = this.arenaHD;
-    const floorTexture = preparePixelTexture(this.textureLoader.load(this.skin.floor));
+    const floorTexture = this.loadTexture(this.skin.floor);
     floorTexture.wrapS = THREE.RepeatWrapping;
     floorTexture.wrapT = THREE.RepeatWrapping;
     floorTexture.repeat.set(9, 7);
@@ -414,23 +414,41 @@ export class SceneView {
     const cellSize = grid.cellSize || 1;
     const originX = -arenaHalfWidth + cellSize / 2;
     const originZ = -arenaHalfDepth + cellSize / 2;
-    const materials = new Map<FloorMaterial, THREE.MeshBasicMaterial>();
+
+    // Group cell positions by material type
+    const cellsByMaterial = new Map<FloorMaterial, Array<{ x: number; z: number }>>();
     for (let y = 0; y < grid.height; y += 1) {
       for (let x = 0; x < grid.width; x += 1) {
         const materialName = floors[y * grid.width + x] ?? "sandstone";
         if (materialName === "sandstone") {
           continue;
         }
-        let material = materials.get(materialName);
-        if (!material) {
-          material = this.createFloorMaterial(materialName);
-          materials.set(materialName, material);
+        let list = cellsByMaterial.get(materialName);
+        if (!list) {
+          list = [];
+          cellsByMaterial.set(materialName, list);
         }
-        const tile = new THREE.Mesh(new THREE.PlaneGeometry(cellSize, cellSize), material);
-        tile.rotation.x = -Math.PI / 2;
-        tile.position.set(originX + x * cellSize, -0.018, originZ + y * cellSize);
-        this.arenaGroup.add(tile);
+        list.push({ x: originX + x * cellSize, z: originZ + y * cellSize });
       }
+    }
+
+    // One InstancedMesh per material — single geometry upload, single draw call per type.
+    // Avoids N separate geometry buffer uploads when tiles first enter the camera frustum.
+    const baseGeo = new THREE.PlaneGeometry(cellSize, cellSize);
+    const dummy = new THREE.Object3D();
+    dummy.rotation.x = -Math.PI / 2; // horizontal plane — same for all instances
+
+    for (const [materialName, cells] of cellsByMaterial) {
+      const material = this.createFloorMaterial(materialName);
+      const mesh = new THREE.InstancedMesh(baseGeo, material, cells.length);
+      mesh.position.y = -0.018;
+      for (let i = 0; i < cells.length; i += 1) {
+        dummy.position.set(cells[i].x, 0, cells[i].z);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      this.arenaGroup.add(mesh);
     }
     this.applyVoidCells(originX, originZ, cellSize);
   }
@@ -549,8 +567,21 @@ export class SceneView {
     return group;
   }
 
+  /**
+   * Load a texture and immediately upload it to the GPU once the image decodes.
+   * This prevents the "first-render texture stall" that causes frame drops when
+   * previously off-screen geometry first enters the camera frustum.
+   */
+  private loadTexture(path: string): THREE.Texture {
+    return preparePixelTexture(
+      this.textureLoader.load(path, (tex) => {
+        this.renderer.initTexture(tex);
+      }),
+    );
+  }
+
   private createSprite(path: string, width: number, height: number): THREE.Sprite {
-    const texture = preparePixelTexture(this.textureLoader.load(path));
+    const texture = this.loadTexture(path);
     const material = new THREE.SpriteMaterial({
       map: texture,
       transparent: true,
@@ -575,7 +606,7 @@ export class SceneView {
   }
 
   private createTexturedBox(width: number, height: number, depth: number, path: string, repeatX: number, repeatY: number): THREE.Mesh {
-    const texture = preparePixelTexture(this.textureLoader.load(path));
+    const texture = this.loadTexture(path);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(repeatX, repeatY);
@@ -616,6 +647,7 @@ export class SceneView {
       texPath,
       (tex) => {
         preparePixelTexture(tex);
+        this.renderer.initTexture(tex); // pre-upload to GPU; avoids stall on first camera reveal
         topMaterial.map = tex;
         topMaterial.color.setHex(0xffffff); // neutral tint — let sprite colors show through
         topMaterial.needsUpdate = true;
@@ -725,7 +757,7 @@ export class SceneView {
         side: THREE.DoubleSide,
       });
     }
-    const texture = preparePixelTexture(this.textureLoader.load(this.floorTexturePath(material)));
+    const texture = this.loadTexture(this.floorTexturePath(material));
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(1, 1);
