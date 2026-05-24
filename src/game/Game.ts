@@ -13,6 +13,10 @@ type SpawnQueueItem = RuntimeSpawn & {
   timer: number;
 };
 
+type GameOptions = {
+  campaignLevels?: RuntimeLevel[];
+};
+
 export class Game {
   private player: Player = this.createPlayer();
   private stats: UpgradeStats = DEFAULT_UPGRADE_STATS();
@@ -41,28 +45,31 @@ export class Game {
   private fragmentUsedThisShot = false;
   private pausedForBuffPanel = false;
   private wasPausedBeforeBuffPanel = false;
-  private readonly baseObstacles: Obstacle[];
+  private baseObstacles: Obstacle[];
   private obstacles: Obstacle[];
   private interactables: RuntimeInteractable[];
-  private readonly levelSpawns;
+  private levelSpawns: RuntimeSpawn[] = [];
+  private levelMaxWave = RUN.maxWaves;
+  private readonly campaignLevels: RuntimeLevel[];
+  private campaignIndex = 0;
+  private pendingCampaignAdvance = false;
+  private readonly campaignMode: boolean;
 
   constructor(
     private readonly input: Input,
     private readonly view: SceneView,
     private readonly hud: Hud,
-    private readonly runtimeLevel?: RuntimeLevel,
+    private runtimeLevel?: RuntimeLevel,
+    options: GameOptions = {},
   ) {
-    this.baseObstacles = (runtimeLevel?.obstacles ?? OBSTACLES).map((obstacle) => ({
-      ...obstacle,
-      position: { ...obstacle.position },
-      halfSize: { ...obstacle.halfSize },
-    }));
+    this.campaignLevels = options.campaignLevels ?? [];
+    this.campaignMode = this.campaignLevels.length > 0;
+    this.runtimeLevel = this.campaignMode ? this.campaignLevels[0] : runtimeLevel;
+    this.baseObstacles = this.cloneBaseObstacles(this.runtimeLevel);
     this.obstacles = this.cloneObstacles();
-    this.interactables = (runtimeLevel?.interactables ?? []).map((interactable) => ({
-      ...interactable,
-      position: { ...interactable.position },
-    }));
-    this.levelSpawns = runtimeLevel?.spawns ?? [];
+    this.interactables = this.cloneInteractables(this.runtimeLevel);
+    this.levelSpawns = this.runtimeLevel?.spawns ?? [];
+    this.levelMaxWave = this.maxWaveForLevel(this.runtimeLevel);
   }
 
   private get arena() {
@@ -73,6 +80,10 @@ export class Game {
   }
 
   start(): void {
+    if (this.campaignMode) {
+      this.campaignIndex = 0;
+      this.configureRuntimeLevel(this.campaignLevels[0]);
+    }
     this.player = this.createPlayer();
     this.marble = this.createMarble();
     this.auxiliaryMarbles = [];
@@ -95,6 +106,7 @@ export class Game {
     this.bronzeStreakCount = 0;
     this.pendingChainBonus = 0;
     this.fragmentUsedThisShot = false;
+    this.pendingCampaignAdvance = false;
     this.pausedForBuffPanel = false;
     this.wasPausedBeforeBuffPanel = false;
     resumeAudio();
@@ -140,10 +152,15 @@ export class Game {
     }
 
     playCardSelect();
-    this.wave += 1;
     this.pausedForUpgrade = false;
     this.hud.hideUpgrades();
     this.marble = this.createMarble();
+    if (this.pendingCampaignAdvance) {
+      this.pendingCampaignAdvance = false;
+      this.advanceCampaignLevel();
+      return;
+    }
+    this.wave += 1;
     this.spawnWave();
   }
 
@@ -219,7 +236,11 @@ export class Game {
     this.handleHits();
 
     if (this.monsters.length === 0 && !this.hasPendingSpawns()) {
-      if (this.wave >= RUN.maxWaves) {
+      if (this.campaignMode) {
+        this.handleCampaignRoomClear();
+        return;
+      }
+      if (this.wave >= this.levelMaxWave) {
         this.endRun("victory");
         return;
       }
@@ -227,6 +248,48 @@ export class Game {
       playWaveClear();
       this.hud.showUpgrades(draftUpgrades(3, this.wave, this.blockedDiamondUpgrades, this.bronzeStreakCount));
     }
+  }
+
+  private handleCampaignRoomClear(): void {
+    if (this.wave < this.levelMaxWave) {
+      this.wave += 1;
+      this.spawnWave();
+      return;
+    }
+    if (this.campaignIndex >= this.campaignLevels.length - 1) {
+      this.endRun("victory");
+      return;
+    }
+    this.pendingCampaignAdvance = true;
+    this.pausedForUpgrade = true;
+    playWaveClear();
+    this.hud.showUpgrades(draftUpgrades(3, this.campaignIndex + 1, this.blockedDiamondUpgrades, this.bronzeStreakCount));
+  }
+
+  private advanceCampaignLevel(): void {
+    this.campaignIndex += 1;
+    this.configureRuntimeLevel(this.campaignLevels[this.campaignIndex]);
+    this.wave = 1;
+    this.nextMonsterId = 1;
+    this.nextProjectileId = 1;
+    this.waveSpawnTotal = 0;
+    this.monsters = [];
+    this.enemyProjectiles = [];
+    this.auxiliaryMarbles = [];
+    this.spawnQueue = [];
+    this.obstacles = this.cloneObstacles();
+    this.player.position = this.runtimeLevel?.playerStart ?? { x: 0, z: 3.9 };
+    this.player.velocity = { x: 0, z: 0 };
+    this.player.mode = "normal";
+    this.player.cannonTimeLeft = 0;
+    this.player.cannonBounces = 0;
+    this.player.cannonHitIds.clear();
+    this.player.rollTimer = 0;
+    this.player.rollVelocity = { x: 0, z: 0 };
+    this.marble = this.createMarble();
+    this.view.clearTransientObjects();
+    this.spawnWave();
+    this.lastTime = performance.now();
   }
 
   private updatePlayer(dt: number): void {
@@ -1079,6 +1142,37 @@ export class Game {
     this.auxiliaryMarbles.push(this.createAuxiliaryMarble(position, vLeft, source));
     this.auxiliaryMarbles.push(this.createAuxiliaryMarble(position, vRight, source));
     this.view.spark(position, 0xffe066, 20);
+  }
+
+  private configureRuntimeLevel(runtimeLevel: RuntimeLevel | undefined): void {
+    this.runtimeLevel = runtimeLevel;
+    this.baseObstacles = this.cloneBaseObstacles(runtimeLevel);
+    this.interactables = this.cloneInteractables(runtimeLevel);
+    this.levelSpawns = runtimeLevel?.spawns ?? [];
+    this.levelMaxWave = this.maxWaveForLevel(runtimeLevel);
+    this.view.setRuntimeLevel(runtimeLevel, this.baseObstacles);
+  }
+
+  private cloneBaseObstacles(runtimeLevel: RuntimeLevel | undefined): Obstacle[] {
+    return (runtimeLevel?.obstacles ?? OBSTACLES).map((obstacle) => ({
+      ...obstacle,
+      position: { ...obstacle.position },
+      halfSize: { ...obstacle.halfSize },
+    }));
+  }
+
+  private cloneInteractables(runtimeLevel: RuntimeLevel | undefined): RuntimeInteractable[] {
+    return (runtimeLevel?.interactables ?? []).map((interactable) => ({
+      ...interactable,
+      position: { ...interactable.position },
+    }));
+  }
+
+  private maxWaveForLevel(runtimeLevel: RuntimeLevel | undefined): number {
+    if (!runtimeLevel || runtimeLevel.spawns.length === 0) {
+      return RUN.maxWaves;
+    }
+    return Math.max(1, ...runtimeLevel.spawns.map((spawn) => spawn.wave));
   }
 
   private cloneObstacles(): Obstacle[] {

@@ -23,6 +23,18 @@ const upgradeChoices = document.querySelector<HTMLDivElement>("#upgradeChoices")
 const buffOverlay = document.querySelector<HTMLDivElement>("#buffOverlay");
 const buffButton = document.querySelector<HTMLButtonElement>("#buffButton");
 const buffCloseButton = document.querySelector<HTMLButtonElement>("#buffCloseButton");
+const CAMPAIGN_LEVEL_IDS = [
+  "zodiac-01",
+  "zodiac-02",
+  "zodiac-03",
+  "zodiac-04",
+  "zodiac-05",
+  "zodiac-06",
+  "zodiac-07",
+  "zodiac-08",
+  "zodiac-09",
+  "zodiac-10",
+];
 
 if (new URLSearchParams(window.location.search).get("mode") === "editor") {
   if (!app) {
@@ -53,6 +65,15 @@ async function bootstrapGame(): Promise<void> {
     throw new Error("Missing required DOM nodes.");
   }
 
+async function fetchPublicLevel(levelId: string): Promise<LevelDefinition | undefined> {
+  const response = await fetch(`/levels/${levelId}.json`);
+  if (!response.ok) {
+    console.warn(`Level not found: ${levelId}`);
+    return undefined;
+  }
+  return (await response.json()) as LevelDefinition;
+}
+
 async function loadRequestedLevel(): Promise<LevelDefinition | undefined> {
   const levelParam = new URLSearchParams(window.location.search).get("level");
   if (!levelParam) {
@@ -65,20 +86,23 @@ async function loadRequestedLevel(): Promise<LevelDefinition | undefined> {
     console.warn(`Ignored unsafe level id: ${levelParam}`);
     return undefined;
   }
-  const response = await fetch(`/levels/${levelParam}.json`);
-  if (!response.ok) {
-    console.warn(`Level not found: ${levelParam}`);
-    return undefined;
-  }
-  return (await response.json()) as LevelDefinition;
+  return fetchPublicLevel(levelParam);
+}
+
+async function loadCampaignLevels(): Promise<LevelDefinition[]> {
+  const levels = await Promise.all(CAMPAIGN_LEVEL_IDS.map((levelId) => fetchPublicLevel(levelId)));
+  return levels.filter((level): level is LevelDefinition => Boolean(level));
 }
 
   const runtimeLevel = await loadRequestedLevel();
   const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
+  const campaignLevels = runtimeLevel ? [] : (await loadCampaignLevels()).map(levelToRuntime);
   const input = new Input(sceneRoot);
-  const view = new SceneView(sceneRoot, convertedLevel?.obstacles, convertedLevel);
+  const firstCampaignLevel = campaignLevels[0];
+  const viewLevel = convertedLevel ?? firstCampaignLevel;
+  const view = new SceneView(sceneRoot, viewLevel?.obstacles, viewLevel);
   const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
-  const game = new Game(input, view, hud, convertedLevel);
+  const game = new Game(input, view, hud, convertedLevel, { campaignLevels });
 
 startButton.addEventListener("click", () => {
   startOverlay.hidden = true;
