@@ -39,6 +39,9 @@ export class SceneView {
   private readonly _raycaster = new THREE.Raycaster();
   private readonly _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly _planeHit = new THREE.Vector3();
+  // Half-extents of the current camera frustum in world units (updated by resize())
+  private _camHalfW = 7.5;
+  private _camHalfH = 4.0;
 
   constructor(
     private readonly root: HTMLElement,
@@ -90,6 +93,19 @@ export class SceneView {
     const cannonScale = player.mode === "humanCannon" ? 1.35 : 1;
     this.playerMesh.scale.set(cannonScale, cannonScale, cannonScale);
     this.playerSprite.scale.set(1.25 * cannonScale, 1.1 * cannonScale, 1);
+    // Camera follow — clamp to arena bounds so walls stay visible
+    if (this.viewMode === "2d") {
+      const hw = this.arenaHW;
+      const hd = this.arenaHD;
+      const halfW = this._camHalfW;
+      const halfH = this._camHalfH;
+      const maxX = Math.max(0, hw - halfW);
+      const maxZ = Math.max(0, hd - halfH);
+      const camX = Math.max(-maxX, Math.min(maxX, player.position.x));
+      const camZ = Math.max(-maxZ, Math.min(maxZ, player.position.z));
+      this.camera.position.x = camX;
+      this.camera.position.z = camZ + 0.001;
+    }
   }
 
   syncMarble(marble: Marble): void {
@@ -758,15 +774,16 @@ export class SceneView {
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
     const aspect = width / height;
-    // Camera half-height covers the full arena depth with a small margin for walls.
-    const camH = this.arenaHD + 0.5;
-    // Also ensure full arena width is visible.
-    const camW = this.arenaHW + 0.5;
-    const size = Math.max(camH, camW / aspect);
-    this.camera.left = -size * aspect;
-    this.camera.right = size * aspect;
-    this.camera.top = size;
-    this.camera.bottom = -size;
+    // Fixed world-space viewport: always show at least 15 × 8 m.
+    // Expand proportionally to fill the screen without letterboxing.
+    const halfH = Math.max(4.0, 7.5 / aspect);
+    const halfW = halfH * aspect;
+    this._camHalfW = halfW;
+    this._camHalfH = halfH;
+    this.camera.left = -halfW;
+    this.camera.right = halfW;
+    this.camera.top = halfH;
+    this.camera.bottom = -halfH;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
   }
