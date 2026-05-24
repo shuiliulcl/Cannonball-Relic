@@ -200,3 +200,11 @@
 - [x] Add URL switching: default / `?view=2d` for 2D, `?view=2.5d` for the preserved 2.5D view.
 - [x] Make monster health bars readable in the 2D top-down view.
 - [x] Build and Playwright screenshot verify both view modes.
+
+## Phase 25 - Zodiac Design Revision Planning
+
+- [x] Read the new Feishu Wiki design document.
+- [x] Summarize gaps between the current prototype and the Zodiac revision.
+- [x] Write a staged implementation plan for data, terrain, obstacles, interactables, monsters, cards, and 10-level content.
+- [x] Add the required plan/develop/verify/submit workflow to the development standards.
+- [ ] Start Phase 1 implementation: data model and numeric baseline.

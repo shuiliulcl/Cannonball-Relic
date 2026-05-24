@@ -69,6 +69,41 @@ Timebox rule:
 - The retrospective must include: what caused the delay, what was completed, what remains risky, and how the next similar task should be split or verified.
 - If the long session is still in progress, send the user a concise status update before continuing.
 
+### 2.2 Required Agent Workflow: Plan, Develop, Verify, Submit
+
+Every teammate and AI agent should use the same four-step workflow for every non-trivial change. Write progress into `Tasklist.md` before or during the work so another agent can resume safely.
+
+1. Plan
+   - Run the GitHub sync routine in section 2.0 before editing.
+   - Read the current `Tasklist.md`, relevant design docs, and nearby source files.
+   - Define the smallest shippable slice and list the expected files/modules.
+   - Call out any file that may be edited by another teammate or AI agent.
+   - Add or update a Tasklist phase with concrete checkbox items.
+
+2. Develop
+   - Keep edits scoped to the planned slice.
+   - Preserve existing user/agent changes; do not revert files just because they are unfamiliar.
+   - Prefer existing project patterns over new architecture.
+   - For feature families, land foundations first, then content, then polish.
+   - Update docs alongside implementation when the behavior, workflow, or handoff contract changes.
+
+3. Verify
+   - Run `npm run build` for any TypeScript/CSS/runtime change.
+   - For visual or interaction changes, use Playwright or manual browser verification on the relevant route.
+   - For mode-dependent behavior, verify every affected mode, such as `?view=2d`, `?view=2.5d`, `?mode=editor`, and `?level=local`.
+   - Record verification results in the final handoff and keep generated screenshots out of commits unless they are intentional assets.
+   - If verification cannot run, explain the blocker and the fallback checks used.
+
+4. Submit
+   - Run `git status --short` and stage only files related to the current slice.
+   - Commit with a concise message that names the shipped behavior.
+   - Push the branch or `main` only after build/verification passes and the workspace status is understood.
+   - In the handoff, include changed scope, verification, commit hash, and any remaining risks or next slice.
+
+Long-task guardrail:
+
+- If one session runs longer than 30 minutes, pause and write a short retrospective before final handoff: cause of delay, completed work, remaining risk, and how the next slice should be split.
+
 Before implementation:
 
 1. Read `README.md`, `docs/GameDesign.md`, `docs/CollaboratorGuide.md`, and this file.
