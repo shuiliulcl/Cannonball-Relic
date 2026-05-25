@@ -31,7 +31,7 @@ export class Effects {
   private readonly textPool: PooledText[];
   private readonly sparks: Spark[] = [];
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(private readonly scene: THREE.Object3D) {
     scene.add(this.group);
 
     this.textPool = Array.from({ length: TEXT_POOL_SIZE }, () => {

@@ -15,6 +15,30 @@ type SpawnQueueItem = RuntimeSpawn & {
 
 type GameOptions = {
   campaignLevels?: RuntimeLevel[];
+  noMonsters?: boolean;
+  noObstacles?: boolean;
+};
+
+type PerfLongMoveState = {
+  active: boolean;
+  finished: boolean;
+  speed: number;
+  currentIndex: number;
+  distanceTraveled: number;
+  startedAt: number;
+  finishedAt: number | null;
+  waypoints: Vec2[];
+};
+
+type PerfFrameDiag = {
+  frameMs: number;
+  dt: number;
+  updateMs: number;
+  syncMs: number;
+  effectsMs: number;
+  renderMs: number;
+  syncParts: Record<string, number>;
+  renderer: { calls: number; triangles: number; textures: number; geometries: number };
 };
 
 export class Game {
@@ -59,6 +83,12 @@ export class Game {
   private pendingCampaignAdvance = false;
   private readonly campaignMode: boolean;
   private readonly godMode = new URLSearchParams(window.location.search).get("god") === "1";
+  private readonly noMonsters: boolean;
+  private readonly noObstacles: boolean;
+  private perfLongMove: PerfLongMoveState | null = null;
+  private readonly perfDiagEnabled = new URLSearchParams(window.location.search).get("perfdiag") === "1";
+  private readonly perfDiagFrames: PerfFrameDiag[] = [];
+  private perfSyncParts: Record<string, number> = {};
 
   constructor(
     private readonly input: Input,
@@ -69,8 +99,10 @@ export class Game {
   ) {
     this.campaignLevels = options.campaignLevels ?? [];
     this.campaignMode = this.campaignLevels.length > 0;
+    this.noMonsters = options.noMonsters ?? false;
+    this.noObstacles = options.noObstacles ?? false;
     this.runtimeLevel = this.campaignMode ? this.campaignLevels[0] : runtimeLevel;
-    this.baseObstacles = this.cloneBaseObstacles(this.runtimeLevel);
+    this.baseObstacles = this.noObstacles ? [] : this.cloneBaseObstacles(this.runtimeLevel);
     this.obstacles = this.cloneObstacles();
     this.solidObstacles = this.rebuildSolidObstacles();
     this.interactables = this.cloneInteractables(this.runtimeLevel);
@@ -175,16 +207,43 @@ export class Game {
 
   private loop(time: number): void {
     const dt = Math.min((time - this.lastTime) / 1000, 0.033);
+    const frameStart = this.perfDiagEnabled ? performance.now() : 0;
     this.lastTime = time;
+    let updateMs = 0;
+    let syncMs = 0;
+    let effectsMs = 0;
+    let renderMs = 0;
     if (this.running && this.input.consumePausePress()) {
       this.togglePause();
     }
     if (this.running && !this.paused && !this.pausedForUpgrade) {
+      const start = this.perfDiagEnabled ? performance.now() : 0;
       this.update(dt);
+      if (this.perfDiagEnabled) updateMs = performance.now() - start;
     }
+    let start = this.perfDiagEnabled ? performance.now() : 0;
     this.sync();
+    if (this.perfDiagEnabled) syncMs = performance.now() - start;
+    start = this.perfDiagEnabled ? performance.now() : 0;
     this.view.updateEffects(dt);
+    if (this.perfDiagEnabled) effectsMs = performance.now() - start;
+    start = this.perfDiagEnabled ? performance.now() : 0;
     this.view.render();
+    if (this.perfDiagEnabled) {
+      renderMs = performance.now() - start;
+      const frameMs = performance.now() - frameStart;
+      this.perfDiagFrames.push({
+        frameMs: Number(frameMs.toFixed(2)),
+        dt: Number(dt.toFixed(4)),
+        updateMs: Number(updateMs.toFixed(2)),
+        syncMs: Number(syncMs.toFixed(2)),
+        effectsMs: Number(effectsMs.toFixed(2)),
+        renderMs: Number(renderMs.toFixed(2)),
+        syncParts: { ...this.perfSyncParts },
+        renderer: this.view.rendererInfo(),
+      });
+      if (this.perfDiagFrames.length > 360) this.perfDiagFrames.shift();
+    }
     if (this.running) {
       this.rafId = requestAnimationFrame((nextTime) => this.loop(nextTime));
     }
@@ -235,6 +294,64 @@ export class Game {
     this.lastTime = performance.now();
   }
 
+  startLongMovePerfTest(speed = 14): { waypoints: Vec2[]; speed: number } {
+    const inset = 1.2;
+    const hw = Math.max(inset, this.arena.halfWidth - inset);
+    const hd = Math.max(inset, this.arena.halfDepth - inset);
+    const start = { ...this.player.position };
+    const waypoints = [
+      start,
+      { x: -hw, z: -hd },
+      { x: hw, z: -hd },
+      { x: hw, z: hd },
+      { x: -hw, z: hd },
+      { x: 0, z: 0 },
+    ];
+
+    this.perfLongMove = {
+      active: true,
+      finished: false,
+      speed,
+      currentIndex: 1,
+      distanceTraveled: 0,
+      startedAt: performance.now(),
+      finishedAt: null,
+      waypoints,
+    };
+    this.player.mode = "normal";
+    this.player.velocity = { x: 0, z: 0 };
+    this.player.rollTimer = 0;
+    this.player.rollVelocity = { x: 0, z: 0 };
+    this.player.invulnTimer = 999;
+    return { waypoints, speed };
+  }
+
+  getLongMovePerfStatus(): {
+    active: boolean;
+    finished: boolean;
+    currentIndex: number;
+    waypointCount: number;
+    distanceTraveled: number;
+    elapsedMs: number;
+  } {
+    if (!this.perfLongMove) {
+      return { active: false, finished: false, currentIndex: 0, waypointCount: 0, distanceTraveled: 0, elapsedMs: 0 };
+    }
+    const endTime = this.perfLongMove.finishedAt ?? performance.now();
+    return {
+      active: this.perfLongMove.active,
+      finished: this.perfLongMove.finished,
+      currentIndex: this.perfLongMove.currentIndex,
+      waypointCount: this.perfLongMove.waypoints.length,
+      distanceTraveled: Number(this.perfLongMove.distanceTraveled.toFixed(2)),
+      elapsedMs: Number((endTime - this.perfLongMove.startedAt).toFixed(1)),
+    };
+  }
+
+  getPerfDiagnostics(): PerfFrameDiag[] {
+    return [...this.perfDiagFrames];
+  }
+
   private update(dt: number): void {
     this.updatePlayer(dt);
     this.updateMarble(dt);
@@ -244,7 +361,7 @@ export class Game {
     this.updateEnemyProjectiles(dt);
     this.handleHits();
 
-    if (this.monsters.length === 0 && !this.hasPendingSpawns()) {
+    if (!this.noMonsters && this.monsters.length === 0 && !this.hasPendingSpawns()) {
       if (this.campaignMode) {
         this.handleCampaignRoomClear();
         return;
@@ -354,6 +471,11 @@ export class Game {
   }
 
   private updatePlayer(dt: number): void {
+    if (this.perfLongMove?.active) {
+      this.updateLongMovePerfPlayer(dt);
+      return;
+    }
+
     if (this.player.mode === "humanCannon") {
       this.updateHumanCannon(dt);
       return;
@@ -436,6 +558,48 @@ export class Game {
       this.marble.state = "recalling";
       this.view.hideTrajectory();
       this.marble.hitIds.clear();
+    }
+  }
+
+  private updateLongMovePerfPlayer(dt: number): void {
+    const state = this.perfLongMove;
+    if (!state || state.finished) return;
+
+    let remainingStep = state.speed * dt;
+    while (remainingStep > 0 && state.currentIndex < state.waypoints.length) {
+      const target = state.waypoints[state.currentIndex];
+      const toTarget = sub(target, this.player.position);
+      const remainingDistance = distance(this.player.position, target);
+
+      if (remainingDistance <= 0.001) {
+        state.currentIndex += 1;
+        continue;
+      }
+
+      const stepDistance = Math.min(remainingStep, remainingDistance);
+      const direction = normalize(toTarget);
+      this.player.position = clampToArena(add(this.player.position, scale(direction, stepDistance)), this.player.radius, this.arena);
+      this.player.velocity = scale(direction, state.speed);
+      state.distanceTraveled += stepDistance;
+      remainingStep -= stepDistance;
+
+      if (stepDistance >= remainingDistance - 0.001) {
+        this.player.position = { ...target };
+        state.currentIndex += 1;
+      }
+    }
+
+    this.player.dashTimer = 0;
+    this.player.invulnTimer = 999;
+    this.player.rollTimer = 0;
+    this.marble.position = { ...this.player.position };
+    this.view.hideTrajectory();
+
+    if (state.currentIndex >= state.waypoints.length) {
+      state.active = false;
+      state.finished = true;
+      state.finishedAt = performance.now();
+      this.player.velocity = { x: 0, z: 0 };
     }
   }
 
@@ -732,12 +896,23 @@ export class Game {
   }
 
   private sync(): void {
-    this.view.syncPlayer(this.player);
-    this.view.syncMarble(this.marble);
-    this.view.syncAuxiliaryMarbles(this.auxiliaryMarbles);
-    this.view.syncMonsters(this.monsters);
-    this.view.syncEnemyProjectiles(this.enemyProjectiles);
-    this.hud.update({
+    this.perfSyncParts = {};
+    const mark = (label: string, fn: () => void) => {
+      if (!this.perfDiagEnabled) {
+        fn();
+        return;
+      }
+      const start = performance.now();
+      fn();
+      this.perfSyncParts[label] = Number((performance.now() - start).toFixed(2));
+    };
+
+    mark("syncPlayer", () => this.view.syncPlayer(this.player));
+    mark("syncMarble", () => this.view.syncMarble(this.marble));
+    mark("syncAuxiliaryMarbles", () => this.view.syncAuxiliaryMarbles(this.auxiliaryMarbles));
+    mark("syncMonsters", () => this.view.syncMonsters(this.monsters));
+    mark("syncEnemyProjectiles", () => this.view.syncEnemyProjectiles(this.enemyProjectiles));
+    mark("hud", () => this.hud.update({
       score: this.score,
       wave: this.wave,
       marbleState: this.player.mode === "humanCannon" ? "cannon" : this.marble.state,
@@ -750,7 +925,7 @@ export class Game {
       dashCooldownRatio: this.player.dashCooldown > 0 ? 1 - this.player.dashTimer / this.player.dashCooldown : 1,
       dashCooldownText: this.player.dashTimer > 0 ? `${this.player.dashTimer.toFixed(1)}s` : "就绪",
       ownedBuffs: this.ownedBuffs(),
-    });
+    }));
   }
 
   private aimDirection(): Vec2 {
@@ -759,6 +934,7 @@ export class Game {
   }
 
   private spawnWave(): void {
+    if (this.noMonsters) return;
     const spawns = this.levelSpawns.length > 0
       ? this.levelSpawns.filter((spawn) => spawn.wave === this.wave)
       : this.defaultSpawnsForWave();
@@ -1232,7 +1408,7 @@ export class Game {
 
   private configureRuntimeLevel(runtimeLevel: RuntimeLevel | undefined): void {
     this.runtimeLevel = runtimeLevel;
-    this.baseObstacles = this.cloneBaseObstacles(runtimeLevel);
+    this.baseObstacles = this.noObstacles ? [] : this.cloneBaseObstacles(runtimeLevel);
     this.interactables = this.cloneInteractables(runtimeLevel);
     this.levelSpawns = runtimeLevel?.spawns ?? [];
     this.levelMaxWave = this.maxWaveForLevel(runtimeLevel);

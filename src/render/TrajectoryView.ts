@@ -41,7 +41,7 @@ export class TrajectoryView {
   private readonly ringPool: PulseItem[];
   private pulseTime = 0;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Object3D) {
     this.group.visible = false;
     scene.add(this.group);
 

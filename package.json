@@ -7,6 +7,11 @@
     "dev": "vite --host 127.0.0.1",
     "dev:lan": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
+    "perf:idle": "node perf-idle.mjs",
+    "perf:longmove": "node perf-longmove.mjs",
+    "perf:diagnose": "node perf-diagnose.mjs",
+    "perf:trace": "node perf-trace.mjs",
+    "perf:trace-analyze": "node perf-analyze-trace.mjs",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

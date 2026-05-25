@@ -8,6 +8,33 @@ import { levelToRuntime } from "./levels/convert";
 import { loadLocalLevel } from "./levels/storage";
 import type { LevelDefinition } from "./levels/types";
 
+declare global {
+  interface Window {
+    __cannonballPerf?: {
+      startGame: () => void;
+      startLongMove: (speed?: number) => { waypoints: { x: number; z: number }[]; speed: number };
+      longMoveStatus: () => {
+        active: boolean;
+        finished: boolean;
+        currentIndex: number;
+        waypointCount: number;
+        distanceTraveled: number;
+        elapsedMs: number;
+      };
+      diagnostics: () => Array<{
+        frameMs: number;
+        dt: number;
+        updateMs: number;
+        syncMs: number;
+        effectsMs: number;
+        renderMs: number;
+        syncParts: Record<string, number>;
+        renderer: { calls: number; triangles: number; textures: number; geometries: number };
+      }>;
+    };
+  }
+}
+
 // ?perf=1 enables the performance overlay (stats.js FPS/MS + renderer info)
 function mountPerfOverlay(view: SceneView): void {
   if (new URLSearchParams(window.location.search).get("perf") !== "1") return;
@@ -122,26 +149,38 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
   const runtimeLevel = await loadRequestedLevel();
   const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
   const campaignLevels = runtimeLevel ? [] : (await loadCampaignLevels()).map(levelToRuntime);
+  const debugParams = new URLSearchParams(window.location.search);
+  const noObstacles = debugParams.get("noobstacles") === "1";
+  const noMonsters = debugParams.get("nomonsters") === "1";
   const input = new Input(sceneRoot);
   const firstCampaignLevel = campaignLevels[0];
   const viewLevel = convertedLevel ?? firstCampaignLevel;
-  const view = new SceneView(sceneRoot, viewLevel?.obstacles, viewLevel);
+  const view = new SceneView(sceneRoot, noObstacles ? [] : viewLevel?.obstacles, viewLevel);
   mountPerfOverlay(view);
   const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
-  const game = new Game(input, view, hud, convertedLevel, { campaignLevels });
+  const game = new Game(input, view, hud, convertedLevel, { campaignLevels, noMonsters, noObstacles });
+
+  const startGame = () => {
+    startOverlay.hidden = true;
+    resultOverlay.hidden = true;
+    pauseOverlay.hidden = true;
+    buffOverlay.hidden = true;
+    game.start();
+  };
+
+  window.__cannonballPerf = {
+    startGame,
+    startLongMove: (speed?: number) => game.startLongMovePerfTest(speed),
+    longMoveStatus: () => game.getLongMovePerfStatus(),
+    diagnostics: () => game.getPerfDiagnostics(),
+  };
 
 startButton.addEventListener("click", () => {
-  startOverlay.hidden = true;
-  resultOverlay.hidden = true;
-  game.start();
+  startGame();
 });
 
 restartButton.addEventListener("click", () => {
-  startOverlay.hidden = true;
-  resultOverlay.hidden = true;
-  pauseOverlay.hidden = true;
-  buffOverlay.hidden = true;
-  game.start();
+  startGame();
 });
 
 resumeButton.addEventListener("click", () => {
@@ -149,11 +188,7 @@ resumeButton.addEventListener("click", () => {
 });
 
 pauseRestartButton.addEventListener("click", () => {
-  startOverlay.hidden = true;
-  resultOverlay.hidden = true;
-  pauseOverlay.hidden = true;
-  buffOverlay.hidden = true;
-  game.start();
+  startGame();
 });
 
 hud.onUpgrade((upgradeId) => {

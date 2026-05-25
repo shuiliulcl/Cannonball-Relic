@@ -14,13 +14,40 @@ function resolveViewMode(): ViewMode {
   return value === "2.5d" ? "2.5d" : "2d";
 }
 
+function resolveCameraRatio(): number {
+  const value = Number(new URLSearchParams(window.location.search).get("cameraratio"));
+  if (Number.isFinite(value) && value > 0.2 && value <= 1.5) {
+    return value;
+  }
+  return 0.95;
+}
+
+function resolvePixelRatio(): number {
+  const value = Number(new URLSearchParams(window.location.search).get("pixelratio"));
+  if (Number.isFinite(value) && value >= 0.5 && value <= 2) {
+    return value;
+  }
+  return 1;
+}
+
+function resolveAntialias(): boolean {
+  return new URLSearchParams(window.location.search).get("aa") === "1";
+}
+
+function resolveScrollMode(): "camera" | "world" {
+  return new URLSearchParams(window.location.search).get("scrollmode") === "camera" ? "camera" : "world";
+}
+
 export class SceneView {
   private readonly scene = new THREE.Scene();
+  private readonly worldGroup = new THREE.Group();
   private readonly camera = new THREE.OrthographicCamera();
-  private readonly renderer = new THREE.WebGLRenderer({ antialias: true });
+  private readonly renderer = new THREE.WebGLRenderer({ antialias: resolveAntialias() });
   private readonly textureLoader = new THREE.TextureLoader();
   private readonly skin = resolveSkinAssets();
   private readonly viewMode = resolveViewMode();
+  private readonly cameraRatio = resolveCameraRatio();
+  private readonly scrollMode = resolveScrollMode();
   private readonly playerMesh = makeCylinder(0.34, 0.65, 0x346c86);
   private readonly playerSprite = this.createSprite(this.skin.player, 1.25, 1.1);
   private readonly marbleMesh = new THREE.Mesh(
@@ -42,6 +69,9 @@ export class SceneView {
   // Half-extents of the current camera frustum in world units (updated by resize())
   private _camHalfW = 7.5;
   private _camHalfH = 4.0;
+  private _scrollX = 0;
+  private _scrollZ = 0;
+  private readonly noFloor = new URLSearchParams(window.location.search).get("nofloor") === "1";
 
   // Shared geometry/material for health bars — all monster instances reuse these
   // so the GPU only uploads VBOs and compiles shaders once.
@@ -51,21 +81,28 @@ export class SceneView {
   private readonly _hpFillMat = new THREE.MeshBasicMaterial({ color: 0xe33b2f, side: THREE.DoubleSide });
   // Cache SpriteMaterial by "url|tint" key — avoids per-spawn texture/shader upload stall.
   private readonly _spriteMatCache = new Map<string, THREE.SpriteMaterial>();
+  // Cache no-map SpriteMaterial by color — glow/projectile sprites share the same program.
+  private readonly _glowMatCache = new Map<number, THREE.SpriteMaterial>();
+  // True after warmupGPU() has been called at least once (i.e., game has started).
+  // The onLoad callback only re-runs warmup before game start so it doesn't cause
+  // a synchronous render stall between rAF frames during gameplay.
+  private _warmupDone = false;
 
   constructor(
     private readonly root: HTMLElement,
     initialObstacles: readonly Obstacle[] = OBSTACLES,
     private runtimeLevel?: RuntimeLevel,
   ) {
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(resolvePixelRatio());
     this.renderer.setClearColor(0x0a0a0f);
     this.renderer.shadowMap.enabled = false;
     root.appendChild(this.renderer.domElement);
 
     this.scene.background = new THREE.Color(0x0a0a0f);
-    this.effects = new Effects(this.scene);
-    this.trajectory = new TrajectoryView(this.scene);
-    this.scene.add(this.arenaGroup);
+    this.scene.add(this.worldGroup);
+    this.effects = new Effects(this.worldGroup);
+    this.trajectory = new TrajectoryView(this.worldGroup);
+    this.worldGroup.add(this.arenaGroup);
 
     this.setupCamera();
     this.setupLights();
@@ -75,16 +112,32 @@ export class SceneView {
 
     this.playerMesh.position.y = 0.34;
     this.playerMesh.visible = false;
-    this.scene.add(this.playerMesh);
-    this.scene.add(this.playerSprite);
+    this.worldGroup.add(this.playerMesh);
+    this.worldGroup.add(this.playerSprite);
 
     this.marbleMesh.position.y = 0.28;
     this.marbleMesh.scale.setScalar(0.55);
-    this.scene.add(this.marbleMesh);
-    this.scene.add(this.marbleSprite);
+    this.worldGroup.add(this.marbleMesh);
+    this.worldGroup.add(this.marbleSprite);
 
     window.addEventListener("resize", () => this.resize());
     this.resize();
+
+    // warmupGPU() called from game.start() runs before textures finish loading
+    // (async), so it pre-warms shaders but leaves texture slots with placeholder
+    // data.  Re-run it once all assets are loaded so the GPU actually receives
+    // real pixel data before any gameplay frame needs it.
+    THREE.DefaultLoadingManager.onLoad = () => {
+      // Only pre-warm while on the title screen. After game.start() calls
+      // warmupGPU() (setting _warmupDone), running another synchronous render
+      // from an async callback would delay the next rAF and register as a stutter.
+      // textures load fast enough on the local server that _warmupDone is false
+      // for the first batch (floor/player/obstacles). initTexture() in loadTexture()
+      // handles GPU upload for any textures that finish loading after start().
+      if (!this._warmupDone) {
+        this.warmupGPU();
+      }
+    };
   }
 
   render(): void {
@@ -117,8 +170,17 @@ export class SceneView {
       const maxZ = Math.max(0, hd - halfH);
       const camX = Math.max(-maxX, Math.min(maxX, player.position.x));
       const camZ = Math.max(-maxZ, Math.min(maxZ, player.position.z));
-      this.camera.position.x = camX;
-      this.camera.position.z = camZ + 0.001;
+      this._scrollX = camX;
+      this._scrollZ = camZ;
+      if (this.scrollMode === "world") {
+        this.camera.position.x = 0;
+        this.camera.position.z = 0.001;
+        this.worldGroup.position.set(-camX, 0, -camZ);
+      } else {
+        this.worldGroup.position.set(0, 0, 0);
+        this.camera.position.x = camX;
+        this.camera.position.z = camZ + 0.001;
+      }
     }
   }
 
@@ -139,7 +201,7 @@ export class SceneView {
     const liveIds = new Set(marbles.map((marble) => marble.id));
     for (const [id, mesh] of this.auxiliaryMarbleMeshes) {
       if (!liveIds.has(id)) {
-        this.scene.remove(mesh);
+        this.worldGroup.remove(mesh);
         this.auxiliaryMarbleMeshes.delete(id);
       }
     }
@@ -150,7 +212,7 @@ export class SceneView {
         sprite = this.createSprite(this.skin.marble, 0.48, 0.48);
         (sprite.material as THREE.SpriteMaterial).color.setHex(0xb8f4ff);
         this.auxiliaryMarbleMeshes.set(marble.id, sprite);
-        this.scene.add(sprite);
+        this.worldGroup.add(sprite);
       }
       sprite.position.set(marble.position.x, 0.52, marble.position.z);
     }
@@ -160,7 +222,7 @@ export class SceneView {
     const liveIds = new Set(projectiles.map((projectile) => projectile.id));
     for (const [id, mesh] of this.enemyProjectileMeshes) {
       if (!liveIds.has(id)) {
-        this.scene.remove(mesh);
+        this.worldGroup.remove(mesh);
         this.enemyProjectileMeshes.delete(id);
       }
     }
@@ -170,7 +232,7 @@ export class SceneView {
       if (!sprite) {
         sprite = this.createGlowSprite(0xffdf72, 0.32);
         this.enemyProjectileMeshes.set(projectile.id, sprite);
-        this.scene.add(sprite);
+        this.worldGroup.add(sprite);
       }
       sprite.position.set(projectile.position.x, 0.48, projectile.position.z);
     }
@@ -180,7 +242,7 @@ export class SceneView {
     const aliveIds = new Set(monsters.map((monster) => monster.id));
     for (const [id, mesh] of this.monsterMeshes) {
       if (!aliveIds.has(id)) {
-        this.scene.remove(mesh);
+        this.worldGroup.remove(mesh);
         this.monsterMeshes.delete(id);
       }
     }
@@ -190,7 +252,7 @@ export class SceneView {
       if (!group) {
         group = this.createMonsterMesh(monster.monsterType);
         this.monsterMeshes.set(monster.id, group);
-        this.scene.add(group);
+        this.worldGroup.add(group);
       }
       group.position.set(monster.position.x, 0, monster.position.z);
       const healthScale = Math.max(0.35, monster.hp / monster.maxHp);
@@ -206,15 +268,15 @@ export class SceneView {
 
   clearTransientObjects(): void {
     for (const mesh of this.monsterMeshes.values()) {
-      this.scene.remove(mesh);
+      this.worldGroup.remove(mesh);
     }
     this.monsterMeshes.clear();
     for (const mesh of this.auxiliaryMarbleMeshes.values()) {
-      this.scene.remove(mesh);
+      this.worldGroup.remove(mesh);
     }
     this.auxiliaryMarbleMeshes.clear();
     for (const mesh of this.enemyProjectileMeshes.values()) {
-      this.scene.remove(mesh);
+      this.worldGroup.remove(mesh);
     }
     this.enemyProjectileMeshes.clear();
     this.hideTrajectory();
@@ -264,13 +326,13 @@ export class SceneView {
       }
 
       this.obstacleMeshes.set(obstacle.id, group);
-      this.scene.add(group);
+      this.worldGroup.add(group);
     }
   }
 
   setObstacles(obstacles: readonly Obstacle[]): void {
     for (const mesh of this.obstacleMeshes.values()) {
-      this.scene.remove(mesh);
+      this.worldGroup.remove(mesh);
     }
     this.obstacleMeshes.clear();
     this.syncObstacles(obstacles);
@@ -278,7 +340,7 @@ export class SceneView {
 
   setInteractables(interactables: ReadonlyArray<RuntimeLevel["interactables"][number]>): void {
     for (const mesh of this.interactableMeshes.values()) {
-      this.scene.remove(mesh);
+      this.worldGroup.remove(mesh);
     }
     this.interactableMeshes.clear();
     for (const interactable of interactables) {
@@ -286,7 +348,7 @@ export class SceneView {
       group.position.set(interactable.position.x, 0, interactable.position.z);
       group.add(this.createInteractableMesh(interactable.type));
       this.interactableMeshes.set(interactable.id, group);
-      this.scene.add(group);
+      this.worldGroup.add(group);
     }
   }
 
@@ -305,11 +367,14 @@ export class SceneView {
    * first enter the camera frustum during scrolling trigger synchronous GPU stalls.
    */
   warmupGPU(): void {
+    this._warmupDone = true;
     const hw = this.arenaHW + 1;
     const hd = this.arenaHD + 1;
     const { left, right, top, bottom } = this.camera;
     const px = this.camera.position.x;
     const pz = this.camera.position.z;
+    const wx = this.worldGroup.position.x;
+    const wz = this.worldGroup.position.z;
 
     this.camera.left = -hw;
     this.camera.right = hw;
@@ -317,6 +382,7 @@ export class SceneView {
     this.camera.bottom = -hd;
     this.camera.position.x = 0;
     this.camera.position.z = 0.001;
+    this.worldGroup.position.set(0, 0, 0);
     this.camera.updateProjectionMatrix();
 
     // Pre-build one mesh for each monster type so their geometry/material is
@@ -328,13 +394,19 @@ export class SceneView {
     const dummies = monsterTypes.map((t) => {
       const g = this.createMonsterMesh(t);
       g.position.set(0, 0, 0); // within frustum so GPU uploads geometry/compiles shaders
-      this.scene.add(g);
+      this.worldGroup.add(g);
       return g;
     });
+    // Pre-compile the no-map SpriteMaterial shader variant (used by glow/projectile sprites).
+    // Without this, the first enemy projectile spawn triggers a synchronous shader compile.
+    const glowDummy = this.createGlowSprite(0xffdf72, 0.32);
+    glowDummy.position.set(0, 0, 0);
+    this.worldGroup.add(glowDummy);
 
     this.renderer.render(this.scene, this.camera);
 
-    for (const g of dummies) this.scene.remove(g);
+    for (const g of dummies) this.worldGroup.remove(g);
+    this.worldGroup.remove(glowDummy);
 
     this.camera.left = left;
     this.camera.right = right;
@@ -342,12 +414,16 @@ export class SceneView {
     this.camera.bottom = bottom;
     this.camera.position.x = px;
     this.camera.position.z = pz;
+    this.worldGroup.position.set(wx, 0, wz);
     this.camera.updateProjectionMatrix();
   }
 
   pointerToPlane(pointer: THREE.Vector2): Vec2 {
     this._raycaster.setFromCamera(pointer, this.camera);
     this._raycaster.ray.intersectPlane(this._groundPlane, this._planeHit);
+    if (this.scrollMode === "world" && this.viewMode === "2d") {
+      return { x: this._planeHit.x + this._scrollX, z: this._planeHit.z + this._scrollZ };
+    }
     return { x: this._planeHit.x, z: this._planeHit.z };
   }
 
@@ -372,6 +448,7 @@ export class SceneView {
 
   private rebuildArena(): void {
     this.arenaGroup.clear();
+    if (this.noFloor) return;
     if (this.viewMode === "2d") {
       this.buildTopDownArena();
     } else {
@@ -696,12 +773,16 @@ export class SceneView {
   }
 
   private createGlowSprite(color: number, size: number): THREE.Sprite {
-    const material = new THREE.SpriteMaterial({
-      color,
-      transparent: true,
-      opacity: 0.95,
-      depthWrite: false,
-    });
+    let material = this._glowMatCache.get(color);
+    if (!material) {
+      material = new THREE.SpriteMaterial({
+        color,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+      });
+      this._glowMatCache.set(color, material);
+    }
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(size, size, 1);
     return sprite;
@@ -899,14 +980,14 @@ export class SceneView {
     const width = Math.max(1, rect.width);
     const height = Math.max(1, rect.height);
     const aspect = width / height;
-    // Show 60% of the arena in the most-constrained dimension, maintaining
-    // the window's aspect ratio (no distortion). This ensures the camera
-    // always needs to scroll regardless of window size.
-    const ratio = 0.75;
     const hw = this.arenaHW;
     const hd = this.arenaHD;
-    const halfW = Math.min(hw * ratio, hd * ratio * aspect);
-    const halfH = halfW / aspect;
+    // Keep world scale stable across window widths: the vertical span is fixed
+    // by arena depth, and aspect only changes how much extra side area is shown.
+    // The previous width-constrained formula made half-width windows zoom out
+    // vertically, so half-screen and full-screen looked like different games.
+    const halfH = hd * this.cameraRatio;
+    const halfW = halfH * aspect;
     this._camHalfW = halfW;
     this._camHalfH = halfH;
     this.camera.left = -halfW;
