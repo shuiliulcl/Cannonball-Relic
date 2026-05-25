@@ -80,9 +80,14 @@ button:focus-visible {
 }
 
 .stage-shell.modal-open .controls-panel,
-.stage-shell.modal-open .buff-panel {
+.stage-shell.modal-open .combat-panel,
+.stage-shell.modal-open .charge-panel {
   opacity: 0;
   transform: translateY(18px);
+}
+
+.stage-shell.modal-open .charge-panel {
+  transform: translate(-50%, 18px);
 }
 
 .stage-shell.modal-open .game-hud {
@@ -92,7 +97,8 @@ button:focus-visible {
 .hp-panel,
 .progress-panel,
 .controls-panel,
-.buff-panel {
+.combat-panel,
+.charge-panel {
   position: absolute;
   border: 3px solid #6f4326;
   border-radius: 4px;
@@ -286,24 +292,18 @@ button:focus-visible {
   text-shadow: none;
 }
 
-.buff-panel {
-  left: 50%;
+.combat-panel {
+  right: 18px;
   bottom: 18px;
-  width: min(500px, 40vw);
-  min-height: 78px;
-  transform: translateX(-50%);
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  gap: 7px 10px;
-  padding: 10px 14px;
+  width: 236px;
+  padding: 10px 12px;
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.buff-panel .panel-title {
-  grid-column: 1 / -1;
-  margin: 0;
+.combat-panel .panel-title {
+  margin-bottom: 7px;
   color: #ffd84a;
+  font-size: 17px;
   text-shadow:
     1px 0 #7e5119,
     -1px 0 #7e5119,
@@ -311,15 +311,33 @@ button:focus-visible {
     0 -1px #7e5119;
 }
 
-.buff-icon {
+.charge-panel {
+  left: 50%;
+  bottom: 18px;
+  width: min(430px, 42vw);
+  min-height: 48px;
+  transform: translateX(-50%);
   display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 3px solid #6b3f25;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #7ee98e, #27793e 70%);
-  color: #e6ffd5;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.charge-label {
+  color: #6b7eff;
+  font-size: 16px;
+  line-height: 1;
+  text-shadow:
+    1px 0 #eef0ff,
+    -1px 0 #eef0ff,
+    0 1px #eef0ff,
+    0 -1px #eef0ff;
+}
+
+.charge-panel .buff-meter {
+  height: 24px;
 }
 
 .buff-meter {
@@ -660,19 +678,28 @@ button:focus-visible {
     width: calc(100vw - 24px);
   }
 
-  .controls-panel,
-  .buff-panel {
-    width: calc(100vw - 24px);
+  .controls-panel {
     left: 12px;
+    bottom: 84px;
+    width: min(270px, calc(100vw - 24px));
+  }
+
+  .combat-panel {
+    top: 132px;
+    right: 12px;
+    bottom: auto;
+    width: min(220px, calc(100vw - 24px));
+  }
+
+  .charge-panel {
+    left: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
     transform: none;
   }
 
-  .controls-panel {
-    bottom: 126px;
-  }
-
-  .buff-panel {
-    bottom: 12px;
+  .stage-shell.modal-open .charge-panel {
+    transform: translateY(18px);
   }
 
   .upgrade-choices {
@@ -693,7 +720,7 @@ button:focus-visible {
 
 @media (max-height: 620px) {
   .controls-panel,
-  .buff-panel {
+  .combat-panel {
     display: none;
   }
 
