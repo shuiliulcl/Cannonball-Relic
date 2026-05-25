@@ -19,6 +19,10 @@ const RARITY_LABEL: Record<UpgradeRarity, string> = {
 };
 
 export class Hud {
+  private readonly hpPanel = document.querySelector<HTMLElement>(".hp-panel");
+  private readonly buffPanel = document.querySelector<HTMLElement>(".buff-panel");
+  private readonly buffIcon = document.querySelector<HTMLElement>(".buff-icon");
+  private readonly dashMeter = document.querySelector<HTMLElement>(".dash-meter");
   private readonly score = document.querySelector<HTMLElement>("#score");
   private readonly wave = document.querySelector<HTMLElement>("#wave");
   private readonly hp = document.querySelector<HTMLElement>("#hp");
@@ -72,20 +76,26 @@ export class Hud {
       this.hp.textContent = `${snapshot.hp}/${snapshot.maxHp}`;
     }
     if (this.shields) {
-      this.shields.textContent = snapshot.shields > 0 ? `◆×${snapshot.shields}` : "";
-      this.shields.style.display = snapshot.shields > 0 ? "" : "none";
+      this.shields.textContent = snapshot.shields > 0 ? `护盾 x${snapshot.shields}` : "护盾 x0";
+      this.shields.classList.toggle("is-empty", snapshot.shields <= 0);
     }
     if (this.hpFill) {
-      this.hpFill.style.width = `${Math.max(0, Math.min(100, (snapshot.hp / snapshot.maxHp) * 100))}%`;
+      const hpRatio = Math.max(0, Math.min(1, snapshot.hp / snapshot.maxHp));
+      this.hpFill.style.width = `${hpRatio * 100}%`;
+      this.hpPanel?.classList.toggle("is-low", hpRatio <= 0.35);
     }
     if (this.charge) {
       this.charge.textContent = `${Math.round(snapshot.chargeRatio * 100)}%`;
     }
     if (this.chargeFill) {
-      this.chargeFill.style.width = `${Math.round(snapshot.chargeRatio * 100)}%`;
+      const chargePercent = Math.round(snapshot.chargeRatio * 100);
+      this.chargeFill.style.width = `${chargePercent}%`;
+      this.buffIcon?.style.setProperty("--charge-angle", `${chargePercent * 3.6}deg`);
     }
     if (this.dashFill) {
-      this.dashFill.style.width = `${Math.round(Math.max(0, Math.min(1, snapshot.dashCooldownRatio)) * 100)}%`;
+      const dashRatio = Math.max(0, Math.min(1, snapshot.dashCooldownRatio));
+      this.dashFill.style.width = `${Math.round(dashRatio * 100)}%`;
+      this.dashMeter?.classList.toggle("is-ready", dashRatio >= 1);
     }
     if (this.dashCooldown) {
       this.dashCooldown.textContent = snapshot.dashCooldownText;
@@ -98,7 +108,9 @@ export class Hud {
     }
     if (this.damageScale) {
       this.damageScale.textContent = `x${snapshot.damageScale}`;
+      this.damageScale.classList.toggle("is-boosted", snapshot.damageScale > 1);
     }
+    this.buffPanel?.setAttribute("data-marble-state", snapshot.marbleState);
     if (this.buffButton) {
       this.buffButton.dataset.count = snapshot.ownedBuffs.length.toString();
       this.buffButton.classList.toggle("has-buffs", snapshot.ownedBuffs.length > 0);
