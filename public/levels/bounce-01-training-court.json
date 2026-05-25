@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "name": "Bounce 01 - Training Block",
+  "description": "V2 level 1: a larger training block with simple bumpers, two readable ranged threats, one patrol line, and a few stationary reward targets.",
+  "maxWaves": 1,
+  "grid": {
+    "width": 20,
+    "height": 14,
+    "cellSize": 1
+  },
+  "playerStart": { "x": 10, "z": 12 },
+  "floors": [],
+  "obstacles": [
+    { "id": "left-bumper", "x": 3, "z": 4, "w": 1, "h": 5, "material": "wood", "behavior": "solid" },
+    { "id": "right-bumper", "x": 16, "z": 4, "w": 1, "h": 5, "material": "wood", "behavior": "solid" },
+    { "id": "top-bumper", "x": 8, "z": 3, "w": 4, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "lower-bumper", "x": 8, "z": 8, "w": 4, "h": 1, "material": "wood", "behavior": "solid" }
+  ],
+  "interactables": [],
+  "spawns": [
+    { "id": "ranged-left", "x": 6, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 12, "disengageRange": 18 },
+    { "id": "ranged-right", "x": 14, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 12, "disengageRange": 18 },
+    {
+      "id": "street-hound",
+      "x": 5,
+      "z": 10,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 3.5,
+      "disengageRange": 9,
+      "patrolPath": [
+        { "x": 5, "z": 10 },
+        { "x": 15, "z": 10 }
+      ]
+    },
+    { "id": "reward-stump-left", "x": 6, "z": 7, "wave": 1, "count": 1, "monsterType": "grunt", "interval": 0, "stationary": true },
+    { "id": "reward-stump-center", "x": 10, "z": 6, "wave": 1, "count": 1, "monsterType": "grunt", "interval": 0, "stationary": true },
+    { "id": "reward-stump-right", "x": 14, "z": 7, "wave": 1, "count": 1, "monsterType": "grunt", "interval": 0, "stationary": true }
+  ]
+}

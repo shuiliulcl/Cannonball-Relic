@@ -28,7 +28,7 @@ export const HUMAN_CANNON = {
 
 export const MARBLE = {
   radius: 0.5,
-  baseSpeed: 10,
+  baseSpeed: 8,
   maxChargeSeconds: 0.9,
   baseRange: 40,
   baseDamage: 1,

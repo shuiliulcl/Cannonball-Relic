@@ -41,6 +41,15 @@ type PerfFrameDiag = {
   renderer: { calls: number; triangles: number; textures: number; geometries: number };
 };
 
+const CHARGE_WORLD_TIME_SCALE = 0.38;
+const AIM_ASSIST_ANGLE = Math.PI / 14;
+const AIM_ASSIST_STRENGTH = 0.42;
+const AIM_ASSIST_RANGE = 13;
+const TRAJECTORY_PREVIEW_BOUNCES = 2;
+const MANUAL_RECALL_DAMAGE_BONUS = 2;
+const MANUAL_RECALL_SPEED_MULTIPLIER = 1.45;
+const AUTO_RECALL_DELAY_SECONDS = 3;
+
 export class Game {
   private player: Player = this.createPlayer();
   private stats: UpgradeStats = DEFAULT_UPGRADE_STATS();
@@ -67,6 +76,9 @@ export class Game {
   private bronzeStreakCount = 0;
   private pendingChainBonus = 0;
   private fragmentUsedThisShot = false;
+  private manualRecallActive = false;
+  private manualRecallRewarded = false;
+  private autoRecallDelayTimer = 0;
   private pausedForBuffPanel = false;
   private wasPausedBeforeBuffPanel = false;
   private baseObstacles: Obstacle[];
@@ -147,6 +159,9 @@ export class Game {
     this.bronzeStreakCount = 0;
     this.pendingChainBonus = 0;
     this.fragmentUsedThisShot = false;
+    this.manualRecallActive = false;
+    this.manualRecallRewarded = false;
+    this.autoRecallDelayTimer = 0;
     this.pendingCampaignAdvance = false;
     this.pausedForBuffPanel = false;
     this.wasPausedBeforeBuffPanel = false;
@@ -354,11 +369,12 @@ export class Game {
 
   private update(dt: number): void {
     this.updatePlayer(dt);
-    this.updateMarble(dt);
-    this.updateAuxiliaryMarbles(dt);
-    this.updateSpawnQueue(dt);
-    this.updateMonsters(dt);
-    this.updateEnemyProjectiles(dt);
+    const worldDt = dt * this.worldTimeScale();
+    this.updateMarble(worldDt);
+    this.updateAuxiliaryMarbles(worldDt);
+    this.updateSpawnQueue(worldDt);
+    this.updateMonsters(worldDt);
+    this.updateEnemyProjectiles(worldDt);
     this.handleHits();
 
     if (!this.noMonsters && this.monsters.length === 0 && !this.hasPendingSpawns()) {
@@ -374,6 +390,10 @@ export class Game {
       playWaveClear();
       this.hud.showUpgrades(draftUpgrades(3, this.wave, this.blockedDiamondUpgrades, this.bronzeStreakCount));
     }
+  }
+
+  private worldTimeScale(): number {
+    return this.marble.state === "charging" ? CHARGE_WORLD_TIME_SCALE : 1;
   }
 
   private handleCampaignRoomClear(): void {
@@ -414,6 +434,9 @@ export class Game {
     this.player.rollTimer = 0;
     this.player.rollVelocity = { x: 0, z: 0 };
     this.marble = this.createMarble();
+    this.manualRecallActive = false;
+    this.manualRecallRewarded = false;
+    this.autoRecallDelayTimer = 0;
     this.view.clearTransientObjects();
     this.view.warmupGPU();
     this.spawnWave();
@@ -531,7 +554,8 @@ export class Game {
       const chargeRatio = this.chargeSeconds / MARBLE.maxChargeSeconds;
       updateCharge(chargeRatio);
       const direction = this.aimDirection();
-      this.view.showTrajectory(makeTrajectory(this.player.position, direction, MARBLE.maxBounces + this.stats.maxBouncesBonus, this.obstacles, 0.2, MARBLE.radius + this.stats.marbleRadiusBonus, this.arena), chargeRatio);
+      const previewBounces = Math.min(TRAJECTORY_PREVIEW_BOUNCES, MARBLE.maxBounces + this.stats.maxBouncesBonus);
+      this.view.showTrajectory(makeTrajectory(this.player.position, direction, previewBounces, this.obstacles, 0.2, MARBLE.radius + this.stats.marbleRadiusBonus, this.arena), chargeRatio);
     }
 
     if (this.input.consumeLeftRelease() && this.marble.state === "charging") {
@@ -547,6 +571,9 @@ export class Game {
       this.marble.bonusDamage = this.pendingChainBonus;
       this.pendingChainBonus = 0;
       this.fragmentUsedThisShot = false;
+      this.manualRecallActive = false;
+      this.manualRecallRewarded = false;
+      this.autoRecallDelayTimer = 0;
       if (this.stats.hasTripleShot) {
         this.spawnFragmentMarbles(this.marble.position, this.marble.velocity, this.marble);
       }
@@ -554,10 +581,12 @@ export class Game {
       this.view.hideTrajectory();
     }
 
-    if (this.input.consumeRightPress() && (this.marble.state === "flying" || this.marble.state === "charging")) {
-      this.marble.state = "recalling";
-      this.view.hideTrajectory();
-      this.marble.hitIds.clear();
+    if (this.input.consumeRightPress()) {
+      if (this.marble.state === "flying" || this.marble.state === "awaitingRecall") {
+        this.startManualRecall();
+      } else if (this.marble.state === "charging") {
+        this.cancelCharge();
+      }
     }
   }
 
@@ -609,13 +638,31 @@ export class Game {
       return;
     }
 
+    if (this.marble.state === "awaitingRecall") {
+      this.marble.velocity = { x: 0, z: 0 };
+      this.autoRecallDelayTimer = Math.max(0, this.autoRecallDelayTimer - dt);
+      this.view.showTrajectory(this.recallTrajectoryPoints(), 0.45);
+      if (this.autoRecallDelayTimer <= 0) {
+        this.startAutoRecall();
+      }
+      return;
+    }
+
     if (this.marble.state === "recalling") {
       const toPlayer = sub(this.player.position, this.marble.position);
       if (distance(this.player.position, this.marble.position) < this.player.radius + this.marble.radius) {
         this.marble = this.createMarble();
+        this.manualRecallActive = false;
+        this.manualRecallRewarded = false;
+        this.autoRecallDelayTimer = 0;
+        this.view.hideTrajectory();
         return;
       }
-      this.marble.velocity = scale(normalize(toPlayer), MARBLE.recallSpeed * this.stats.recallSpeedMultiplier);
+      const recallSpeedMultiplier = this.manualRecallActive ? MANUAL_RECALL_SPEED_MULTIPLIER : 1;
+      this.marble.velocity = scale(normalize(toPlayer), MARBLE.recallSpeed * this.stats.recallSpeedMultiplier * recallSpeedMultiplier);
+      if (this.manualRecallActive) {
+        this.view.showTrajectory(this.recallTrajectoryPoints(), 1);
+      }
     }
 
     if (this.marble.state === "flying" && this.stats.homingAngle > 0) {
@@ -656,15 +703,60 @@ export class Game {
         this.damageMonstersInRadius(this.marble.position, 1.8, 1, 0);
       }
       if (this.marble.bounces >= MARBLE.maxBounces + this.stats.maxBouncesBonus) {
-        this.marble.state = "recalling";
-        this.marble.hitIds.clear();
+        this.beginRecallDelay();
       }
     }
 
     if (this.marble.distanceLeft <= 0 && this.marble.state === "flying") {
-      this.marble.state = "recalling";
-      this.marble.hitIds.clear();
+      this.beginRecallDelay();
     }
+  }
+
+  private beginRecallDelay(): void {
+    if (this.marble.state !== "flying") {
+      return;
+    }
+    this.marble.state = "awaitingRecall";
+    this.marble.velocity = { x: 0, z: 0 };
+    this.marble.hitIds.clear();
+    this.autoRecallDelayTimer = AUTO_RECALL_DELAY_SECONDS;
+    this.manualRecallActive = false;
+    this.manualRecallRewarded = false;
+    this.view.showTrajectory(this.recallTrajectoryPoints(), 0.45);
+    this.view.spark(this.marble.position, 0x8eeaff, 12);
+  }
+
+  private startManualRecall(): void {
+    this.marble.state = "recalling";
+    this.marble.hitIds.clear();
+    this.manualRecallActive = true;
+    this.manualRecallRewarded = false;
+    this.autoRecallDelayTimer = 0;
+    this.view.showTrajectory(this.recallTrajectoryPoints(), 1);
+    this.view.spark(this.marble.position, 0x8eeaff, 18);
+  }
+
+  private startAutoRecall(): void {
+    this.marble.state = "recalling";
+    this.marble.hitIds.clear();
+    this.manualRecallActive = false;
+    this.manualRecallRewarded = false;
+    this.autoRecallDelayTimer = 0;
+    this.view.showTrajectory(this.recallTrajectoryPoints(), 0.75);
+    this.view.spark(this.marble.position, 0x8eeaff, 10);
+  }
+
+  private recallTrajectoryPoints(): Vec2[] {
+    const points: Vec2[] = [];
+    const steps = 18;
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      points.push({
+        x: this.marble.position.x + (this.player.position.x - this.marble.position.x) * t,
+        z: this.marble.position.z + (this.player.position.z - this.marble.position.z) * t,
+      });
+    }
+    return points;
   }
 
   private updateAuxiliaryMarbles(dt: number): void {
@@ -720,8 +812,8 @@ export class Game {
       const direction = this.monsterMoveDirection(monster, dt);
       const floor = this.floorAt(monster.position);
       const speedMultiplier = floor === "mud" ? 0.5 : 1;
-      const chargeMultiplier = (monster.chargeTimer ?? 0) > 0 ? 2.4 : 1;
-      const jumpMultiplier = (monster.jumpTimer ?? 0) > 0 ? 3.2 : 1;
+      const chargeMultiplier = (monster.chargeTimer ?? 0) > 0 ? 2.05 : 1;
+      const jumpMultiplier = (monster.jumpTimer ?? 0) > 0 ? 2.65 : 1;
       const velocity = scale(direction, monster.speed * speedMultiplier * chargeMultiplier * jumpMultiplier);
       const movementResult = this.moveActorWithCollision(monster.position, velocity, monster.radius, dt);
       monster.position = this.canActorOccupy(movementResult.position, monster.radius) ? movementResult.position : monster.position;
@@ -845,7 +937,8 @@ export class Game {
 
     for (const marble of activeMarbles) {
       const baseDamage = calcBounceDamage(marble.bounces, MARBLE.baseDamage + this.stats.baseDamageBonus, this.stats.bounceBonusDamage) + marble.bonusDamage;
-      const damage = marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus : baseDamage;
+      const manualRecallBonus = marble === this.marble && this.manualRecallActive && marble.state === "recalling" ? MANUAL_RECALL_DAMAGE_BONUS : 0;
+      const damage = marble.state === "recalling" ? baseDamage + this.stats.recallDamageBonus + manualRecallBonus : baseDamage;
 
       const isDrill = this.stats.hasDrillMarble && marble === this.marble;
       for (let i = this.monsters.length - 1; i >= 0; i -= 1) {
@@ -865,6 +958,9 @@ export class Game {
           if (this.stats.hasFreezeHit) {
             monster.frozenTimer = (monster.frozenTimer ?? 0) + 2.0;
             monster.aiState = "idle";
+          }
+          if (manualRecallBonus > 0) {
+            this.rewardManualRecallHit(monster.position);
           }
           if (marble === this.marble) playHit();
           this.view.damageText(String(finalDamage), monster.position);
@@ -886,8 +982,7 @@ export class Game {
           if (marble.state === "flying") {
             marble.hp -= 1;
             if (marble.hp <= 0 && marble === this.marble) {
-              this.marble.state = "recalling";
-              this.marble.hitIds.clear();
+              this.beginRecallDelay();
             }
           }
         }
@@ -930,7 +1025,38 @@ export class Game {
 
   private aimDirection(): Vec2 {
     const target = this.view.pointerToPlane(this.input.pointer);
-    return normalize(sub(target, this.player.position));
+    return this.assistAimDirection(normalize(sub(target, this.player.position)));
+  }
+
+  private assistAimDirection(direction: Vec2): Vec2 {
+    if (this.monsters.length === 0 || (direction.x === 0 && direction.z === 0)) {
+      return direction;
+    }
+    let bestDirection: Vec2 | undefined;
+    let bestScore = -Infinity;
+    const cosLimit = Math.cos(AIM_ASSIST_ANGLE);
+    for (const monster of this.monsters) {
+      const toMonster = sub(monster.position, this.player.position);
+      const targetDistance = Math.hypot(toMonster.x, toMonster.z);
+      if (targetDistance < 0.001 || targetDistance > AIM_ASSIST_RANGE) {
+        continue;
+      }
+      const targetDirection = scale(toMonster, 1 / targetDistance);
+      const dot = direction.x * targetDirection.x + direction.z * targetDirection.z;
+      const forgivingLimit = Math.cos(AIM_ASSIST_ANGLE + Math.min(0.18, monster.radius / targetDistance));
+      if (dot < Math.min(cosLimit, forgivingLimit) || !this.hasLineOfSight(this.player.position, monster.position)) {
+        continue;
+      }
+      const score = dot * 3 - targetDistance * 0.05 + (monster.monsterType === "octopus" || monster.monsterType === "eyeCannon" ? 0.25 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestDirection = targetDirection;
+      }
+    }
+    if (!bestDirection) {
+      return direction;
+    }
+    return normalize(add(scale(direction, 1 - AIM_ASSIST_STRENGTH), scale(bestDirection, AIM_ASSIST_STRENGTH)));
   }
 
   private spawnWave(): void {
@@ -985,6 +1111,7 @@ export class Game {
   private spawnMonster(position: Vec2, monsterType: MonsterType, spawn?: RuntimeSpawn, overrides: Partial<Monster> = {}): void {
     const stats = this.monsterStats(monsterType);
     const hp = overrides.hp ?? stats.hp + Math.floor(this.wave / 2);
+    const stationary = spawn?.stationary ?? false;
     this.monsters.push({
       id: this.nextMonsterId,
       position: { ...position },
@@ -992,18 +1119,18 @@ export class Game {
       radius: stats.radius,
       hp,
       maxHp: overrides.maxHp ?? hp,
-      speed: overrides.speed ?? stats.speed + this.wave * 0.06,
+      speed: stationary ? 0 : overrides.speed ?? stats.speed + this.wave * 0.06,
       monsterType,
       patrolPath: spawn?.patrolPath,
       patrolIndex: 0,
-      aiState: spawn?.patrolPath?.length ? "patrol" : "alert",
+      aiState: stationary ? "idle" : spawn?.aiState ?? (spawn?.patrolPath?.length ? "patrol" : "alert"),
       attackCooldown: monsterType === "octopus" ? 1.2 : 0,
       jumpCooldown: monsterType === "rabbit" ? 0.8 : undefined,
       splitLevel: monsterType === "slime" ? 0 : undefined,
       supportCooldown: monsterType === "voodooFlower" || monsterType === "priest" ? 1.2 : undefined,
       noKnockback: monsterType === "shieldCrab" ? true : undefined,
-      aggroRange: spawn?.aggroRange ?? 15,
-      disengageRange: spawn?.disengageRange ?? 25,
+      aggroRange: stationary ? 0 : spawn?.aggroRange ?? 15,
+      disengageRange: stationary ? 0 : spawn?.disengageRange ?? 25,
       ...overrides,
     });
     this.nextMonsterId += 1;
@@ -1014,10 +1141,10 @@ export class Game {
       return { radius: MONSTER.radius * 0.86, hp: Math.max(1, MONSTER.hp - 1), speed: MONSTER.speed * 1.45 };
     }
     if (monsterType === "hound") {
-      return { radius: MONSTER.radius * 0.95, hp: MONSTER.hp, speed: MONSTER.speed * 1.55 };
+      return { radius: MONSTER.radius * 0.95, hp: MONSTER.hp, speed: MONSTER.speed * 1.35 };
     }
     if (monsterType === "boar") {
-      return { radius: MONSTER.radius * 1.08, hp: MONSTER.hp + 1, speed: MONSTER.speed * 1.25 };
+      return { radius: MONSTER.radius * 1.08, hp: MONSTER.hp + 1, speed: MONSTER.speed * 1.05 };
     }
     if (monsterType === "octopus") {
       return { radius: MONSTER.radius * 0.9, hp: MONSTER.hp, speed: 0 };
@@ -1029,7 +1156,7 @@ export class Game {
       return { radius: MONSTER.radius * 1.05, hp: MONSTER.hp + 1, speed: MONSTER.speed * 0.76 };
     }
     if (monsterType === "rabbit") {
-      return { radius: MONSTER.radius * 0.82, hp: MONSTER.hp, speed: MONSTER.speed * 1.18 };
+      return { radius: MONSTER.radius * 0.82, hp: MONSTER.hp, speed: MONSTER.speed * 1.05 };
     }
     if (monsterType === "bombBug") {
       return { radius: MONSTER.radius * 0.86, hp: Math.max(2, MONSTER.hp - 1), speed: MONSTER.speed * 1.35 };
@@ -1070,6 +1197,26 @@ export class Game {
     return Math.max(1, Math.ceil(damage * 0.35));
   }
 
+  private rewardManualRecallHit(position: Vec2): void {
+    if (this.manualRecallRewarded) {
+      return;
+    }
+    this.manualRecallRewarded = true;
+    if (this.player.shields < 2) {
+      this.player.shields += 1;
+      this.view.damageText("+SH", this.player.position);
+      this.view.spark(this.player.position, 0x8eeaff, 18);
+      return;
+    }
+    if (this.player.hp < this.stats.maxHp) {
+      this.player.hp = Math.min(this.stats.maxHp, this.player.hp + 1);
+      this.view.damageText("+1", this.player.position);
+      this.view.spark(this.player.position, 0x7ecf88, 18);
+      return;
+    }
+    this.view.spark(position, 0x8eeaff, 12);
+  }
+
   private updateMonsterAiState(monster: Monster, dt: number): void {
     const aggroRange = monster.aggroRange ?? 15;
     const disengageRange = monster.disengageRange ?? 25;
@@ -1086,9 +1233,10 @@ export class Game {
     if (monster.monsterType === "shieldCrab" && monster.aiState === "alert") {
       monster.shieldFacing = normalize(sub(this.player.position, monster.position));
     }
-    if (monster.monsterType === "boar" && monster.aiState === "alert" && (monster.chargeTimer ?? 0) <= 0 && distToPlayer <= 7) {
-      monster.chargeVelocity = scale(normalize(sub(this.player.position, monster.position)), monster.speed * 2.4);
-      monster.chargeTimer = 0.75;
+    if (monster.monsterType === "boar" && monster.aiState === "alert" && (monster.chargeTimer ?? 0) <= 0 && (monster.attackCooldown ?? 0) <= 0 && distToPlayer <= 7) {
+      monster.chargeVelocity = scale(normalize(sub(this.player.position, monster.position)), monster.speed * 2.05);
+      monster.chargeTimer = 0.62;
+      monster.attackCooldown = 1.45;
       monster.aiState = "alert";
       this.view.spark(monster.position, 0xffa23a, 12);
     }
@@ -1096,9 +1244,9 @@ export class Game {
       monster.jumpCooldown = Math.max(0, (monster.jumpCooldown ?? 0) - dt);
       monster.jumpTimer = Math.max(0, (monster.jumpTimer ?? 0) - dt);
       if (monster.aiState === "alert" && (monster.jumpCooldown ?? 0) <= 0 && distToPlayer >= 1.2 && distToPlayer <= 6) {
-        monster.jumpVelocity = scale(normalize(sub(this.player.position, monster.position)), monster.speed * 3.2);
+        monster.jumpVelocity = scale(normalize(sub(this.player.position, monster.position)), monster.speed * 2.65);
         monster.jumpTimer = 0.36;
-        monster.jumpCooldown = 1.35;
+        monster.jumpCooldown = 1.65;
         this.view.spark(monster.position, 0xd9f3ff, 10);
       }
     }
@@ -1162,13 +1310,13 @@ export class Game {
     this.enemyProjectiles.push({
       id: this.nextProjectileId,
       position: { ...monster.position },
-      velocity: scale(direction, isEyeCannon ? 7.4 : 5.4),
+      velocity: scale(direction, isEyeCannon ? 6.4 : 4.45),
       radius: isEyeCannon ? 0.2 : 0.16,
       damage: isEyeCannon ? 2 : 1,
-      ttl: isEyeCannon ? 3.2 : 4,
+      ttl: isEyeCannon ? 3.6 : 4.4,
     });
     this.nextProjectileId += 1;
-    monster.attackCooldown = isEyeCannon ? 2.15 : 1.55;
+    monster.attackCooldown = isEyeCannon ? 2.55 : 2.2;
     this.view.spark(monster.position, isEyeCannon ? 0xff4fdf : 0xffdf72, isEyeCannon ? 14 : 8);
   }
 
@@ -1347,6 +1495,9 @@ export class Game {
     this.player.cannonBounces = 0;
     this.player.cannonHitIds.clear();
     this.marble = this.createMarble();
+    this.manualRecallActive = false;
+    this.manualRecallRewarded = false;
+    this.autoRecallDelayTimer = 0;
     this.view.hideTrajectory();
     this.view.spark(this.player.position, 0xffa23a, 24);
   }
@@ -1447,7 +1598,13 @@ export class Game {
   }
 
   private maxWaveForLevel(runtimeLevel: RuntimeLevel | undefined): number {
-    if (!runtimeLevel || runtimeLevel.spawns.length === 0) {
+    if (!runtimeLevel) {
+      return RUN.maxWaves;
+    }
+    if (runtimeLevel.maxWaves !== undefined) {
+      return Math.max(1, runtimeLevel.maxWaves);
+    }
+    if (runtimeLevel.spawns.length === 0) {
       return RUN.maxWaves;
     }
     return Math.max(1, ...runtimeLevel.spawns.map((spawn) => spawn.wave));

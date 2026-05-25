@@ -7,6 +7,7 @@ const MARBLE_STATE_LABEL: Record<GameSnapshot["marbleState"], string> = {
   ready: "待发射",
   charging: "蓄力中",
   flying: "飞行中",
+  awaitingRecall: "待回收",
   recalling: "回收中",
   cannon: "人间大炮",
 };

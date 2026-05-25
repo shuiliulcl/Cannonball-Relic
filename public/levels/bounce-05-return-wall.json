@@ -1,0 +1,65 @@
+{
+  "version": 2,
+  "name": "Bounce 05 - Return Wall Station",
+  "description": "V2 level 5: reflector walls turn the return path into the primary solution against chargers and backline shooters.",
+  "maxWaves": 1,
+  "grid": {
+    "width": 28,
+    "height": 18,
+    "cellSize": 1
+  },
+  "playerStart": { "x": 14, "z": 16 },
+  "floors": [],
+  "floorPatches": [
+    { "x": 11, "z": 10, "w": 6, "h": 3, "material": "danger" }
+  ],
+  "obstacles": [
+    { "id": "reflector-left", "x": 2, "z": 3, "w": 1, "h": 12, "material": "reflector", "behavior": "reflectBack", "facing": "right" },
+    { "id": "reflector-right", "x": 25, "z": 3, "w": 1, "h": 12, "material": "reflector", "behavior": "reflectBack", "facing": "left" },
+    { "id": "back-cover", "x": 11, "z": 3, "w": 6, "h": 1, "material": "stone", "behavior": "solid" },
+    { "id": "glass-left", "x": 11, "z": 8, "w": 2, "h": 1, "material": "glass", "behavior": "breakable", "hp": 1 },
+    { "id": "glass-right", "x": 15, "z": 8, "w": 2, "h": 1, "material": "glass", "behavior": "breakable", "hp": 1 },
+    { "id": "center-cover", "x": 11, "z": 11, "w": 6, "h": 1, "material": "wood", "behavior": "solid" }
+  ],
+  "interactables": [
+    { "id": "return-brazier", "x": 14, "z": 5, "type": "brazier" }
+  ],
+  "spawns": [
+    { "id": "charger-left", "x": 6, "z": 15, "wave": 1, "count": 1, "monsterType": "boar", "interval": 0, "aggroRange": 14, "disengageRange": 24 },
+    { "id": "charger-right", "x": 22, "z": 15, "wave": 1, "count": 1, "monsterType": "boar", "interval": 0, "aggroRange": 14, "disengageRange": 24 },
+    { "id": "back-ranged-left", "x": 8, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 20, "disengageRange": 28 },
+    { "id": "back-ranged-right", "x": 20, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 20, "disengageRange": 28 },
+    {
+      "id": "mid-hound-left",
+      "x": 6,
+      "z": 10,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 5,
+      "disengageRange": 12,
+      "patrolPath": [
+        { "x": 6, "z": 10 },
+        { "x": 22, "z": 10 }
+      ]
+    },
+    {
+      "id": "mid-hound-right",
+      "x": 22,
+      "z": 12,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 5,
+      "disengageRange": 12,
+      "patrolPath": [
+        { "x": 22, "z": 12 },
+        { "x": 6, "z": 12 }
+      ]
+    }
+  ]
+}

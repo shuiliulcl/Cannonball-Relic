@@ -1,4 +1,4 @@
-import type { FloorMaterial, InteractableType, MonsterType, Obstacle, ObstacleBehavior, ObstacleMaterial, Vec2 } from "../game/types";
+import type { FloorMaterial, InteractableType, MonsterAiState, MonsterType, Obstacle, ObstacleBehavior, ObstacleMaterial, Vec2 } from "../game/types";
 
 export type { FloorMaterial, InteractableType, MonsterType, ObstacleBehavior, ObstacleMaterial };
 
@@ -33,6 +33,8 @@ export type LevelSpawn = {
   count: number;
   monsterType: MonsterType;
   interval: number;
+  aiState?: MonsterAiState;
+  stationary?: boolean;
   patrolPath?: Array<{ x: number; z: number }>;
   aggroRange?: number;
   disengageRange?: number;
@@ -43,10 +45,19 @@ export type LevelVoidCell = {
   z: number;
 };
 
+export type LevelFloorPatch = {
+  x: number;
+  z: number;
+  w: number;
+  h: number;
+  material: FloorMaterial;
+};
+
 export type LevelDefinition = {
   version: 1 | 2;
   name: string;
   description?: string;
+  maxWaves?: number;
   grid: {
     width: number;
     height: number;
@@ -55,6 +66,7 @@ export type LevelDefinition = {
   playerStart?: { x: number; z: number };
   floors: FloorMaterial[];
   voids?: LevelVoidCell[];
+  floorPatches?: LevelFloorPatch[];
   obstacles: LevelObstacle[];
   interactables?: LevelInteractable[];
   spawns: LevelSpawn[];
@@ -75,6 +87,8 @@ export type RuntimeSpawn = {
   count: number;
   monsterType: MonsterType;
   interval: number;
+  aiState?: MonsterAiState;
+  stationary?: boolean;
   patrolPath?: Vec2[];
   aggroRange?: number;
   disengageRange?: number;
@@ -83,6 +97,7 @@ export type RuntimeSpawn = {
 export type RuntimeLevel = {
   name: string;
   description?: string;
+  maxWaves?: number;
   grid: LevelDefinition["grid"];
   arenaHalfWidth: number;
   arenaHalfDepth: number;

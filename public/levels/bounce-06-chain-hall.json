@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "name": "Bounce 06 - Neon Chain Hall",
+  "description": "V2 level 6: a multi-room test that chains accelerators, thorns, pinball interactables, ice control, and mixed enemy pressure.",
+  "maxWaves": 1,
+  "grid": {
+    "width": 30,
+    "height": 20,
+    "cellSize": 1
+  },
+  "playerStart": { "x": 15, "z": 18 },
+  "floors": [],
+  "floorPatches": [
+    { "x": 5, "z": 5, "w": 5, "h": 4, "material": "mud" },
+    { "x": 20, "z": 5, "w": 5, "h": 4, "material": "ice" },
+    { "x": 12, "z": 8, "w": 6, "h": 4, "material": "danger" }
+  ],
+  "obstacles": [
+    { "id": "outer-left", "x": 3, "z": 3, "w": 1, "h": 13, "material": "stone", "behavior": "solid" },
+    { "id": "outer-right", "x": 26, "z": 3, "w": 1, "h": 13, "material": "stone", "behavior": "solid" },
+    { "id": "outer-top", "x": 8, "z": 2, "w": 14, "h": 1, "material": "stone", "behavior": "solid" },
+    { "id": "left-room-gate", "x": 8, "z": 8, "w": 6, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "right-room-gate", "x": 16, "z": 8, "w": 6, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "center-low-cover", "x": 12, "z": 12, "w": 6, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "left-accelerator", "x": 6, "z": 4, "w": 1, "h": 1, "material": "accelerator", "behavior": "speedUp" },
+    { "id": "right-accelerator", "x": 23, "z": 4, "w": 1, "h": 1, "material": "accelerator", "behavior": "speedUp" },
+    { "id": "left-thorn", "x": 10, "z": 15, "w": 1, "h": 1, "material": "thorns", "behavior": "pierceDamage" },
+    { "id": "right-thorn", "x": 19, "z": 15, "w": 1, "h": 1, "material": "thorns", "behavior": "pierceDamage" },
+    { "id": "left-glass", "x": 6, "z": 10, "w": 1, "h": 1, "material": "glass", "behavior": "breakable", "hp": 1 },
+    { "id": "right-glass", "x": 23, "z": 10, "w": 1, "h": 1, "material": "glass", "behavior": "breakable", "hp": 1 },
+    { "id": "left-return", "x": 5, "z": 16, "w": 1, "h": 2, "material": "reflector", "behavior": "reflectBack", "facing": "right" },
+    { "id": "right-return", "x": 24, "z": 16, "w": 1, "h": 2, "material": "reflector", "behavior": "reflectBack", "facing": "left" }
+  ],
+  "interactables": [
+    { "id": "left-pinball", "x": 8, "z": 11, "type": "pinball" },
+    { "id": "right-pinball", "x": 21, "z": 11, "type": "pinball" },
+    { "id": "center-ice-ball", "x": 15, "z": 10, "type": "iceBall", "cooldown": 6 },
+    { "id": "back-brazier", "x": 15, "z": 4, "type": "brazier" }
+  ],
+  "spawns": [
+    { "id": "entry-boar-left", "x": 6, "z": 17, "wave": 1, "count": 1, "monsterType": "boar", "interval": 0, "aggroRange": 16, "disengageRange": 28 },
+    { "id": "entry-boar-right", "x": 23, "z": 17, "wave": 1, "count": 1, "monsterType": "boar", "interval": 0, "aggroRange": 16, "disengageRange": 28 },
+    { "id": "left-room-slime", "x": 6, "z": 7, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 },
+    { "id": "right-room-slime", "x": 23, "z": 7, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 },
+    { "id": "back-ranged-left", "x": 8, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 24, "disengageRange": 34 },
+    { "id": "back-ranged-right", "x": 21, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 24, "disengageRange": 34 },
+    {
+      "id": "chain-hound-loop",
+      "x": 15,
+      "z": 15,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 6,
+      "disengageRange": 14,
+      "patrolPath": [
+        { "x": 7, "z": 15 },
+        { "x": 22, "z": 15 },
+        { "x": 22, "z": 5 },
+        { "x": 7, "z": 5 }
+      ]
+    },
+    { "id": "center-rabbit", "x": 15, "z": 7, "wave": 1, "count": 1, "monsterType": "rabbit", "interval": 0, "aggroRange": 16, "disengageRange": 26 },
+    { "id": "center-reward-stump", "x": 15, "z": 3, "wave": 1, "count": 1, "monsterType": "grunt", "interval": 0, "stationary": true }
+  ]
+}

@@ -3,7 +3,7 @@ export type Vec2 = {
   z: number;
 };
 
-export type MarbleState = "ready" | "charging" | "flying" | "recalling" | "cannon";
+export type MarbleState = "ready" | "charging" | "flying" | "awaitingRecall" | "recalling" | "cannon";
 
 export type PlayerMode = "normal" | "humanCannon";
 

@@ -11,15 +11,17 @@ export function levelToRuntime(level: LevelDefinition): RuntimeLevel {
     z: originZ + z * cellSize,
   });
   const playerStart = level.playerStart ?? { x: 0, z: 0 };
+  const floors = resolveFloors(level);
 
   return {
     name: level.name,
     description: level.description,
+    maxWaves: level.maxWaves,
     grid: level.grid,
     arenaHalfWidth,
     arenaHalfDepth,
     playerStart: gridToWorld(playerStart.x, playerStart.z),
-    floors: level.floors,
+    floors,
     voids: level.voids ?? [],
     obstacles: level.obstacles.map((item) => ({
       id: item.id,
@@ -50,9 +52,26 @@ export function levelToRuntime(level: LevelDefinition): RuntimeLevel {
       count: item.count,
       monsterType: item.monsterType,
       interval: item.interval,
+      aiState: item.aiState,
+      stationary: item.stationary,
       patrolPath: item.patrolPath?.map((point) => gridToWorld(point.x, point.z)),
       aggroRange: item.aggroRange,
       disengageRange: item.disengageRange,
     })),
   };
+}
+
+function resolveFloors(level: LevelDefinition): LevelDefinition["floors"] {
+  const floors = Array.from({ length: level.grid.width * level.grid.height }, (_, index) => level.floors[index] ?? "sandstone");
+  for (const patch of level.floorPatches ?? []) {
+    for (let z = patch.z; z < patch.z + patch.h; z += 1) {
+      for (let x = patch.x; x < patch.x + patch.w; x += 1) {
+        if (x < 0 || z < 0 || x >= level.grid.width || z >= level.grid.height) {
+          continue;
+        }
+        floors[z * level.grid.width + x] = patch.material;
+      }
+    }
+  }
+  return floors;
 }

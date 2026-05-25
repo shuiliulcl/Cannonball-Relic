@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "name": "Bounce 04 - Mud Ring",
+  "description": "V2 level 4: mud slows the high-value center while the outer ring gives space for movement and recall-line planning.",
+  "maxWaves": 1,
+  "grid": {
+    "width": 26,
+    "height": 17,
+    "cellSize": 1
+  },
+  "playerStart": { "x": 13, "z": 15 },
+  "floors": [],
+  "floorPatches": [
+    { "x": 8, "z": 5, "w": 10, "h": 5, "material": "mud" },
+    { "x": 18, "z": 2, "w": 3, "h": 3, "material": "ice" }
+  ],
+  "obstacles": [
+    { "id": "ring-left-rail", "x": 3, "z": 3, "w": 1, "h": 11, "material": "stone", "behavior": "solid" },
+    { "id": "ring-right-rail", "x": 22, "z": 3, "w": 1, "h": 11, "material": "stone", "behavior": "solid" },
+    { "id": "ring-top-bumper", "x": 9, "z": 3, "w": 8, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "ring-bottom-bumper", "x": 9, "z": 10, "w": 8, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "ice-window-a", "x": 19, "z": 5, "w": 2, "h": 1, "material": "glass", "behavior": "breakable", "hp": 1 }
+  ],
+  "interactables": [
+    { "id": "center-ice-ball", "x": 13, "z": 7, "type": "iceBall", "cooldown": 6 }
+  ],
+  "spawns": [
+    { "id": "mud-slime-a", "x": 10, "z": 7, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 },
+    { "id": "mud-slime-b", "x": 16, "z": 8, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 },
+    { "id": "side-ranged-left", "x": 2, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 18, "disengageRange": 26 },
+    { "id": "side-ranged-right", "x": 23, "z": 3, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 18, "disengageRange": 26 },
+    {
+      "id": "ring-hound",
+      "x": 4,
+      "z": 14,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 5,
+      "disengageRange": 12,
+      "patrolPath": [
+        { "x": 4, "z": 14 },
+        { "x": 21, "z": 14 },
+        { "x": 21, "z": 2 },
+        { "x": 4, "z": 2 }
+      ]
+    },
+    { "id": "mud-reward-stump", "x": 13, "z": 2, "wave": 1, "count": 1, "monsterType": "grunt", "interval": 0, "stationary": true }
+  ]
+}

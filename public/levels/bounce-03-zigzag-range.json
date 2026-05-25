@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "name": "Bounce 03 - Zigzag Fireline",
+  "description": "V2 level 3: Z-shaped cover becomes a live fireline where multi-bounce routes are safer and faster than direct shots.",
+  "maxWaves": 1,
+  "grid": {
+    "width": 24,
+    "height": 16,
+    "cellSize": 1
+  },
+  "playerStart": { "x": 12, "z": 14 },
+  "floors": [],
+  "obstacles": [
+    { "id": "zig-top", "x": 3, "z": 3, "w": 12, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "zig-drop-right", "x": 14, "z": 3, "w": 1, "h": 4, "material": "wood", "behavior": "solid" },
+    { "id": "zig-middle", "x": 7, "z": 6, "w": 8, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "zig-drop-left", "x": 7, "z": 6, "w": 1, "h": 5, "material": "wood", "behavior": "solid" },
+    { "id": "zig-bottom", "x": 7, "z": 10, "w": 12, "h": 1, "material": "wood", "behavior": "solid" },
+    { "id": "backline-glass", "x": 19, "z": 6, "w": 1, "h": 1, "material": "glass", "behavior": "breakable", "hp": 1 }
+  ],
+  "interactables": [
+    { "id": "backline-brazier", "x": 20, "z": 3, "type": "brazier" }
+  ],
+  "spawns": [
+    { "id": "back-ranged-a", "x": 20, "z": 2, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 16, "disengageRange": 24 },
+    { "id": "back-ranged-b", "x": 21, "z": 6, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "aiState": "alert", "aggroRange": 16, "disengageRange": 24 },
+    {
+      "id": "entry-hound-a",
+      "x": 3,
+      "z": 13,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 4,
+      "disengageRange": 10,
+      "patrolPath": [
+        { "x": 3, "z": 13 },
+        { "x": 10, "z": 13 }
+      ]
+    },
+    {
+      "id": "entry-hound-b",
+      "x": 18,
+      "z": 12,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 4,
+      "disengageRange": 10,
+      "patrolPath": [
+        { "x": 18, "z": 12 },
+        { "x": 11, "z": 12 }
+      ]
+    },
+    { "id": "zig-stump-left", "x": 5, "z": 6, "wave": 1, "count": 1, "monsterType": "grunt", "interval": 0, "stationary": true },
+    { "id": "zig-stump-deep", "x": 17, "z": 9, "wave": 1, "count": 1, "monsterType": "grunt", "interval": 0, "stationary": true }
+  ]
+}
