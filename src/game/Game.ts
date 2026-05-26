@@ -2,7 +2,7 @@ import { ARENA, HUMAN_CANNON, MARBLE, MONSTER, OBSTACLES, PLAYER, RUN } from "./
 import { draftUpgrades, findUpgrade, DEFAULT_UPGRADE_STATS } from "./upgrades";
 import { playFire, playBounce, playHit, startCharge, updateCharge, stopCharge, playWaveClear, playCardSelect, playDefeat, resumeAudio } from "./Audio";
 import { add, applyHoming, bounceCircleFromObstacle, bounceInArena, calcBounceDamage, clampToArena, distance, makeTrajectory, normalize, scale, sub } from "./physics";
-import type { EnemyProjectile, FloorMaterial, Marble, Monster, MonsterType, Obstacle, ObstacleBehavior, OwnedBuff, Player, UpgradeId, UpgradeStats, Vec2 } from "./types";
+import type { EnemyProjectile, FloorMaterial, Marble, Monster, MonsterType, Obstacle, ObstacleBehavior, OwnedBuff, Player, Upgrade, UpgradeId, UpgradeStats, Vec2, VoiceAction } from "./types";
 import type { Input } from "./input";
 import type { SceneView } from "../render/SceneView";
 import type { Hud } from "../ui/Hud";
@@ -15,6 +15,7 @@ type SpawnQueueItem = RuntimeSpawn & {
 
 type GameOptions = {
   campaignLevels?: RuntimeLevel[];
+  godMode?: boolean;
   noMonsters?: boolean;
   noObstacles?: boolean;
 };
@@ -68,9 +69,11 @@ export class Game {
   private nextMonsterId = 1;
   private nextProjectileId = 1;
   private spawnQueue: SpawnQueueItem[] = [];
+  private readonly voiceActions: VoiceAction[] = [];
   private waveSpawnTotal = 0;
   private readonly ownedUpgrades = new Map<UpgradeId, number>();
   private readonly blockedDiamondUpgrades = new Set<UpgradeId>();
+  private currentUpgradeChoices: Upgrade[] = [];
   private terrainDamageTimer = 0;
   private bronzeStreakCount = 0;
   private pendingChainBonus = 0;
@@ -95,7 +98,7 @@ export class Game {
   private campaignIndex = 0;
   private pendingCampaignAdvance = false;
   private readonly campaignMode: boolean;
-  private readonly godMode = new URLSearchParams(window.location.search).get("god") === "1";
+  private readonly godMode: boolean;
   private readonly noMonsters: boolean;
   private readonly noObstacles: boolean;
   private perfLongMove: PerfLongMoveState | null = null;
@@ -112,6 +115,7 @@ export class Game {
   ) {
     this.campaignLevels = options.campaignLevels ?? [];
     this.campaignMode = this.campaignLevels.length > 0;
+    this.godMode = options.godMode ?? false;
     this.noMonsters = options.noMonsters ?? false;
     this.noObstacles = options.noObstacles ?? false;
     this.runtimeLevel = this.campaignMode ? this.campaignLevels[0] : runtimeLevel;
@@ -156,6 +160,7 @@ export class Game {
     this.stats = DEFAULT_UPGRADE_STATS();
     this.ownedUpgrades.clear();
     this.blockedDiamondUpgrades.clear();
+    this.currentUpgradeChoices = [];
     this.terrainDamageTimer = 0;
     this.bronzeStreakCount = 0;
     this.pendingChainBonus = 0;
@@ -212,6 +217,7 @@ export class Game {
 
     playCardSelect();
     this.pausedForUpgrade = false;
+    this.currentUpgradeChoices = [];
     this.hud.hideUpgrades();
     this.marble = this.createMarble();
     if (this.pendingCampaignAdvance) {
@@ -233,6 +239,9 @@ export class Game {
     let renderMs = 0;
     if (this.running && this.input.consumePausePress()) {
       this.togglePause();
+    }
+    if (this.running) {
+      this.processVoiceActions();
     }
     if (this.running && !this.paused && !this.pausedForUpgrade) {
       const start = this.perfDiagEnabled ? performance.now() : 0;
@@ -370,6 +379,10 @@ export class Game {
     return [...this.perfDiagFrames];
   }
 
+  queueVoiceAction(action: VoiceAction): void {
+    this.voiceActions.push(action);
+  }
+
   private update(dt: number): void {
     this.updatePlayer(dt);
     const worldDt = dt * this.worldTimeScale();
@@ -391,8 +404,13 @@ export class Game {
       }
       this.pausedForUpgrade = true;
       playWaveClear();
-      this.hud.showUpgrades(draftUpgrades(3, this.wave, this.blockedDiamondUpgrades, this.bronzeStreakCount));
+      this.currentUpgradeChoices = draftUpgrades(3, this.wave, this.blockedDiamondUpgrades, this.bronzeStreakCount);
+      this.hud.showUpgrades(this.currentUpgradeChoices);
     }
+  }
+
+  private isPlayerInvincible(): boolean {
+    return this.godMode || this.player.invulnTimer > 0;
   }
 
   private worldTimeScale(): number {
@@ -412,7 +430,8 @@ export class Game {
     this.pendingCampaignAdvance = true;
     this.pausedForUpgrade = true;
     playWaveClear();
-    this.hud.showUpgrades(draftUpgrades(3, this.campaignIndex + 1, this.blockedDiamondUpgrades, this.bronzeStreakCount));
+    this.currentUpgradeChoices = draftUpgrades(3, this.campaignIndex + 1, this.blockedDiamondUpgrades, this.bronzeStreakCount);
+    this.hud.showUpgrades(this.currentUpgradeChoices);
   }
 
   private advanceCampaignLevel(): void {
@@ -571,29 +590,7 @@ export class Game {
 
     if (this.input.consumeLeftRelease() && this.marble.state === "charging") {
       const direction = this.aimDirection();
-      const isFullCharge = this.chargeSeconds >= MARBLE.maxChargeSeconds;
-      stopCharge();
-      playFire();
-      this.marble.state = "flying";
-      this.marble.position = { ...this.player.position };
-      const speedMult = isFullCharge ? 1.1 : 1;
-      this.marble.velocity = scale(direction, MARBLE.baseSpeed * this.stats.marbleSpeedMultiplier * speedMult);
-      this.marble.distanceLeft = (MARBLE.baseRange + this.stats.rangeBonus) * this.stats.rangeMultiplier;
-      this.marble.bounces = 0;
-      this.marble.hitIds.clear();
-      this.marble.bonusDamage = this.pendingChainBonus;
-      this.marble.chargeDamageMultiplier = (isFullCharge ? 1.2 : 1) * this.pendingPerfectRecallMult;
-      this.pendingPerfectRecallMult = 1;
-      this.pendingChainBonus = 0;
-      this.fragmentUsedThisShot = false;
-      this.manualRecallActive = false;
-      this.manualRecallRewarded = false;
-      this.autoRecallDelayTimer = 0;
-      if (this.stats.hasTripleShot) {
-        this.spawnFragmentMarbles(this.marble.position, this.marble.velocity, this.marble);
-      }
-      this.chargeSeconds = 0;
-      this.view.hideTrajectory();
+      this.launchMarble(direction);
     }
 
     if (this.input.consumeRightPress()) {
@@ -603,6 +600,89 @@ export class Game {
         this.cancelCharge();
       }
     }
+  }
+
+  private processVoiceActions(): void {
+    for (const action of this.voiceActions.splice(0)) {
+      if (this.paused || this.pausedForUpgrade || this.pausedForBuffPanel || this.gameOver) {
+        continue;
+      }
+
+      if (action.type === "fire") {
+        this.applyVoiceFire();
+      } else if (action.type === "recall") {
+        this.applyVoiceRecall();
+      } else if (action.type === "evade") {
+        this.applyVoiceEvade();
+      } else if (action.type === "hidden") {
+        this.applyHiddenVoiceAction(action.id);
+      }
+    }
+  }
+
+  private applyVoiceFire(): void {
+    if (this.marble.state !== "ready" && this.marble.state !== "charging") {
+      return;
+    }
+    if (this.ownedUpgrades.has("humanCannon") && this.marble.state === "ready") {
+      this.activateHumanCannon();
+      return;
+    }
+    this.launchMarble(this.aimDirection());
+  }
+
+  private applyVoiceRecall(): void {
+    if (this.marble.state === "flying" || this.marble.state === "awaitingRecall") {
+      this.startManualRecall();
+    } else if (this.marble.state === "charging") {
+      this.cancelCharge();
+    }
+  }
+
+  private applyVoiceEvade(): void {
+    if (this.player.dashTimer > 0 || this.player.rollTimer > 0 || this.player.mode === "humanCannon") {
+      return;
+    }
+    const movement = this.input.movement();
+    const direction = movement.x !== 0 || movement.z !== 0 ? movement : this.aimDirection();
+    if (direction.x === 0 && direction.z === 0) {
+      return;
+    }
+    this.player.rollTimer = PLAYER.rollDuration;
+    this.player.rollDuration = PLAYER.rollDuration;
+    this.player.rollVelocity = scale(normalize(direction), (PLAYER.dashDistance + this.stats.dashDistanceBonus) / PLAYER.rollDuration);
+    this.player.invulnTimer = PLAYER.rollDuration;
+    this.player.dashTimer = this.player.dashCooldown;
+  }
+
+  private applyHiddenVoiceAction(_id: string): void {
+    // Reserved for voice-only easter eggs or debug commands.
+  }
+
+  private launchMarble(direction: Vec2): void {
+    const isFullCharge = this.chargeSeconds >= MARBLE.maxChargeSeconds;
+    stopCharge();
+    playFire();
+    this.marble.state = "flying";
+    this.marble.position = { ...this.player.position };
+    const speedMult = isFullCharge ? 1.1 : 1;
+    this.marble.velocity = scale(normalize(direction), MARBLE.baseSpeed * this.stats.marbleSpeedMultiplier * speedMult);
+    this.marble.distanceLeft = (MARBLE.baseRange + this.stats.rangeBonus) * this.stats.rangeMultiplier;
+    this.marble.bounces = 0;
+    this.marble.hitIds.clear();
+    this.marble.bonusDamage = this.pendingChainBonus;
+    this.marble.chargeDamageMultiplier = (isFullCharge ? 1.2 : 1) * this.pendingPerfectRecallMult;
+    this.pendingPerfectRecallMult = 1;
+    this.pendingChainBonus = 0;
+    this.fragmentUsedThisShot = false;
+    this.manualRecallActive = false;
+    this.manualRecallRewarded = false;
+    this.autoRecallDelayTimer = 0;
+    if (this.stats.hasTripleShot) {
+      this.spawnFragmentMarbles(this.marble.position, this.marble.velocity, this.marble);
+    }
+    this.chargeSeconds = 0;
+    this.view.hideTrajectory();
   }
 
   private updateLongMovePerfPlayer(dt: number): void {
@@ -851,7 +931,7 @@ export class Game {
       if (
         this.player.mode === "normal" &&
         this.marble.state !== "flying" &&
-        this.player.invulnTimer <= 0 &&
+        !this.isPlayerInvincible() &&
         distance(monster.position, this.player.position) <= monster.radius + this.player.radius
       ) {
         this.applyDamageToPlayer(1);
@@ -871,7 +951,7 @@ export class Game {
         this.enemyProjectiles.splice(i, 1);
         continue;
       }
-      if (distance(projectile.position, this.player.position) <= projectile.radius + this.player.radius && this.player.invulnTimer <= 0) {
+      if (distance(projectile.position, this.player.position) <= projectile.radius + this.player.radius && !this.isPlayerInvincible()) {
         this.applyDamageToPlayer(projectile.damage);
         this.player.invulnTimer = 0.8;
         this.view.damageText(`-${projectile.damage}`, this.player.position);
@@ -1426,7 +1506,7 @@ export class Game {
     this.monsters.splice(index, 1);
     this.view.damageText("爆", position);
     this.view.spark(position, 0xff3b22, 42);
-    if (distance(this.player.position, position) <= 1.65 && this.player.invulnTimer <= 0) {
+    if (distance(this.player.position, position) <= 1.65 && !this.isPlayerInvincible()) {
       this.applyDamageToPlayer(2);
       this.player.invulnTimer = 0.85;
       this.view.damageText("-2", this.player.position);
@@ -1740,7 +1820,7 @@ export class Game {
       this.terrainDamageTimer = 0;
       return;
     }
-    if (this.player.invulnTimer > 0) {
+    if (this.isPlayerInvincible()) {
       return;
     }
     this.terrainDamageTimer += dt;
@@ -1863,7 +1943,7 @@ export class Game {
         }
       }
     }
-    if (distance(this.player.position, obstacle.position) <= 1.5 && this.player.invulnTimer <= 0) {
+    if (distance(this.player.position, obstacle.position) <= 1.5 && !this.isPlayerInvincible()) {
       this.applyDamageToPlayer(2);
       this.player.invulnTimer = 0.6;
       this.view.damageText("-2", this.player.position);

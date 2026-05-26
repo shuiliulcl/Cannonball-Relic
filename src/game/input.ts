@@ -58,7 +58,10 @@ export class Input {
     const x = (this.keys.has("d") ? 1 : 0) - (this.keys.has("a") ? 1 : 0);
     const z = (this.keys.has("s") ? 1 : 0) - (this.keys.has("w") ? 1 : 0);
     const len = Math.hypot(x, z);
-    return len > 0 ? { x: x / len, z: z / len } : { x: 0, z: 0 };
+    if (len > 0) {
+      return { x: x / len, z: z / len };
+    }
+    return { x: 0, z: 0 };
   }
 
   consumeLeftRelease(): boolean {

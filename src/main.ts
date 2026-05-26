@@ -1,6 +1,7 @@
 import "./styles.css";
 import { Game } from "./game/Game";
 import { Input } from "./game/input";
+import { VoiceInput } from "./game/voice";
 import { SceneView } from "./render/SceneView";
 import { Hud } from "./ui/Hud";
 import { LevelEditor } from "./editor/LevelEditor";
@@ -75,6 +76,8 @@ const upgradeChoices = document.querySelector<HTMLDivElement>("#upgradeChoices")
 const buffOverlay = document.querySelector<HTMLDivElement>("#buffOverlay");
 const buffButton = document.querySelector<HTMLButtonElement>("#buffButton");
 const buffCloseButton = document.querySelector<HTMLButtonElement>("#buffCloseButton");
+const voiceToggle = document.querySelector<HTMLButtonElement>("#voiceToggle");
+const voiceTranscript = document.querySelector<HTMLElement>("#voiceTranscript");
 const CAMPAIGN_LEVEL_IDS = [
   "zodiac-01",
   "zodiac-02",
@@ -123,7 +126,9 @@ async function bootstrapGame(): Promise<void> {
     !upgradeChoices ||
     !buffOverlay ||
     !buffButton ||
-    !buffCloseButton
+    !buffCloseButton ||
+    !voiceToggle ||
+    !voiceTranscript
   ) {
     throw new Error("Missing required DOM nodes.");
   }
@@ -163,6 +168,7 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
   const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
   const campaignLevels = runtimeLevel ? [] : (await loadCampaignLevels()).map(levelToRuntime);
   const debugParams = new URLSearchParams(window.location.search);
+  const godMode = debugParams.get("god") === "1";
   const noObstacles = debugParams.get("noobstacles") === "1";
   const noMonsters = debugParams.get("nomonsters") === "1";
   const input = new Input(sceneRoot);
@@ -171,7 +177,13 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
   const view = new SceneView(sceneRoot, noObstacles ? [] : viewLevel?.obstacles, viewLevel);
   mountPerfOverlay(view);
   const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
-  const game = new Game(input, view, hud, convertedLevel, { campaignLevels, noMonsters, noObstacles });
+  const game = new Game(input, view, hud, convertedLevel, { campaignLevels, godMode, noMonsters, noObstacles });
+const voice = new VoiceInput((actions) => {
+  for (const action of actions) {
+    game.queueVoiceAction(action);
+  }
+});
+const voiceTranscriptElement = voiceTranscript;
 
   const startGame = () => {
     startOverlay.hidden = true;
@@ -214,6 +226,65 @@ hud.onBuffOpen(() => {
 
 hud.onBuffClose(() => {
   game.closeBuffPanel();
+});
+
+if (voice.isSupported()) {
+  voiceToggle.disabled = false;
+} else {
+  voiceToggle.disabled = true;
+  renderVoiceTranscript("Voice not supported in this browser.");
+}
+
+function renderVoiceTranscript(message: string, actions: readonly string[] = []): void {
+  voiceTranscriptElement.replaceChildren();
+
+  const messageNode = document.createElement("span");
+  messageNode.className = "voice-message";
+  messageNode.textContent = message;
+  voiceTranscriptElement.append(messageNode);
+
+  if (actions.length === 0) {
+    return;
+  }
+
+  const actionNode = document.createElement("span");
+  actionNode.className = "voice-actions";
+  actionNode.textContent = actions.join(", ");
+  voiceTranscriptElement.append(actionNode);
+}
+
+voice.observe(({ status, transcript, actions, error }) => {
+  if (status === "unsupported") {
+    voiceToggle.disabled = true;
+    renderVoiceTranscript("Voice not supported in this browser.");
+    return;
+  }
+  if (status === "error") {
+    voiceToggle.dataset.state = "off";
+    voiceToggle.textContent = "Voice Off";
+    renderVoiceTranscript(`Voice error: ${error ?? "unknown"}`);
+    return;
+  }
+  if (status === "idle") {
+    voiceToggle.dataset.state = "off";
+    voiceToggle.textContent = "Voice Off";
+    renderVoiceTranscript("Voice idle.");
+    return;
+  }
+  voiceToggle.dataset.state = "on";
+  voiceToggle.textContent = "Voice On";
+  const actionTypes = actions.map((action) => action.type);
+  renderVoiceTranscript(transcript ? `Heard: ${transcript}` : "Listening: say 开 / 发 / 回收 / 闪避.", actionTypes);
+});
+
+voiceToggle.addEventListener("click", () => {
+  if (voiceToggle.dataset.state === "on") {
+    voice.stop();
+    return;
+  }
+  voiceToggle.dataset.state = "on";
+  voiceToggle.textContent = "Voice On";
+  voice.start();
 });
 
   game.renderIdle();

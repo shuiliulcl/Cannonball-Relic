@@ -3,6 +3,12 @@ export type Vec2 = {
   z: number;
 };
 
+export type VoiceAction =
+  | { type: "fire" }
+  | { type: "recall" }
+  | { type: "evade" }
+  | { type: "hidden"; id: string };
+
 export type MarbleState = "ready" | "charging" | "flying" | "awaitingRecall" | "recalling" | "cannon";
 
 export type PlayerMode = "normal" | "humanCannon";
