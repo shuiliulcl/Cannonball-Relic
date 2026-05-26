@@ -754,8 +754,10 @@ export class SceneView {
   private loadTexture(path: string): THREE.Texture {
     return preparePixelTexture(
       this.textureLoader.load(path, (tex) => {
+        preparePixelTexture(tex);
         this.renderer.initTexture(tex);
       }),
+      false,
     );
   }
 

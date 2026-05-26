@@ -71,10 +71,12 @@ export function resolveSkinAssets(): SkinAssets {
   };
 }
 
-export function preparePixelTexture(texture: THREE.Texture): THREE.Texture {
+export function preparePixelTexture(texture: THREE.Texture, markForUpdate = true): THREE.Texture {
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
+  if (markForUpdate) {
+    texture.needsUpdate = true;
+  }
   return texture;
 }
