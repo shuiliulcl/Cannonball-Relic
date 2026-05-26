@@ -250,6 +250,9 @@ export class Hud {
       freezeHit: "冰",
       growingMarble: "长",
       drillMarble: "钻",
+      trajectoryFamiliarity: "轨",
+      steadyGrip: "稳",
+      perfectRecallDamage: "完",
     };
     return icons[upgradeId];
   }

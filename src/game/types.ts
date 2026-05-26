@@ -65,6 +65,8 @@ export type Monster = {
   fuseTimer?: number;
   shieldFacing?: Vec2;
   supportCooldown?: number;
+  windupTimer?: number;
+  slowTimer?: number;
   aggroRange?: number;
   disengageRange?: number;
   noKnockback?: boolean;
@@ -101,6 +103,7 @@ export type Marble = {
   obstacleHitIds: Set<string>;
   interactableHitIds: Set<string>;
   bonusDamage: number;
+  chargeDamageMultiplier: number;
   hp: number;
 };
 
@@ -121,6 +124,7 @@ export type Player = {
   rollDuration: number;
   rollVelocity: Vec2;
   invulnTimer: number;
+  slowTimer: number;
 };
 
 export type OwnedBuff = {
@@ -173,13 +177,17 @@ export type UpgradeId =
   | "tripleShot"
   | "freezeHit"
   | "growingMarble"
-  | "drillMarble";
+  | "drillMarble"
+  | "trajectoryFamiliarity"
+  | "steadyGrip"
+  | "perfectRecallDamage";
 
 export type UpgradeRarity = "bronze" | "gold" | "diamond";
 
 export type UpgradeStats = {
   bounceBonusDamage: number;
   rangeMultiplier: number;
+  rangeBonus: number;
   recallDamageBonus: number;
   maxHp: number;
   marbleHp: number;
@@ -188,6 +196,7 @@ export type UpgradeStats = {
   dashDistanceBonus: number;
   marbleSpeedMultiplier: number;
   maxBouncesBonus: number;
+  trajectoryBonusBounces: number;
   marbleRadiusBonus: number;
   baseDamageBonus: number;
   recallSpeedMultiplier: number;
@@ -201,6 +210,7 @@ export type UpgradeStats = {
   hasFreezeHit: boolean;
   hasGrowingMarble: boolean;
   hasDrillMarble: boolean;
+  hasPerfectRecallDamage: boolean;
 };
 
 export type Upgrade = {

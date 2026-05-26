@@ -11,10 +11,10 @@ export const DESIGN_UNITS = {
 
 export const PLAYER = {
   radius: 0.5,
-  hp: 20,
-  speed: 4.0,
-  dashDistance: 8.0,
-  dashCooldown: 2.0,
+  hp: 12,
+  speed: 4.2,
+  dashDistance: 5.5,
+  dashCooldown: 1.8,
   rollDuration: 0.5,
 };
 
@@ -27,16 +27,16 @@ export const HUMAN_CANNON = {
 };
 
 export const MARBLE = {
-  radius: 0.5,
-  baseSpeed: 8,
-  maxChargeSeconds: 0.9,
-  baseRange: 40,
-  baseDamage: 1,
-  maxBounces: 3,
-  recallSpeed: 10,
+  radius: 0.45,
+  baseSpeed: 12,
+  maxChargeSeconds: 0.45,
+  baseRange: 32,
+  baseDamage: 2,
+  maxBounces: 2,
+  recallSpeed: 14,
   knockback: 1,
   hp: 1,
-  homingAngle: 10,
+  homingAngle: 6,
 };
 
 export const MONSTER = {

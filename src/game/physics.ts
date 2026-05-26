@@ -4,15 +4,15 @@ import type { Obstacle, Vec2 } from "./types";
 /**
  * 分段弹射增伤（对齐设计文档）：
  *   0 次弹射  → +0
- *   1~3 次    → 每次 +2
- *   3~5 次    → 每次 +3
- *   5 次以上  → 每次 +5
+ *   1~2 次    → 每次 +2
+ *   3~4 次    → 每次 +3
+ *   5 次以上  → 每次 +4
  * bonusPerBounce 为升级卡的额外加成（叠加在分段基础值上）。
  */
 export function calcBounceDamage(bounces: number, baseDamage: number, bonusPerBounce = 0): number {
   let extra = 0;
   for (let i = 1; i <= bounces; i += 1) {
-    const tier = i <= 3 ? 2 : i <= 5 ? 3 : 5;
+    const tier = i <= 2 ? 2 : i <= 4 ? 3 : 4;
     extra += tier + bonusPerBounce;
   }
   return baseDamage + extra;

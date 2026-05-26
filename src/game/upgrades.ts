@@ -13,10 +13,10 @@ export const UPGRADES: Upgrade[] = [
   {
     id: "longerRange",
     rarity: "bronze",
-    title: "远程弹射",
-    description: "弹珠飞行距离 +25%。",
+    title: "长程校准",
+    description: "弹珠最大飞行距离 +6m。",
     weight: 10,
-    apply: (stats) => { stats.rangeMultiplier += 0.25; },
+    apply: (stats) => { stats.rangeBonus += 6; },
   },
   {
     id: "recallBlade",
@@ -29,10 +29,10 @@ export const UPGRADES: Upgrade[] = [
   {
     id: "quickDash",
     rarity: "bronze",
-    title: "轻盈步伐",
-    description: "翻滚冷却 -18%。",
+    title: "瞬闪熟练",
+    description: "瞬闪冷却 -0.25s。",
     weight: 8,
-    apply: (_stats, player) => { player.dashCooldown *= 0.82; },
+    apply: (_stats, player) => { player.dashCooldown = Math.max(0.4, player.dashCooldown - 0.25); },
   },
   {
     id: "vitality",
@@ -67,9 +67,9 @@ export const UPGRADES: Upgrade[] = [
     id: "sprintTraining",
     rarity: "bronze",
     title: "疾跑训练",
-    description: "移动速度 +0.5。",
+    description: "移动速度 +0.4。",
     weight: 9,
-    apply: (stats) => { stats.speedBonus += 0.5; },
+    apply: (stats) => { stats.speedBonus += 0.4; },
   },
   {
     id: "rollMastery",
@@ -114,6 +114,22 @@ export const UPGRADES: Upgrade[] = [
       player.hp = Math.min(stats.maxHp, player.hp + 1);
       stats.baseDamageBonus += 1;
     },
+  },
+  {
+    id: "trajectoryFamiliarity",
+    rarity: "bronze",
+    title: "轨迹熟悉",
+    description: "预瞄额外显示 1 段反弹轨迹。",
+    weight: 7,
+    apply: (stats) => { stats.trajectoryBonusBounces += 1; },
+  },
+  {
+    id: "steadyGrip",
+    rarity: "bronze",
+    title: "稳定握持",
+    description: "弹珠辅助瞄准角度 +3°。",
+    weight: 8,
+    apply: (stats) => { stats.homingAngle += 3; },
   },
   // ── 黄金卡 ──
   {
@@ -180,7 +196,7 @@ export const UPGRADES: Upgrade[] = [
     id: "chainLoading",
     rarity: "gold",
     title: "连锁装填",
-    description: "弹珠回收时每命中一个敌人，下次发射额外 +3 伤害。",
+    description: "每次击杀敌人后，下次蓄力时间 -15%（最多叠加至 -50%）。",
     weight: 4,
     apply: (stats) => { stats.hasChainLoading = true; },
   },
@@ -188,7 +204,7 @@ export const UPGRADES: Upgrade[] = [
     id: "fragmentTrajectory",
     rarity: "gold",
     title: "破片弹道",
-    description: "弹珠首次命中时，向两侧各派生一枚辅助弹珠。",
+    description: "弹珠首次击杀时，向两侧各派生一枚辅助弹珠。",
     weight: 3,
     apply: (stats) => { stats.hasFragment = true; },
   },
@@ -199,6 +215,14 @@ export const UPGRADES: Upgrade[] = [
     description: "弹珠撞墙时，对附近敌人造成 1 点伤害。",
     weight: 4,
     apply: (stats) => { stats.hasShockKnockback = true; },
+  },
+  {
+    id: "perfectRecallDamage",
+    rarity: "gold",
+    title: "完美回收",
+    description: "精准回收命中敌人后，下次发射伤害 +50%。",
+    weight: 3,
+    apply: (stats) => { stats.hasPerfectRecallDamage = true; },
   },
   // ── 钻石卡 ──
   {
@@ -214,7 +238,7 @@ export const UPGRADES: Upgrade[] = [
     id: "freezeHit",
     rarity: "diamond",
     title: "冻住不许走",
-    description: "弹珠命中怪物时，使其冻结 2 秒，无法行动。",
+    description: "弹珠弹射命中冻结 2 秒；直线命中减速 1 秒。",
     weight: 2,
     uniquePerRun: true,
     apply: (stats) => { stats.hasFreezeHit = true; },
@@ -246,6 +270,7 @@ export function findUpgrade(id: string): Upgrade | undefined {
 export const DEFAULT_UPGRADE_STATS = () => ({
   bounceBonusDamage: 0,
   rangeMultiplier: 1,
+  rangeBonus: 0,
   recallDamageBonus: 0,
   maxHp: PLAYER.hp,
   marbleHp: MARBLE.hp,
@@ -254,6 +279,7 @@ export const DEFAULT_UPGRADE_STATS = () => ({
   dashDistanceBonus: 0,
   marbleSpeedMultiplier: 1,
   maxBouncesBonus: 0,
+  trajectoryBonusBounces: 0,
   marbleRadiusBonus: 0,
   baseDamageBonus: 0,
   recallSpeedMultiplier: 1,
@@ -267,6 +293,7 @@ export const DEFAULT_UPGRADE_STATS = () => ({
   hasFreezeHit: false,
   hasGrowingMarble: false,
   hasDrillMarble: false,
+  hasPerfectRecallDamage: false,
 });
 
 /**
