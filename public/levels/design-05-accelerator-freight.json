@@ -1,0 +1,63 @@
+{
+  "version": 2,
+  "name": "Design 05 - 加速货运站",
+  "description": "加倍阻挡正式关：长走廊高速弹线、冷库压力和南侧仓库爆点。",
+  "maxWaves": 1,
+  "grid": { "width": 28, "height": 20, "cellSize": 1 },
+  "playerStart": { "x": 3, "z": 18 },
+  "floors": [],
+  "floorPatches": [
+    { "x": 7, "z": 9, "w": 15, "h": 5, "material": "cracked" },
+    { "x": 22, "z": 6, "w": 4, "h": 4, "material": "ice" },
+    { "x": 10, "z": 14, "w": 16, "h": 6, "material": "moss" }
+  ],
+  "obstacles": [
+    { "id": "boost-a", "x": 9, "z": 10, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "boost-b", "x": 9, "z": 12, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "boost-c", "x": 17, "z": 10, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "boost-d", "x": 17, "z": 12, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "office-n", "x": 7, "z": 3, "w": 8, "h": 1, "material": "wood" },
+    { "id": "office-w", "x": 7, "z": 4, "w": 1, "h": 5, "material": "wood" },
+    { "id": "office-e", "x": 14, "z": 4, "w": 1, "h": 5, "material": "wood" },
+    { "id": "office-s1", "x": 7, "z": 8, "w": 4, "h": 1, "material": "wood" },
+    { "id": "office-g", "x": 14, "z": 8, "w": 1, "h": 1, "material": "glass" },
+    { "id": "office-s2", "x": 12, "z": 8, "w": 3, "h": 1, "material": "wood" },
+    { "id": "cold-n", "x": 20, "z": 4, "w": 8, "h": 1, "material": "wood" },
+    { "id": "cold-w1", "x": 20, "z": 5, "w": 1, "h": 4, "material": "wood" },
+    { "id": "cold-g", "x": 20, "z": 9, "w": 1, "h": 1, "material": "glass" },
+    { "id": "cold-w2", "x": 20, "z": 10, "w": 1, "h": 2, "material": "wood" },
+    { "id": "cold-e", "x": 27, "z": 5, "w": 1, "h": 7, "material": "wood" },
+    { "id": "cold-s1", "x": 20, "z": 11, "w": 3, "h": 1, "material": "wood" },
+    { "id": "cold-s2", "x": 24, "z": 11, "w": 4, "h": 1, "material": "wood" },
+    { "id": "warehouse-w", "x": 10, "z": 14, "w": 1, "h": 6, "material": "wood" },
+    { "id": "warehouse-e", "x": 25, "z": 14, "w": 1, "h": 6, "material": "wood" },
+    { "id": "warehouse-s", "x": 10, "z": 19, "w": 16, "h": 1, "material": "wood" },
+    { "id": "warehouse-g-a", "x": 18, "z": 14, "w": 1, "h": 1, "material": "glass" },
+    { "id": "warehouse-g-b", "x": 24, "z": 14, "w": 1, "h": 1, "material": "glass" },
+    { "id": "barrel", "x": 22, "z": 16, "w": 1, "h": 1, "material": "bomb" }
+  ],
+  "interactables": [
+    { "id": "brazier-corridor", "x": 18, "z": 11, "type": "brazier" }
+  ],
+  "spawns": [
+    {
+      "id": "hound-entry",
+      "x": 8,
+      "z": 16,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 4,
+      "disengageRange": 10,
+      "patrolPath": [{ "x": 8, "z": 16 }, { "x": 13, "z": 16 }]
+    },
+    { "id": "octopus-office", "x": 12, "z": 6, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "stationary": true },
+    { "id": "boar-corridor", "x": 18, "z": 10, "wave": 1, "count": 1, "monsterType": "boar", "interval": 0 },
+    { "id": "rabbit-cold", "x": 23, "z": 7, "wave": 1, "count": 1, "monsterType": "rabbit", "interval": 0 },
+    { "id": "octopus-cold", "x": 26, "z": 8, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "stationary": true },
+    { "id": "bombbug-warehouse", "x": 21, "z": 16, "wave": 1, "count": 1, "monsterType": "bombBug", "interval": 0 },
+    { "id": "slime-warehouse", "x": 23, "z": 17, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 }
+  ]
+}

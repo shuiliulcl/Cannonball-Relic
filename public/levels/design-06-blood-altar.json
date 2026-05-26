@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "name": "Design 06 - 回血祭坛",
+  "description": "中期优先击杀关：先清外围，找侧翼和反弹角，再攻祭司机与盾兵核心。",
+  "maxWaves": 1,
+  "grid": { "width": 30, "height": 20, "cellSize": 1 },
+  "playerStart": { "x": 3, "z": 18 },
+  "floors": [],
+  "floorPatches": [
+    { "x": 15, "z": 9, "w": 4, "h": 4, "material": "blood" },
+    { "x": 20, "z": 3, "w": 10, "h": 8, "material": "danger" },
+    { "x": 18, "z": 13, "w": 12, "h": 7, "material": "cracked" }
+  ],
+  "obstacles": [
+    { "id": "altar-n", "x": 12, "z": 7, "w": 8, "h": 1, "material": "wood" },
+    { "id": "altar-w1", "x": 12, "z": 8, "w": 1, "h": 2, "material": "wood" },
+    { "id": "altar-g1", "x": 12, "z": 10, "w": 1, "h": 1, "material": "glass" },
+    { "id": "altar-w2", "x": 12, "z": 11, "w": 1, "h": 4, "material": "wood" },
+    { "id": "altar-e1", "x": 19, "z": 8, "w": 1, "h": 4, "material": "wood" },
+    { "id": "altar-g2", "x": 19, "z": 12, "w": 1, "h": 1, "material": "glass" },
+    { "id": "altar-e2", "x": 19, "z": 13, "w": 1, "h": 2, "material": "wood" },
+    { "id": "altar-s1", "x": 12, "z": 14, "w": 3, "h": 1, "material": "wood" },
+    { "id": "altar-s2", "x": 17, "z": 14, "w": 3, "h": 1, "material": "wood" },
+    { "id": "thorns-west-a", "x": 11, "z": 10, "w": 1, "h": 1, "material": "thorns" },
+    { "id": "thorns-west-b", "x": 11, "z": 11, "w": 1, "h": 1, "material": "thorns" },
+    { "id": "thorns-east-a", "x": 20, "z": 10, "w": 1, "h": 1, "material": "thorns" },
+    { "id": "thorns-east-b", "x": 20, "z": 11, "w": 1, "h": 1, "material": "thorns" },
+    { "id": "reflector-west-a", "x": 5, "z": 6, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-west-b", "x": 5, "z": 7, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-west-c", "x": 8, "z": 13, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-south-a", "x": 24, "z": 16, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-south-b", "x": 25, "z": 16, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "side-g", "x": 21, "z": 13, "w": 1, "h": 1, "material": "glass" },
+    { "id": "barrel", "x": 23, "z": 15, "w": 1, "h": 1, "material": "bomb" }
+  ],
+  "interactables": [
+    { "id": "brazier-altar", "x": 16, "z": 11, "type": "brazier" }
+  ],
+  "spawns": [
+    { "id": "priest-core", "x": 16, "z": 10, "wave": 1, "count": 1, "monsterType": "priest", "interval": 0, "stationary": true },
+    { "id": "shield-left", "x": 15, "z": 11, "wave": 1, "count": 1, "monsterType": "shieldCrab", "interval": 0, "stationary": true },
+    { "id": "shield-right", "x": 18, "z": 11, "wave": 1, "count": 1, "monsterType": "shieldCrab", "interval": 0, "stationary": true },
+    {
+      "id": "hound-west",
+      "x": 8,
+      "z": 13,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 4,
+      "disengageRange": 10,
+      "patrolPath": [{ "x": 8, "z": 13 }, { "x": 12, "z": 13 }]
+    },
+    { "id": "octopus-northeast", "x": 23, "z": 7, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "stationary": true },
+    { "id": "flower-northeast", "x": 25, "z": 9, "wave": 1, "count": 1, "monsterType": "voodooFlower", "interval": 0, "stationary": true },
+    { "id": "bombbug-south", "x": 22, "z": 15, "wave": 1, "count": 1, "monsterType": "bombBug", "interval": 0 },
+    { "id": "boar-south", "x": 26, "z": 16, "wave": 1, "count": 1, "monsterType": "boar", "interval": 0 },
+    { "id": "slime-core", "x": 17, "z": 13, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 }
+  ]
+}

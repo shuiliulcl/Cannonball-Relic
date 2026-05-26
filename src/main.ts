@@ -87,6 +87,17 @@ const CAMPAIGN_LEVEL_IDS = [
   "zodiac-09",
   "zodiac-10",
 ];
+const LEVEL_SETS: Record<string, string[]> = {
+  design7: [
+    "design-01-street-office",
+    "design-02-glass-alley",
+    "design-03-charge-loop",
+    "design-04-broken-glass-block",
+    "design-05-accelerator-freight",
+    "design-06-blood-altar",
+    "design-07-outer-ring",
+  ],
+};
 
 if (new URLSearchParams(window.location.search).get("mode") === "editor") {
   if (!app) {
@@ -142,7 +153,9 @@ async function loadRequestedLevel(): Promise<LevelDefinition | undefined> {
 }
 
 async function loadCampaignLevels(): Promise<LevelDefinition[]> {
-  const levels = await Promise.all(CAMPAIGN_LEVEL_IDS.map((levelId) => fetchPublicLevel(levelId)));
+  const setParam = new URLSearchParams(window.location.search).get("set");
+  const levelIds = setParam && LEVEL_SETS[setParam] ? LEVEL_SETS[setParam] : CAMPAIGN_LEVEL_IDS;
+  const levels = await Promise.all(levelIds.map((levelId) => fetchPublicLevel(levelId)));
   return levels.filter((level): level is LevelDefinition => Boolean(level));
 }
 

@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "name": "Design 02 - 玻璃巷道",
+  "description": "引入玻璃、反弹墙和爆点连锁；玩家学习用弹珠打开路线，而不是只打怪。",
+  "maxWaves": 1,
+  "grid": { "width": 22, "height": 16, "cellSize": 1 },
+  "playerStart": { "x": 2, "z": 14 },
+  "floors": [],
+  "floorPatches": [
+    { "x": 1, "z": 11, "w": 5, "h": 5, "material": "moss" },
+    { "x": 15, "z": 4, "w": 7, "h": 8, "material": "cracked" }
+  ],
+  "obstacles": [
+    { "id": "office-n", "x": 5, "z": 3, "w": 7, "h": 1, "material": "wood" },
+    { "id": "office-w", "x": 5, "z": 4, "w": 1, "h": 5, "material": "wood" },
+    { "id": "office-e1", "x": 11, "z": 4, "w": 1, "h": 2, "material": "wood" },
+    { "id": "office-g2", "x": 11, "z": 6, "w": 1, "h": 1, "material": "glass" },
+    { "id": "office-e2", "x": 11, "z": 7, "w": 1, "h": 2, "material": "wood" },
+    { "id": "office-s1", "x": 5, "z": 8, "w": 4, "h": 1, "material": "wood" },
+    { "id": "office-g1", "x": 9, "z": 8, "w": 1, "h": 1, "material": "glass" },
+    { "id": "office-s2", "x": 10, "z": 8, "w": 2, "h": 1, "material": "wood" },
+    { "id": "central-cover-a", "x": 10, "z": 10, "w": 1, "h": 2, "material": "wood" },
+    { "id": "central-cover-b", "x": 13, "z": 10, "w": 1, "h": 1, "material": "wood" },
+    { "id": "warehouse-n", "x": 15, "z": 4, "w": 7, "h": 1, "material": "wood" },
+    { "id": "warehouse-w1", "x": 15, "z": 5, "w": 1, "h": 3, "material": "wood" },
+    { "id": "warehouse-g1", "x": 15, "z": 8, "w": 1, "h": 1, "material": "glass" },
+    { "id": "warehouse-w2", "x": 15, "z": 9, "w": 1, "h": 4, "material": "wood" },
+    { "id": "warehouse-e", "x": 21, "z": 5, "w": 1, "h": 8, "material": "wood" },
+    { "id": "warehouse-s1", "x": 15, "z": 12, "w": 4, "h": 1, "material": "wood" },
+    { "id": "warehouse-g2", "x": 19, "z": 12, "w": 1, "h": 1, "material": "glass" },
+    { "id": "warehouse-s2", "x": 20, "z": 12, "w": 2, "h": 1, "material": "wood" },
+    { "id": "reflector-west-a", "x": 4, "z": 5, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-west-b", "x": 4, "z": 6, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-east", "x": 18, "z": 6, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "barrel", "x": 18, "z": 8, "w": 1, "h": 1, "material": "bomb" }
+  ],
+  "interactables": [],
+  "spawns": [
+    { "id": "octopus-office", "x": 9, "z": 5, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "stationary": true },
+    {
+      "id": "hound-cross",
+      "x": 9,
+      "z": 12,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 4,
+      "disengageRange": 10,
+      "patrolPath": [{ "x": 9, "z": 12 }, { "x": 14, "z": 12 }]
+    },
+    { "id": "bombbug-warehouse", "x": 17, "z": 8, "wave": 1, "count": 1, "monsterType": "bombBug", "interval": 0 },
+    { "id": "octopus-warehouse", "x": 20, "z": 7, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "stationary": true },
+    { "id": "slime-warehouse", "x": 19, "z": 10, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 }
+  ]
+}

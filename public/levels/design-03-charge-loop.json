@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "name": "Design 03 - 冲锋环路",
+  "description": "引入突猪、泥沼和火盆，要求玩家观察冲锋线并利用外环绕行。",
+  "maxWaves": 1,
+  "grid": { "width": 24, "height": 18, "cellSize": 1 },
+  "playerStart": { "x": 3, "z": 16 },
+  "floors": [],
+  "floorPatches": [
+    { "x": 8, "z": 9, "w": 3, "h": 1, "material": "mud" },
+    { "x": 18, "z": 12, "w": 3, "h": 1, "material": "mud" },
+    { "x": 13, "z": 9, "w": 2, "h": 4, "material": "cracked" }
+  ],
+  "obstacles": [
+    { "id": "pillar-a", "x": 7, "z": 7, "w": 1, "h": 1, "material": "wood" },
+    { "id": "pillar-b", "x": 7, "z": 11, "w": 1, "h": 1, "material": "wood" },
+    { "id": "pillar-c", "x": 10, "z": 7, "w": 1, "h": 1, "material": "wood" },
+    { "id": "pillar-d", "x": 10, "z": 11, "w": 1, "h": 1, "material": "wood" },
+    { "id": "yard-cover-a", "x": 13, "z": 9, "w": 2, "h": 1, "material": "wood" },
+    { "id": "yard-cover-b", "x": 13, "z": 12, "w": 2, "h": 1, "material": "wood" },
+    { "id": "hall-n", "x": 17, "z": 4, "w": 7, "h": 1, "material": "wood" },
+    { "id": "hall-w1", "x": 17, "z": 5, "w": 1, "h": 5, "material": "wood" },
+    { "id": "hall-g1", "x": 17, "z": 10, "w": 1, "h": 1, "material": "glass" },
+    { "id": "hall-w2", "x": 17, "z": 11, "w": 1, "h": 5, "material": "wood" },
+    { "id": "hall-e", "x": 23, "z": 5, "w": 1, "h": 11, "material": "wood" },
+    { "id": "hall-s1", "x": 17, "z": 15, "w": 4, "h": 1, "material": "wood" },
+    { "id": "hall-g2", "x": 21, "z": 15, "w": 1, "h": 1, "material": "glass" },
+    { "id": "hall-s2", "x": 22, "z": 15, "w": 2, "h": 1, "material": "wood" },
+    { "id": "reflector-west-a", "x": 5, "z": 6, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-west-b", "x": 5, "z": 7, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "reflector-east", "x": 22, "z": 6, "w": 1, "h": 1, "material": "reflector" }
+  ],
+  "interactables": [
+    { "id": "brazier-yard", "x": 14, "z": 10, "type": "brazier" }
+  ],
+  "spawns": [
+    { "id": "boar-training", "x": 10, "z": 6, "wave": 1, "count": 1, "monsterType": "boar", "interval": 0 },
+    {
+      "id": "hound-west",
+      "x": 8,
+      "z": 13,
+      "wave": 1,
+      "count": 1,
+      "monsterType": "hound",
+      "interval": 0,
+      "aiState": "patrol",
+      "aggroRange": 4,
+      "disengageRange": 10,
+      "patrolPath": [{ "x": 8, "z": 13 }, { "x": 13, "z": 13 }]
+    },
+    { "id": "octopus-east-a", "x": 20, "z": 7, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "stationary": true },
+    { "id": "octopus-east-b", "x": 22, "z": 13, "wave": 1, "count": 1, "monsterType": "octopus", "interval": 0, "stationary": true },
+    { "id": "bombbug-yard", "x": 15, "z": 10, "wave": 1, "count": 1, "monsterType": "bombBug", "interval": 0 },
+    { "id": "slime-mud", "x": 18, "z": 12, "wave": 1, "count": 1, "monsterType": "slime", "interval": 0 }
+  ]
+}

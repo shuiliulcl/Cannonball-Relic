@@ -1,0 +1,131 @@
+{
+  "version": 2,
+  "name": "外环清理区",
+  "description": "先观察外环巡逻线，分区击破各房间，最终攻坚中庭核心。",
+  "maxWaves": 1,
+  "grid": { "width": 30, "height": 22, "cellSize": 1 },
+  "playerStart": { "x": 2, "z": 19 },
+  "floors": [
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone",
+    "sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone","sandstone"
+  ],
+  "floorPatches": [
+    { "x": 1,  "z": 17, "w": 4, "h": 4, "material": "moss" },
+    { "x": 21, "z": 5, "w": 3, "h": 3, "material": "mud" },
+    { "x": 7,  "z": 15, "w": 3, "h": 3, "material": "fire" }
+  ],
+  "obstacles": [
+    { "id": "wa-n",  "x": 6,  "z": 3,  "w": 6, "h": 1, "material": "wood" },
+    { "id": "wa-r1", "x": 4,  "z": 4,  "w": 1, "h": 1, "material": "reflector" },
+    { "id": "wa-r2", "x": 4,  "z": 5,  "w": 1, "h": 1, "material": "reflector" },
+    { "id": "wa-wl", "x": 6,  "z": 4,  "w": 1, "h": 4, "material": "wood" },
+    { "id": "wa-et", "x": 11, "z": 4,  "w": 1, "h": 2, "material": "wood" },
+    { "id": "wa-g1", "x": 11, "z": 6,  "w": 1, "h": 1, "material": "glass" },
+    { "id": "wa-el", "x": 11, "z": 7,  "w": 1, "h": 1, "material": "wood" },
+    { "id": "wa-s",  "x": 6,  "z": 8,  "w": 6, "h": 1, "material": "wood" },
+    { "id": "xa1",   "x": 8,  "z": 5,  "w": 1, "h": 1, "material": "bomb" },
+
+    { "id": "rn1", "x": 14, "z": 3, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "rn2", "x": 15, "z": 3, "w": 1, "h": 1, "material": "reflector" },
+
+    { "id": "wc-n",  "x": 18, "z": 3,  "w": 8, "h": 1, "material": "wood" },
+    { "id": "wc-wt", "x": 18, "z": 4,  "w": 1, "h": 2, "material": "wood" },
+    { "id": "wc-g2", "x": 17, "z": 6,  "w": 1, "h": 1, "material": "glass" },
+    { "id": "wc-g3", "x": 17, "z": 7,  "w": 1, "h": 1, "material": "glass" },
+    { "id": "wc-wb", "x": 18, "z": 8,  "w": 1, "h": 1, "material": "wood" },
+    { "id": "wc-et", "x": 25, "z": 4,  "w": 1, "h": 6, "material": "wood" },
+    { "id": "wc-g4", "x": 25, "z": 10, "w": 1, "h": 1, "material": "glass" },
+    { "id": "wc-eb", "x": 25, "z": 11, "w": 1, "h": 3, "material": "wood" },
+    { "id": "wc-s",  "x": 19, "z": 8,  "w": 6, "h": 1, "material": "wood" },
+    { "id": "xa2",   "x": 20, "z": 6,  "w": 1, "h": 1, "material": "bomb" },
+
+    { "id": "bb1", "x": 14, "z": 9,  "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "bb2", "x": 15, "z": 9,  "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "bb3", "x": 14, "z": 12, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "bb4", "x": 15, "z": 12, "w": 1, "h": 1, "material": "accelerator" },
+    { "id": "cb-w", "x": 11, "z": 10, "w": 2, "h": 2, "material": "wood" },
+    { "id": "cb-e", "x": 18, "z": 10, "w": 2, "h": 2, "material": "wood" },
+    { "id": "cb-s", "x": 13, "z": 15, "w": 3, "h": 1, "material": "wood" },
+
+    { "id": "wd-n1", "x": 5,  "z": 13, "w": 1, "h": 1, "material": "wood" },
+    { "id": "wd-g1", "x": 6,  "z": 12, "w": 1, "h": 1, "material": "glass" },
+    { "id": "wd-g2", "x": 7,  "z": 12, "w": 1, "h": 1, "material": "glass" },
+    { "id": "wd-n2", "x": 8,  "z": 13, "w": 4, "h": 1, "material": "wood" },
+    { "id": "wd-w",  "x": 5,  "z": 14, "w": 1, "h": 4, "material": "wood" },
+    { "id": "wd-er", "x": 11, "z": 14, "w": 1, "h": 4, "material": "wood" },
+    { "id": "wd-s",  "x": 5,  "z": 18, "w": 7, "h": 1, "material": "wood" },
+
+    { "id": "we-n1", "x": 18, "z": 13, "w": 4, "h": 1, "material": "wood" },
+    { "id": "we-g3", "x": 22, "z": 13, "w": 1, "h": 1, "material": "glass" },
+    { "id": "we-g4", "x": 23, "z": 13, "w": 1, "h": 1, "material": "glass" },
+    { "id": "we-n2", "x": 24, "z": 13, "w": 1, "h": 1, "material": "wood" },
+    { "id": "we-wt", "x": 17, "z": 13, "w": 1, "h": 1, "material": "wood" },
+    { "id": "we-g5", "x": 17, "z": 14, "w": 1, "h": 1, "material": "glass" },
+    { "id": "we-g6", "x": 17, "z": 15, "w": 1, "h": 1, "material": "glass" },
+    { "id": "we-wb", "x": 17, "z": 16, "w": 1, "h": 2, "material": "wood" },
+    { "id": "we-e",  "x": 25, "z": 14, "w": 1, "h": 5, "material": "wood" },
+    { "id": "we-s",  "x": 18, "z": 18, "w": 7, "h": 1, "material": "wood" },
+
+    { "id": "re1", "x": 24, "z": 16, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "re2", "x": 24, "z": 17, "w": 1, "h": 1, "material": "reflector" },
+
+    { "id": "rs1", "x": 14, "z": 18, "w": 1, "h": 1, "material": "reflector" },
+    { "id": "rs2", "x": 15, "z": 18, "w": 1, "h": 1, "material": "reflector" },
+
+    { "id": "xa3", "x": 22, "z": 15, "w": 1, "h": 1, "material": "bomb" }
+  ],
+  "interactables": [
+    { "id": "h1", "x": 14, "z": 11, "type": "brazier" },
+    { "id": "h2", "x": 16, "z": 11, "type": "brazier" }
+  ],
+  "spawns": [
+    { "id": "e1a", "x": 9,  "z": 5,  "wave": 1, "count": 1, "monsterType": "octopus",     "interval": 0, "stationary": true },
+    { "id": "e1b", "x": 21, "z": 4,  "wave": 1, "count": 1, "monsterType": "octopus",     "interval": 0, "stationary": true },
+    { "id": "e1c", "x": 24, "z": 11, "wave": 1, "count": 1, "monsterType": "octopus",     "interval": 0, "stationary": true },
+    { "id": "e1d", "x": 7,  "z": 14, "wave": 1, "count": 1, "monsterType": "octopus",     "interval": 0, "stationary": true },
+
+    { "id": "e2a", "x": 5,  "z": 10, "wave": 1, "count": 1, "monsterType": "hound", "interval": 0, "aiState": "patrol", "patrolPath": [{"x": 5,  "z": 10}, {"x": 9,  "z": 10}] },
+    { "id": "e2b", "x": 13, "z": 2,  "wave": 1, "count": 1, "monsterType": "hound", "interval": 0, "aiState": "patrol", "patrolPath": [{"x": 13, "z": 2},  {"x": 16, "z": 2}]  },
+    { "id": "e2c", "x": 23, "z": 17, "wave": 1, "count": 1, "monsterType": "hound", "interval": 0, "aiState": "patrol", "patrolPath": [{"x": 23, "z": 17}, {"x": 26, "z": 17}] },
+    { "id": "e2d", "x": 13, "z": 19, "wave": 1, "count": 1, "monsterType": "hound", "interval": 0, "aiState": "patrol", "patrolPath": [{"x": 13, "z": 19}, {"x": 17, "z": 19}] },
+
+    { "id": "e3a", "x": 22, "z": 10, "wave": 1, "count": 1, "monsterType": "boar",        "interval": 0 },
+    { "id": "e3b", "x": 10, "z": 17, "wave": 1, "count": 1, "monsterType": "boar",        "interval": 0 },
+
+    { "id": "e6a", "x": 10, "z": 5,  "wave": 1, "count": 1, "monsterType": "bombBug",     "interval": 0 },
+    { "id": "e6b", "x": 21, "z": 6,  "wave": 1, "count": 1, "monsterType": "bombBug",     "interval": 0 },
+    { "id": "e6c", "x": 21, "z": 15, "wave": 1, "count": 1, "monsterType": "bombBug",     "interval": 0 },
+    { "id": "e6d", "x": 17, "z": 11, "wave": 1, "count": 1, "monsterType": "bombBug",     "interval": 0 },
+
+    { "id": "e7a", "x": 15, "z": 10, "wave": 1, "count": 1, "monsterType": "shieldCrab",  "interval": 0, "stationary": true },
+    { "id": "e7b", "x": 15, "z": 13, "wave": 1, "count": 1, "monsterType": "shieldCrab",  "interval": 0, "stationary": true },
+
+    { "id": "e8a", "x": 22, "z": 7,  "wave": 1, "count": 1, "monsterType": "voodooFlower","interval": 0, "stationary": true },
+    { "id": "e8b", "x": 8,  "z": 16, "wave": 1, "count": 1, "monsterType": "voodooFlower","interval": 0, "stationary": true },
+
+    { "id": "e9a", "x": 26, "z": 5,  "wave": 1, "count": 1, "monsterType": "eyeCannon",   "interval": 0, "stationary": true },
+    { "id": "e9b", "x": 3,  "z": 5,  "wave": 1, "count": 1, "monsterType": "eyeCannon",   "interval": 0, "stationary": true },
+
+    { "id": "e10", "x": 14, "z": 10, "wave": 1, "count": 1, "monsterType": "priest",      "interval": 0, "stationary": true }
+  ]
+}

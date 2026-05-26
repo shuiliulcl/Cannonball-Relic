@@ -23,3 +23,20 @@ Open it with:
 ```
 
 Current limitation: terrain, core obstacle effects, and interactables have first-pass runtime behavior. Editor UI support for all new types is still scheduled for later phases.
+
+## Design 1-7 experimental set
+
+The `design-*` files are a separate 1-7 level line based on the latest design docs. They do not replace existing campaign or standalone levels.
+
+Open the full chain with:
+
+```text
+/?set=design7
+```
+
+Open one level directly with:
+
+```text
+/?level=design-01-street-office
+/?level=design-07-outer-ring
+```
