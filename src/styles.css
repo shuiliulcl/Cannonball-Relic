@@ -921,6 +921,570 @@ button:focus-visible {
   }
 }
 
+.survivor-shell {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 560px;
+  overflow: hidden;
+  background: #090a12;
+  color: #f5fbff;
+}
+
+.survivor-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #090a12;
+}
+
+.survivor-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  color: #f5fbff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.62);
+}
+
+.survivor-title,
+.survivor-bars,
+.survivor-voice,
+.survivor-active-spells,
+.survivor-detail-panel,
+.survivor-resource-panel,
+.survivor-command-dock {
+  border: 1px solid rgba(142, 232, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(7, 12, 24, 0.78);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(8px);
+}
+
+.survivor-title {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  min-width: min(360px, calc(100vw - 28px));
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.survivor-title strong {
+  color: #fff8d6;
+  font-size: clamp(20px, 2.7vw, 34px);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.survivor-title a {
+  width: fit-content;
+  color: #8ee8ff;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+  pointer-events: auto;
+  text-shadow: none;
+}
+
+.survivor-title a:hover,
+.survivor-title a:focus-visible {
+  color: #fff8d6;
+  outline: none;
+}
+
+.survivor-bars {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: min(560px, calc(100vw - 510px));
+  min-height: 50px;
+  transform: translateX(-50%);
+  display: grid;
+  align-content: center;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.survivor-bars span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.survivor-voice {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: min(360px, calc(100vw - 28px));
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  pointer-events: auto;
+  text-shadow: none;
+}
+
+.survivor-voice button,
+.survivor-command-dock button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(142, 232, 255, 0.42);
+  border-radius: 7px;
+  background: linear-gradient(180deg, #e9fbff, #79dfff);
+  color: #07101d;
+  box-shadow: 0 3px 0 rgba(24, 82, 105, 0.82);
+  font-size: 12px;
+  text-shadow: none;
+}
+
+.survivor-voice span {
+  min-width: 0;
+  max-height: 42px;
+  overflow: hidden;
+  color: #dff9ff;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.survivor-active-spells {
+  position: absolute;
+  left: 14px;
+  top: 116px;
+  width: 248px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  text-shadow: none;
+}
+
+.survivor-active-spells > strong {
+  color: #fff8d6;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.survivor-active-empty {
+  color: #9eb4c7;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.survivor-active-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+  color: #dff9ff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.survivor-active-row span,
+.survivor-active-row em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.survivor-active-row i {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(142, 232, 255, 0.15);
+}
+
+.survivor-active-row i::before {
+  content: "";
+  width: var(--spell-fill, 0%);
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8ee8ff, #ffcf5a);
+  box-shadow: 0 0 12px rgba(142, 232, 255, 0.42);
+}
+
+.survivor-active-row[data-state="off"] {
+  color: #7892a8;
+}
+
+.survivor-active-row[data-state="off"] i::before {
+  background: transparent;
+  box-shadow: none;
+}
+
+.survivor-detail-panel {
+  position: absolute;
+  left: 14px;
+  bottom: 154px;
+  width: min(320px, calc(100vw - 28px));
+  min-height: 54px;
+  display: grid;
+  align-items: start;
+  padding: 10px 12px;
+  color: #dff9ff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.45;
+  text-shadow: none;
+}
+
+#survivorStats {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.survivor-stat-chip {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid rgba(142, 232, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(3, 16, 32, 0.36);
+  box-shadow: inset 0 0 16px rgba(142, 232, 255, 0.06);
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.survivor-stat-chip.is-wide {
+  grid-column: 1 / -1;
+}
+
+.survivor-stat-chip b,
+.survivor-stat-chip em {
+  min-width: 0;
+  font: inherit;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.survivor-stat-chip b {
+  color: rgba(223, 249, 255, 0.72);
+}
+
+.survivor-stat-chip em {
+  text-align: right;
+  color: #ffffff;
+}
+
+.survivor-resource-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  z-index: 3;
+  width: min(720px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  pointer-events: none;
+  text-shadow: none;
+}
+
+.survivor-resource-row--xp {
+  grid-column: 1 / -1;
+}
+
+.survivor-resource-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 8px;
+  color: #dff9ff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.survivor-resource-row i {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(6, 13, 24, 0.75);
+}
+
+.survivor-resource-row b {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  transition: width 140ms linear;
+}
+
+#survivorHpFill {
+  background: linear-gradient(90deg, #ff4268, #ff9aa9);
+  box-shadow: 0 0 14px rgba(255, 66, 104, 0.38);
+}
+
+#survivorEnergyFill {
+  background: linear-gradient(90deg, #8ee8ff, #ffcf5a);
+  box-shadow: 0 0 14px rgba(142, 232, 255, 0.36);
+}
+
+#survivorXpFill {
+  background: linear-gradient(90deg, #7cff9b, #8ee8ff);
+  box-shadow: 0 0 14px rgba(124, 255, 155, 0.34);
+}
+
+.survivor-resource-row strong {
+  color: #fff8d6;
+  font-size: 12px;
+  text-align: right;
+}
+
+.survivor-command-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 3;
+  width: min(980px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px;
+  pointer-events: auto;
+}
+
+.survivor-command-dock button {
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #fff8d6, #ffcf5a);
+  box-shadow: 0 3px 0 rgba(112, 72, 11, 0.85);
+}
+
+.survivor-command-dock button[data-state="empty"],
+.survivor-command-dock button[data-state="blocked"] {
+  border-color: rgba(170, 190, 204, 0.18);
+  color: #7f93a6;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: translateY(3px);
+}
+
+.survivor-command-dock button[data-state="empty"] {
+  background: linear-gradient(180deg, #29364a, #142033);
+}
+
+.survivor-command-dock button[data-state="blocked"] {
+  background: linear-gradient(180deg, #2b2e38, #171b24);
+}
+
+.survivor-command-dock button[data-state="empty"]::after {
+  content: "声能不足";
+  margin-left: 6px;
+  color: #ffcf5a;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.survivor-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(102, 224, 255, 0.2), transparent 34%),
+    rgba(5, 7, 14, 0.78);
+}
+
+.survivor-overlay[hidden] {
+  display: none;
+}
+
+.survivor-kicker {
+  color: #8ee8ff;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.survivor-overlay h1 {
+  max-width: min(900px, calc(100vw - 32px));
+  margin: 0;
+  color: #fff8d6;
+  font-size: clamp(44px, 9vw, 104px);
+  line-height: 0.9;
+  letter-spacing: 0;
+  text-shadow:
+    0 4px 0 #113a55,
+    0 20px 45px rgba(0, 0, 0, 0.62);
+}
+
+.survivor-overlay p {
+  max-width: 720px;
+  margin: 0;
+  color: #dff9ff;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.survivor-overlay button {
+  min-height: 46px;
+  border: 1px solid rgba(255, 248, 214, 0.78);
+  background: linear-gradient(180deg, #fff8d6, #ffcf5a);
+  color: #1a1b24;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 4px 0 #78510d,
+    0 16px 34px rgba(0, 0, 0, 0.38);
+}
+
+.survivor-upgrade {
+  background: rgba(5, 7, 14, 0.82);
+}
+
+.survivor-upgrade h1 {
+  font-size: clamp(34px, 6vw, 72px);
+}
+
+.survivor-upgrade-choices {
+  width: min(980px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.survivor-upgrade-choices button {
+  min-height: 220px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid rgba(255, 248, 214, 0.5);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 248, 214, 0.96), rgba(255, 207, 90, 0.92)),
+    #ffcf5a;
+  color: #171821;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.36),
+    0 5px 0 #78510d,
+    0 16px 30px rgba(0, 0, 0, 0.36);
+  text-align: left;
+}
+
+.survivor-upgrade-choices button[data-rarity="gold"] {
+  background: linear-gradient(180deg, #fff5b8, #ffb84d 58%, #d96c35);
+}
+
+.survivor-upgrade-choices button[data-rarity="diamond"] {
+  background: linear-gradient(180deg, #f5fdff, #8ee8ff 56%, #8d8aff);
+}
+
+.survivor-upgrade-choices span {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(7, 16, 29, 0.12);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.survivor-upgrade-choices strong {
+  color: #101626;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.survivor-upgrade-choices em {
+  color: #293348;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
+  .survivor-title,
+  .survivor-bars,
+  .survivor-voice,
+  .survivor-active-spells,
+  .survivor-detail-panel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    transform: none;
+  }
+
+  .survivor-bars {
+    top: 92px;
+  }
+
+  .survivor-voice {
+    top: 172px;
+  }
+
+  .survivor-active-spells {
+    top: 252px;
+  }
+
+  .survivor-detail-panel {
+    bottom: 154px;
+  }
+
+  .survivor-resource-panel {
+    grid-template-columns: 1fr;
+    bottom: 70px;
+    width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 760px) {
+  .survivor-shell {
+    min-height: 620px;
+  }
+
+  .survivor-title strong {
+    font-size: 24px;
+  }
+
+  .survivor-bars {
+    font-size: 12px;
+  }
+
+  .survivor-resource-row {
+    grid-template-columns: 42px minmax(0, 1fr) 58px;
+  }
+
+  .survivor-upgrade-choices {
+    grid-template-columns: 1fr;
+    max-height: 62vh;
+    overflow: auto;
+  }
+
+  .survivor-upgrade-choices button {
+    min-height: 160px;
+  }
+}
+
 .editor-app {
   min-height: 100vh;
   height: 100vh;

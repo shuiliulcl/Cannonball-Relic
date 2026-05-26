@@ -5,6 +5,7 @@ import { VoiceInput } from "./game/voice";
 import { SceneView } from "./render/SceneView";
 import { Hud } from "./ui/Hud";
 import { LevelEditor } from "./editor/LevelEditor";
+import { VoiceSurvivorGame } from "./survivor/VoiceSurvivorGame";
 import { levelToRuntime } from "./levels/convert";
 import { loadLocalLevel } from "./levels/storage";
 import type { LevelDefinition } from "./levels/types";
@@ -102,13 +103,20 @@ const LEVEL_SETS: Record<string, string[]> = {
   ],
 };
 
-if (new URLSearchParams(window.location.search).get("mode") === "editor") {
+const bootParams = new URLSearchParams(window.location.search);
+
+if (bootParams.get("mode") === "editor") {
   if (!app) {
     throw new Error("Missing app root.");
   }
   new LevelEditor(app).mount();
-} else {
+} else if (bootParams.get("game") === "relic") {
   void bootstrapGame();
+} else {
+  if (!app) {
+    throw new Error("Missing app root.");
+  }
+  new VoiceSurvivorGame(app).mount();
 }
 
 async function bootstrapGame(): Promise<void> {

@@ -1,6 +1,6 @@
-# Cannonball Relic
+# 人间大炮一级准备
 
-Three.js prototype for a top-down rogue-lite marble game.
+Voice-driven survivor rogue-lite built on the original Cannonball Relic project.
 
 ## Run
 
@@ -17,7 +17,13 @@ npm run build
 
 Submit the generated `dist` folder as the HTML5 resource package after final polishing.
 
-## View Modes
+## Routes
+
+- `/`: new voice survivor game, "人间大炮一级准备".
+- `/?game=relic`: preserved Cannonball Relic marble rogue-lite.
+- `/?mode=editor`: preserved level editor for Cannonball Relic.
+
+## Cannonball Relic View Modes
 
 - Default / `?view=2d`: experimental pure 2D top-down arena, flat obstacle visuals, and top-down camera.
 - `?view=2.5d`: preserved 2.5D arena, walls, props, and sprite obstacle presentation.

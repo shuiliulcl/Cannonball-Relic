@@ -405,3 +405,22 @@
 - [x] Remove stale next-task guidance that referred to already completed monster, level, aim preview, art, and audio work.
 - [x] Update collaborator guidance with current remaining work: final PV, full campaign tuning, optional remaining design cards, and readability polish.
 - [x] Refresh `docs/DesignRevisionPlan.md` so it reflects current implementation status instead of the initial planning slice.
+
+## Phase 46 - Voice Survivor Spin-Off
+
+- [x] Add a new default game, 人间大炮一级准备, as a separate Canvas survivor module.
+- [x] Preserve Cannonball Relic through `?game=relic` and keep `?mode=editor` available.
+- [x] Add voice-triggered spell commands, spell chain variety rewards, fatigue against repeated commands, and fallback clickable command buttons.
+- [x] Add survivor enemies that pressure movement, spell switching, silence zones, and human-cannon use.
+- [x] Add Buff drafts that unlock and stack attack, utility, human-cannon, and light meme spells.
+- [x] Ease first-run difficulty and add guaranteed passive growth so players are not forced to rely only on voice spells.
+- [x] Retune pacing with a faster opening and a late-game enemy-pressure soft cap.
+- [x] Change core attack chants into timed Buffs with a left-side countdown panel, while keeping meme chants as one-shot power skills.
+- [x] Add build-aware difficulty scaling and pressure waves so large spells become necessary after several Buffs.
+- [x] Increase mid-game monster stat scaling for HP, speed, contact damage, ranged shots, and pressure-wave elites.
+- [x] Move 锁定 out of the starting kit and gate it behind a later tactical Buff.
+- [x] Reduce the starting voice kit and make early levels frequently unlock low-tier abilities before late meme power Buffs enter the pool.
+- [x] Speed up early level cadence and add repeatable spell-family progression cards for deeper builds.
+- [x] Rework survivor HUD with HP/energy bars above the spell dock, detailed stats at lower-left, and spell chain retained at top.
+- [x] Rework the human-cannon chant into three stages: 一级准备 charges up to 3 times, 人间大炮 locks target, 发射 launches with charge-scaled bounces and damage.
+- [ ] Playtest balance, audio, and longer-run pacing after the first build pass.

@@ -54,3 +54,11 @@ Use this file to record AI-assisted creation for competition submission.
     - `Tasklist.md` — Phases 26–39 ticked.
   - Human edits: None required; all output passed TypeScript type-check and Vite production build.
   - Screenshot or artifact: `Tasklist.md` Phases 26–38 all marked complete.
+
+- 2026-05-26
+  - Tool: Codex.
+  - Purpose: Turn the new voice-survivor concept into a separate default game while preserving Cannonball Relic.
+  - Input summary: User requested a Vampire Survivors-like rogue-lite where voice commands combine with in-run Buffs, discourage repeating one chant, include utility control chants, human-cannon comedy, and light internet/meme-flavored spells.
+  - Output used: `src/survivor/VoiceSurvivorGame.ts`, default `/` route, `?game=relic` legacy route, survivor HUD/styles, voice command matcher, spell fatigue, spell-chain bonuses, Buff draft unlocks, enemy pressure types, and human-cannon launch mechanic.
+  - Human edits: Pending playtest and balance pass.
+  - Screenshot or artifact: `Tasklist.md` Phase 46.
