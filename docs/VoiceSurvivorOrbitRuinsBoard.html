@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Survivor Orbit Ruins Lineglow Pass</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #080a0f;
+        --panel: #12181d;
+        --line: rgba(117, 238, 226, 0.28);
+        --text: #f8ecd1;
+        --muted: #b9a987;
+        --cyan: #75eee2;
+        --brass: #d9a555;
+        --violet: #b16cff;
+        --ember: #ff9a3d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 45% 0%, rgba(117, 238, 226, 0.1), transparent 34rem),
+          radial-gradient(circle at 70% 10%, rgba(177, 108, 255, 0.11), transparent 26rem),
+          radial-gradient(circle at 15% 25%, rgba(255, 154, 61, 0.08), transparent 24rem),
+          var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          "Microsoft YaHei",
+          system-ui,
+          sans-serif;
+      }
+
+      main {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 28px 0 44px;
+      }
+
+      header {
+        display: grid;
+        gap: 10px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        color: #ffe6a5;
+        font-size: clamp(30px, 5vw, 58px);
+        line-height: 0.98;
+      }
+
+      p {
+        max-width: 860px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.65;
+      }
+
+      a {
+        width: fit-content;
+        color: var(--cyan);
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      h2 {
+        margin-bottom: 12px;
+        color: #ffe6a5;
+        font-size: 22px;
+      }
+
+      section {
+        padding-top: 26px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      figure {
+        min-width: 0;
+        margin: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(18, 24, 29, 0.72);
+        box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+      }
+
+      figure.is-wide {
+        grid-column: 1 / -1;
+      }
+
+      img {
+        width: 100%;
+        display: block;
+        background: #080a0f;
+      }
+
+      figcaption {
+        display: grid;
+        gap: 6px;
+        padding: 12px 14px 14px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      figcaption strong {
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      .notes {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .note {
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(18, 24, 29, 0.72);
+      }
+
+      .note strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--brass);
+      }
+
+      .note span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 760px) {
+        .grid,
+        .notes {
+          grid-template-columns: 1fr;
+        }
+
+        figure.is-wide {
+          grid-column: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Voice Survivor / Orbit Ruins Lineglow Pass</h1>
+        <p>
+          Target route is the new root gameplay at <strong>http://127.0.0.1:5177/</strong>. The direction is now biased
+          toward dark stone, luminous contour lines, self-glowing functional colors, and small-token readability rather
+          than uniform brass-metal detail.
+        </p>
+        <a href="/">Open current runtime</a>
+      </header>
+
+      <section aria-label="Selected buff showcase direction">
+        <h2>Selected 04 Buff Showcase Direction</h2>
+        <div class="grid">
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-buff-showcase-12-implementation-target.png" alt="Lineglow buff showcase implementation target" />
+            <figcaption>
+              <strong>12 Implementation target</strong>
+              Current best target: 04 direction refined into a cleaner edge-to-edge field. Player remains readable while shield, cannon pips, pull lines, orbit blades, drone, projectiles, and enemies coexist.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-buff-showcase-09-clean-runtime.png" alt="Clean buff showcase runtime composition" />
+            <figcaption>
+              <strong>09 Clean runtime composition</strong>
+              Strong clean reference. Use this to cap visual noise, effect count, floor contrast, and enemy complexity.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-04-buff-showcase.png" alt="Original buff showcase combat concept" />
+            <figcaption>
+              <strong>04 Buff showcase seed</strong>
+              Direction seed for stacked player Buff expression: body stays visible, Buffs live in rings, arcs, pull lines, orbit blades, drones, and bursts.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-buff-showcase-10-mid-density.png" alt="Mid-density buff showcase stress reference" />
+            <figcaption>
+              <strong>10 Mid-density stress reference</strong>
+              Useful warning: gather lines become noisy if they radiate across the screen. Runtime should cap pull lines to nearby targets.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-buff-showcase-11-late-stress.png" alt="Late buff showcase stress reference" />
+            <figcaption>
+              <strong>11 Late stress reference</strong>
+              Good for pressure color hierarchy, but too many beams and bars would overload implementation. Treat as an upper bound.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section aria-label="Lineglow concept sheets">
+        <h2>Lineglow Concept Direction</h2>
+        <div class="grid">
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-gameplay-mockup-v1.png" alt="Lineglow gameplay mockup" />
+            <figcaption>
+              <strong>Gameplay mockup</strong>
+              Dark stone arena, sparse warm beacons, cyan/violet/orange self-glow. This is closer to the target than the brass-heavy pass.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-player-buff-expression-v2.png" alt="Lineglow player buff expression sheet" />
+            <figcaption>
+              <strong>Player Buff expression space</strong>
+              Same small player repeated across Buff states. The player body stays simple; expression lives in rings, pips, trails, orbiting weapons, and pulses.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-enemy-density-scale-v1.png" alt="Lineglow enemy density scale sheet" />
+            <figcaption>
+              <strong>Enemy density and scale</strong>
+              Runtime-sized enemy symbols tested as sparse, mid, and dense clusters. Glow color and silhouette carry the read, not character detail.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-token-sheet-v1.png" alt="Lineglow token sheet" />
+            <figcaption>
+              <strong>Token vocabulary</strong>
+              Useful as a shape-language reference, though the player/Buff sheet above is more accurate for implementation.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/gameplay-mockup-v3-no-text.png" alt="Brass-heavy gameplay mockup" />
+            <figcaption>
+              <strong>Previous brass-heavy mockup</strong>
+              Kept for comparison. It has appealing polish but enemy identities collapse toward similar metal bodies.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section aria-label="Simulated gameplay slices">
+        <h2>Simulated Gameplay Slices</h2>
+        <div class="grid">
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-07-edge-field-mid.png" alt="Open field mid-density lineglow gameplay slice" />
+            <figcaption>
+              <strong>07 Edge-to-edge mid field</strong>
+              Recommended direction for the current gameplay: no island rim, no oval boundary, floor continues beyond the viewport. The contour-like floor lines should be softened in runtime.
+            </figcaption>
+          </figure>
+
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-08-edge-field-late.png" alt="Open field late-density lineglow gameplay slice" />
+            <figcaption>
+              <strong>08 Edge-to-edge late pressure</strong>
+              Best current high-density reference. Special areas read clearly without a hard terrain boundary. Runtime should still keep HP bars selective and minimal.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-01-early-sparse.png" alt="Early sparse lineglow gameplay slice" />
+            <figcaption>
+              <strong>01 Early sparse</strong>
+              Best for testing arena readability, basic projectile color, pickup visibility, and how much empty space early waves should preserve.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-02-mid-build.png" alt="Mid build lineglow gameplay slice" />
+            <figcaption>
+              <strong>02 Mid build density</strong>
+              Strong Buff and projectile read. Contains generated time text, so use as composition reference rather than final UI reference.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-03-late-pressure.png" alt="Late pressure lineglow gameplay slice" />
+            <figcaption>
+              <strong>03 Late pressure wave</strong>
+              Good stress test for special enemies and area rings. It also shows why runtime health bars must stay selective.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-04-buff-showcase.png" alt="Buff showcase lineglow gameplay slice" />
+            <figcaption>
+              <strong>04 Buff showcase combat</strong>
+              Good guide for stacking player rings, pull lines, orbit blades, drones, and impact blooms while keeping the player core visible.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-05-open-early.png" alt="Open early gameplay slice with visible broken terrain edges" />
+            <figcaption>
+              <strong>05 Open early attempt</strong>
+              Partially useful, but still shows broken terrain edges and void gaps. Do not treat it as the target arena read.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-scene-slice-06-open-late-density.png" alt="Open late gameplay slice with humanoid enemies" />
+            <figcaption>
+              <strong>06 Open late attempt</strong>
+              Better terrain extent, but enemies drift into humanoid soldiers. Use 08 instead for the current token language.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="grid" aria-label="Runtime screenshots">
+        <h2 class="is-wide">Current Runtime Pass</h2>
+        <figure class="is-wide">
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/lineglow-runtime-v2-density.png" alt="Lineglow root survivor density screenshot" />
+          <figcaption>
+            <strong>Lineglow runtime v2 density</strong>
+            Current root route pass. Enemy bodies are now dark tokens with orange/red/cyan/violet/green glow identities, the arena is an edge-to-edge cracked field with no oval boundary, and full-health HP bars remain hidden.
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/lineglow-runtime-v2-early.png" alt="Lineglow root survivor early screenshot" />
+          <figcaption>
+            <strong>Lineglow runtime v2 early</strong>
+            Early read check for the small cyan player, projectile tail, pickups, and sparse enemy tokens against the low-contrast floor seams.
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/lineglow-runtime-v2-start.png" alt="Lineglow root survivor start overlay screenshot" />
+          <figcaption>
+            <strong>Lineglow runtime v2 start</strong>
+            HUD panels and start overlay moved away from brass cards toward dark translucent expedition instruments with cyan/violet/orange line accents.
+          </figcaption>
+        </figure>
+
+        <figure class="is-wide">
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/ingame-density-v1.png" alt="Orbit ruins survivor gameplay screenshot" />
+          <figcaption>
+            <strong>Gameplay density check</strong>
+            Root route after start. Enemy tokens use mid-value brass/stone bodies, cyan cores, and type-specific silhouettes; full-health bars stay hidden.
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/start-overlay-v1.png" alt="Orbit ruins start overlay screenshot" />
+          <figcaption>
+            <strong>Start overlay</strong>
+            HUD and overlay switched to brass expedition panels over low-contrast ruin terrain.
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/ingame-v1.png" alt="Early gameplay screenshot" />
+          <figcaption>
+            <strong>Early play check</strong>
+            Confirms the player token, projectile trail, resource dock, and quiet non-cell-aligned arena texture.
+          </figcaption>
+        </figure>
+
+        <figure class="is-wide">
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/ingame-wave2-v1.png" alt="Upgrade card screenshot" />
+          <figcaption>
+            <strong>Upgrade overlay check</strong>
+            Upgrade cards inherit the warm brass direction. This screenshot is for UI state only because the overlay pauses enemy readability review.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="notes" aria-label="Review notes">
+        <div class="note">
+          <strong>Direction Change</strong>
+          <span>Move from uniform brass-metal detail to dark bodies with cyan, violet, orange, green, and red self-glow identities.</span>
+        </div>
+        <div class="note">
+          <strong>Player Rule</strong>
+          <span>The player is a Buff expression container. Keep the body simple; put upgrades in outer rings, projectiles, pips, drones, and trails.</span>
+        </div>
+        <div class="note">
+          <strong>Enemy Rule</strong>
+          <span>Most enemies are 26-32 px tokens under high density. Special enemies can be larger, but must read by silhouette and glow color.</span>
+        </div>
+        <div class="note">
+          <strong>Arena Rule</strong>
+          <span>No implied oval island or fixed terrain edge. Treat each screenshot as one viewport over a larger continuous field.</span>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

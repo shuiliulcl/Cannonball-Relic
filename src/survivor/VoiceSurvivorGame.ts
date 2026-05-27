@@ -1,6 +1,7 @@
 import { VoiceInput } from "../game/voice";
+import { LineglowSurvivorRenderer, type SurvivorRenderState } from "./render/LineglowSurvivorRenderer";
 
-type Vec2 = {
+export type Vec2 = {
   x: number;
   y: number;
 };
@@ -394,7 +395,7 @@ const SPELL_CONFIG = {
   },
 } as const satisfies Record<string, SpellConfig>;
 
-type SpellKey = keyof typeof SPELL_CONFIG;
+export type SpellKey = keyof typeof SPELL_CONFIG;
 
 const VOICE_COMBO_CONFIG = {
   stormBloom: {
@@ -461,9 +462,9 @@ type SurvivorVoiceAction =
   | { type: "spell"; spell: SpellKey }
   | { type: "combo"; combo: VoiceComboKey; spells: readonly SpellKey[] };
 
-type EnemyType = "runner" | "brute" | "pouncer" | "ranged" | "repeater" | "silencer" | "target";
+export type EnemyType = "runner" | "brute" | "pouncer" | "ranged" | "repeater" | "silencer" | "target";
 
-type Enemy = {
+export type Enemy = {
   id: number;
   type: EnemyType;
   position: Vec2;
@@ -478,7 +479,7 @@ type Enemy = {
   lastSpellHit?: SpellKey;
 };
 
-type Projectile = {
+export type Projectile = {
   id: number;
   position: Vec2;
   velocity: Vec2;
@@ -493,7 +494,7 @@ type Projectile = {
   lightning: boolean;
 };
 
-type EnemyShot = {
+export type EnemyShot = {
   position: Vec2;
   velocity: Vec2;
   radius: number;
@@ -502,7 +503,7 @@ type EnemyShot = {
   grazed?: boolean;
 };
 
-type Drop = {
+export type Drop = {
   position: Vec2;
   value: number;
   radius: number;
@@ -515,7 +516,7 @@ type PlayerSnapshot = {
   hp: number;
 };
 
-type Particle = {
+export type Particle = {
   position: Vec2;
   velocity: Vec2;
   radius: number;
@@ -537,7 +538,7 @@ type SpellCue = {
   lines?: number;
 };
 
-type Turret = {
+export type Turret = {
   position: Vec2;
   cooldown: number;
   life: number;
@@ -701,6 +702,7 @@ function voiceActionLabel(action: SurvivorVoiceAction): string {
 export class VoiceSurvivorGame {
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;
+  private readonly renderer = new LineglowSurvivorRenderer();
   private statusLine!: HTMLElement;
   private statLine!: HTMLElement;
   private chainLine!: HTMLElement;
@@ -3593,17 +3595,34 @@ export class VoiceSurvivorGame {
   private render(): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
-    this.renderArena(ctx);
-    this.renderDrops(ctx);
-    this.renderOrbitWeapons(ctx);
-    this.renderTurrets(ctx);
-    this.renderProjectiles(ctx);
-    this.renderEnemies(ctx);
-    this.renderEnemyShots(ctx);
-    this.renderPlayer(ctx);
-    this.renderParticles(ctx);
+    this.renderer.render(ctx, this.getRenderState());
     this.renderSpellCues(ctx);
     this.renderHudText();
+  }
+
+  private getRenderState(): SurvivorRenderState {
+    return {
+      width: this.width,
+      height: this.height,
+      elapsed: this.elapsed,
+      player: { ...this.player, radius: this.effectivePlayerRadius() },
+      enemies: this.enemies,
+      projectiles: this.projectiles,
+      enemyShots: this.enemyShots,
+      drops: this.drops,
+      particles: this.particles,
+      turrets: this.turrets,
+      activeMods: this.activeMods,
+      cannonTarget: this.cannonTarget,
+      cannonCharge: this.cannonCharge,
+      splitAngle: this.splitAngle,
+      magnetRadius: this.magnetRadius,
+      guardTurretCount: this.guardTurretCount,
+      bladeCount: this.bladeCount,
+      bladeAngle: this.bladeAngle,
+      bladeRadius: this.bladeRadius,
+      playerSilenced: this.isPlayerSilenced(),
+    };
   }
 
   private renderArena(ctx: CanvasRenderingContext2D): void {

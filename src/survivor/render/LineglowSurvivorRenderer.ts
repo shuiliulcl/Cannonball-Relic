@@ -1,0 +1,705 @@
+import type { Drop, Enemy, EnemyShot, EnemyType, Particle, Projectile, Turret, Vec2 } from "../VoiceSurvivorGame";
+
+export type SurvivorRenderPlayer = {
+  position: Vec2;
+  radius: number;
+  shield: number;
+  cannonTime: number;
+};
+
+export type SurvivorRenderActiveMods = {
+  explosionTime: number;
+  freezeTime: number;
+  lightningTime: number;
+  splitTime: number;
+  pierceTime: number;
+  ricochetTime: number;
+  focusTime: number;
+  seriousTime: number;
+  damageBoost: number;
+};
+
+export type SurvivorRenderState = {
+  width: number;
+  height: number;
+  elapsed: number;
+  player: SurvivorRenderPlayer;
+  enemies: readonly Enemy[];
+  projectiles: readonly Projectile[];
+  enemyShots: readonly EnemyShot[];
+  drops: readonly Drop[];
+  particles: readonly Particle[];
+  turrets: readonly Turret[];
+  activeMods: SurvivorRenderActiveMods;
+  cannonTarget: Vec2 | null;
+  cannonCharge: number;
+  splitAngle: number;
+  magnetRadius: number;
+  guardTurretCount: number;
+  bladeCount: number;
+  bladeAngle: number;
+  bladeRadius: number;
+  playerSilenced: boolean;
+};
+
+const ORBIT_RUINS_ENEMY_ART: Record<
+  EnemyType,
+  { base: string; plate: string; accent: string; outline: string; glow: string }
+> = {
+  runner: { base: "#171216", plate: "#ff8a2f", accent: "#ffd16a", outline: "#ff8a2f", glow: "rgba(255, 138, 47, 0.48)" },
+  brute: { base: "#1d1412", plate: "#ff6b2a", accent: "#ffd16a", outline: "#ff9a3d", glow: "rgba(255, 107, 42, 0.52)" },
+  pouncer: { base: "#19161a", plate: "#ffc247", accent: "#ff7f36", outline: "#ffc247", glow: "rgba(255, 194, 71, 0.48)" },
+  ranged: { base: "#10191d", plate: "#75eee2", accent: "#d8ffff", outline: "#75eee2", glow: "rgba(117, 238, 226, 0.5)" },
+  repeater: { base: "#111a15", plate: "#9cff8a", accent: "#e2ffd8", outline: "#9cff8a", glow: "rgba(156, 255, 138, 0.42)" },
+  silencer: { base: "#151225", plate: "#b16cff", accent: "#f0d9ff", outline: "#b16cff", glow: "rgba(177, 108, 255, 0.48)" },
+  target: { base: "#1c1114", plate: "#ff4a5f", accent: "#ffd3d8", outline: "#ff4a5f", glow: "rgba(255, 74, 95, 0.55)" },
+};
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function distance(a: Vec2, b: Vec2): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function normalize(v: Vec2): Vec2 {
+  const length = Math.hypot(v.x, v.y);
+  if (length < 0.0001) return { x: 0, y: 0 };
+  return { x: v.x / length, y: v.y / length };
+}
+
+export class LineglowSurvivorRenderer {
+  private state!: SurvivorRenderState;
+
+  render(ctx: CanvasRenderingContext2D, state: SurvivorRenderState): void {
+    this.state = state;
+    this.renderArena(ctx);
+    this.renderDrops(ctx);
+    this.renderOrbitWeapons(ctx);
+    this.renderTurrets(ctx);
+    this.renderProjectiles(ctx);
+    this.renderEnemies(ctx);
+    this.renderEnemyShots(ctx);
+    this.renderPlayer(ctx);
+    this.renderParticles(ctx);
+  }
+
+  private get width(): number { return this.state.width; }
+  private get height(): number { return this.state.height; }
+  private get elapsed(): number { return this.state.elapsed; }
+  private get player(): SurvivorRenderPlayer { return this.state.player; }
+  private get enemies(): readonly Enemy[] { return this.state.enemies; }
+  private get projectiles(): readonly Projectile[] { return this.state.projectiles; }
+  private get enemyShots(): readonly EnemyShot[] { return this.state.enemyShots; }
+  private get drops(): readonly Drop[] { return this.state.drops; }
+  private get particles(): readonly Particle[] { return this.state.particles; }
+  private get turrets(): readonly Turret[] { return this.state.turrets; }
+  private get activeMods(): SurvivorRenderActiveMods { return this.state.activeMods; }
+  private get cannonTarget(): Vec2 | null { return this.state.cannonTarget; }
+  private get cannonCharge(): number { return this.state.cannonCharge; }
+  private get splitAngle(): number { return this.state.splitAngle; }
+  private get magnetRadius(): number { return this.state.magnetRadius; }
+  private get guardTurretCount(): number { return this.state.guardTurretCount; }
+  private get bladeCount(): number { return this.state.bladeCount; }
+  private get bladeAngle(): number { return this.state.bladeAngle; }
+  private get bladeRadius(): number { return this.state.bladeRadius; }
+
+  private isPlayerSilenced(): boolean {
+    return this.state.playerSilenced;
+  }
+
+  private guardTurretPosition(index: number): Vec2 {
+    const count = Math.max(1, this.guardTurretCount);
+    const angle = this.elapsed * 0.9 + (Math.PI * 2 * index) / count;
+    const radius = this.player.radius + 28;
+    return {
+      x: clamp(this.player.position.x + Math.cos(angle) * radius, 18, this.width - 18),
+      y: clamp(this.player.position.y + Math.sin(angle) * radius, 18, this.height - 18),
+    };
+  }
+
+  private bladePosition(index: number): Vec2 {
+    const count = Math.max(1, this.bladeCount);
+    const angle = this.bladeAngle + (Math.PI * 2 * index) / count;
+    return {
+      x: this.player.position.x + Math.cos(angle) * this.bladeRadius,
+      y: this.player.position.y + Math.sin(angle) * this.bladeRadius,
+    };
+  }
+
+  private renderArena(ctx: CanvasRenderingContext2D): void {
+    const gradient = ctx.createRadialGradient(this.width * 0.42, this.height * 0.42, 40, this.width / 2, this.height / 2, this.width * 0.82);
+    gradient.addColorStop(0, "#132129");
+    gradient.addColorStop(0.5, "#0c121a");
+    gradient.addColorStop(1, "#05070c");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    ctx.setLineDash([]);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (let i = 0; i < 76; i += 1) {
+      const startX = (i * 149 + 37) % Math.max(1, this.width);
+      const startY = (i * 83 + 91) % Math.max(1, this.height);
+      const length = 36 + ((i * 19) % 96);
+      const angle = ((i * 47) % 360) * (Math.PI / 180);
+      const bend = ((i % 5) - 2) * 8;
+      ctx.strokeStyle = i % 11 === 0 ? "rgba(117, 238, 226, 0.09)" : "rgba(154, 179, 188, 0.055)";
+      ctx.lineWidth = i % 11 === 0 ? 1.15 : 0.8;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(
+        startX + Math.cos(angle + 0.7) * length * 0.44 + bend,
+        startY + Math.sin(angle + 0.7) * length * 0.44 - bend,
+        startX + Math.cos(angle) * length,
+        startY + Math.sin(angle) * length,
+      );
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(117, 238, 226, 0.045)";
+    ctx.lineWidth = 1.2;
+    for (let x = -24; x < this.width + 60; x += 164) {
+      ctx.beginPath();
+      ctx.moveTo(x, -18);
+      ctx.bezierCurveTo(x + 30, this.height * 0.25, x - 46, this.height * 0.62, x + 18, this.height + 20);
+      ctx.stroke();
+    }
+
+    const beacon = ctx.createRadialGradient(this.player.position.x, this.player.position.y, 0, this.player.position.x, this.player.position.y, 180);
+    beacon.addColorStop(0, "rgba(117, 238, 226, 0.13)");
+    beacon.addColorStop(0.36, "rgba(177, 108, 255, 0.045)");
+    beacon.addColorStop(1, "rgba(117, 238, 226, 0)");
+    ctx.fillStyle = beacon;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    if (this.isPlayerSilenced()) {
+      ctx.fillStyle = "rgba(128, 112, 196, 0.12)";
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
+  }
+
+  private renderPlayer(ctx: CanvasRenderingContext2D): void {
+    if (this.cannonTarget) {
+      const target = this.cannonTarget;
+      ctx.strokeStyle = "rgba(117, 238, 226, 0.78)";
+      ctx.lineWidth = 1.5 + this.cannonCharge * 0.7;
+      ctx.setLineDash([16, 9, 3, 9]);
+      ctx.beginPath();
+      ctx.moveTo(this.player.position.x, this.player.position.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(255, 154, 61, 0.12)";
+      ctx.strokeStyle = "rgba(255, 154, 61, 0.86)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, 18 + this.cannonCharge * 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    ctx.save();
+    ctx.translate(this.player.position.x, this.player.position.y);
+    const cannon = this.player.cannonTime > 0;
+    const pulse = 1 + Math.sin(this.elapsed * 7) * 0.08;
+
+    if (this.activeMods.explosionTime > 0 || cannon) {
+      ctx.strokeStyle = "rgba(255, 122, 47, 0.5)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.player.radius + 13 + Math.sin(this.elapsed * 9) * 2, 0.25, Math.PI * 1.76);
+      ctx.stroke();
+    }
+
+    if (this.activeMods.freezeTime > 0) {
+      ctx.strokeStyle = "rgba(168, 236, 255, 0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 7]);
+      ctx.beginPath();
+      ctx.arc(0, 0, this.player.radius + 20, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (this.activeMods.lightningTime > 0) {
+      ctx.strokeStyle = "rgba(177, 108, 255, 0.7)";
+      ctx.lineWidth = 1.8;
+      for (let i = 0; i < 3; i += 1) {
+        const angle = this.elapsed * 3 + i * 2.1;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 18, Math.sin(angle) * 18);
+        ctx.lineTo(Math.cos(angle + 0.3) * 27, Math.sin(angle + 0.3) * 27);
+        ctx.lineTo(Math.cos(angle + 0.75) * 21, Math.sin(angle + 0.75) * 21);
+        ctx.stroke();
+      }
+    }
+
+    if (this.activeMods.splitTime > 0) {
+      ctx.strokeStyle = "rgba(117, 238, 226, 0.34)";
+      ctx.lineWidth = 1;
+      const baseAngle = this.cannonTarget ? Math.atan2(this.cannonTarget.y - this.player.position.y, this.cannonTarget.x - this.player.position.x) : -Math.PI / 2;
+      for (let i = -2; i <= 2; i += 1) {
+        const angle = baseAngle + i * this.splitAngle;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 16, Math.sin(angle) * 16);
+        ctx.lineTo(Math.cos(angle) * 46, Math.sin(angle) * 46);
+        ctx.stroke();
+      }
+    }
+
+    if (this.activeMods.ricochetTime > 0) {
+      ctx.strokeStyle = "rgba(117, 238, 226, 0.62)";
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 5; i += 1) {
+        const angle = this.elapsed * 1.2 + (Math.PI * 2 * i) / 5;
+        const x = Math.cos(angle) * (this.player.radius + 27);
+        const y = Math.sin(angle) * (this.player.radius + 27);
+        ctx.beginPath();
+        ctx.rect(x - 2.5, y - 2.5, 5, 5);
+        ctx.stroke();
+      }
+    }
+
+    if (this.activeMods.focusTime > 0 || this.activeMods.seriousTime > 0) {
+      ctx.strokeStyle = this.activeMods.seriousTime > 0 ? "rgba(255, 74, 95, 0.72)" : "rgba(117, 238, 226, 0.68)";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.player.radius + 25, 0, Math.PI * 2);
+      ctx.moveTo(-this.player.radius - 31, 0);
+      ctx.lineTo(-this.player.radius - 18, 0);
+      ctx.moveTo(this.player.radius + 18, 0);
+      ctx.lineTo(this.player.radius + 31, 0);
+      ctx.moveTo(0, -this.player.radius - 31);
+      ctx.lineTo(0, -this.player.radius - 18);
+      ctx.moveTo(0, this.player.radius + 18);
+      ctx.lineTo(0, this.player.radius + 31);
+      ctx.stroke();
+    }
+
+    if (this.player.shield > 0) {
+      ctx.strokeStyle = "rgba(117, 238, 226, 0.76)";
+      ctx.shadowColor = "rgba(117, 238, 226, 0.6)";
+      ctx.shadowBlur = 14;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.player.radius + 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    if (this.cannonCharge > 0) {
+      for (let i = 0; i < this.cannonCharge; i += 1) {
+        const angle = -Math.PI / 2 + i * 0.58;
+        ctx.fillStyle = "#ff9a3d";
+        ctx.shadowColor = "rgba(255, 154, 61, 0.75)";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * (this.player.radius + 16), Math.sin(angle) * (this.player.radius + 16), 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    ctx.shadowColor = cannon ? "#ff9a3d" : "#75eee2";
+    ctx.shadowBlur = cannon ? 24 : 16;
+    ctx.fillStyle = "#10151b";
+    ctx.strokeStyle = cannon ? "rgba(255, 154, 61, 0.92)" : "rgba(117, 238, 226, 0.88)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -this.player.radius * 1.12);
+    ctx.quadraticCurveTo(this.player.radius * 0.88, -this.player.radius * 0.56, this.player.radius * 0.78, this.player.radius * 0.62);
+    ctx.quadraticCurveTo(this.player.radius * 0.18, this.player.radius * 1.08, 0, this.player.radius * 0.82);
+    ctx.quadraticCurveTo(-this.player.radius * 0.18, this.player.radius * 1.08, -this.player.radius * 0.78, this.player.radius * 0.62);
+    ctx.quadraticCurveTo(-this.player.radius * 0.88, -this.player.radius * 0.56, 0, -this.player.radius * 1.12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(117, 238, 226, 0.36)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-this.player.radius * 0.58, this.player.radius * 0.1);
+    ctx.quadraticCurveTo(-this.player.radius * 1.2, this.player.radius * 0.72, -this.player.radius * 0.34, this.player.radius * 0.96);
+    ctx.moveTo(this.player.radius * 0.58, this.player.radius * 0.1);
+    ctx.quadraticCurveTo(this.player.radius * 1.2, this.player.radius * 0.72, this.player.radius * 0.34, this.player.radius * 0.96);
+    ctx.stroke();
+
+    ctx.fillStyle = cannon ? "#ffcf5a" : "#75eee2";
+    ctx.shadowColor = cannon ? "rgba(255, 207, 90, 0.9)" : "rgba(117, 238, 226, 0.9)";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(0, -1, (cannon ? 6.4 : 5.2) * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  private renderEnemies(ctx: CanvasRenderingContext2D): void {
+    for (const enemy of this.enemies) {
+      ctx.save();
+      ctx.translate(enemy.position.x, enemy.position.y);
+      if (enemy.type === "silencer") {
+        ctx.fillStyle = "rgba(128, 112, 196, 0.1)";
+        ctx.beginPath();
+        ctx.arc(0, 0, 145, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      this.renderOrbitRuinsEnemy(ctx, enemy);
+      const hpRatio = clamp(enemy.hp / enemy.maxHp, 0, 1);
+      if (hpRatio < 0.985) {
+        ctx.fillStyle = "rgba(19, 20, 24, 0.72)";
+        ctx.fillRect(-enemy.radius, -enemy.radius - 10, enemy.radius * 2, 4);
+        ctx.fillStyle = "#a9e888";
+        ctx.fillRect(-enemy.radius, -enemy.radius - 10, enemy.radius * 2 * hpRatio, 4);
+      }
+      ctx.restore();
+    }
+  }
+
+  private renderOrbitRuinsEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
+    const art = ORBIT_RUINS_ENEMY_ART[enemy.type];
+    const radius = enemy.radius;
+    const rim = enemy.frozen > 0 ? "#a8ecff" : art.outline;
+    const core = enemy.frozen > 0 ? "#e8fbff" : art.accent;
+    ctx.shadowColor = enemy.frozen > 0 ? "rgba(168, 236, 255, 0.58)" : art.glow;
+    ctx.shadowBlur = enemy.type === "target" ? 20 : enemy.type === "silencer" ? 18 : 12;
+    ctx.fillStyle = art.base;
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    switch (enemy.type) {
+      case "runner":
+        ctx.beginPath();
+        ctx.ellipse(0, 0, radius * 0.98, radius * 0.64, 0.14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = art.plate;
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.42, -radius * 0.14);
+        ctx.lineTo(radius * 0.46, radius * 0.1);
+        ctx.stroke();
+        break;
+      case "brute":
+        ctx.beginPath();
+        for (let i = 0; i < 7; i += 1) {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 7;
+          const x = Math.cos(angle) * radius * (i % 2 === 0 ? 1.06 : 0.9);
+          const y = Math.sin(angle) * radius * (i % 2 === 0 ? 1.06 : 0.9);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = art.plate;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.48, -radius * 0.34);
+        ctx.lineTo(-radius * 0.1, radius * 0.04);
+        ctx.lineTo(radius * 0.38, -radius * 0.22);
+        ctx.moveTo(-radius * 0.28, radius * 0.46);
+        ctx.lineTo(radius * 0.2, radius * 0.16);
+        ctx.lineTo(radius * 0.5, radius * 0.48);
+        ctx.stroke();
+        break;
+      case "pouncer":
+        ctx.beginPath();
+        ctx.moveTo(0, -radius * 1.2);
+        ctx.lineTo(radius * 0.96, radius * 0.82);
+        ctx.lineTo(0, radius * 0.46);
+        ctx.lineTo(-radius * 0.96, radius * 0.82);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = art.plate;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(0, -radius * 0.78);
+        ctx.lineTo(0, radius * 0.34);
+        ctx.stroke();
+        break;
+      case "ranged":
+        ctx.beginPath();
+        ctx.ellipse(0, 0, radius * 0.92, radius * 0.76, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = art.plate;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.2, 0);
+        ctx.lineTo(radius * 1.26, 0);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      case "repeater":
+        ctx.strokeStyle = art.plate;
+        ctx.lineWidth = 2.1;
+        for (let i = 0; i < 6; i += 1) {
+          const angle = (Math.PI * 2 * i) / 6 + this.elapsed * 0.8;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * radius * 0.34, Math.sin(angle) * radius * 0.34);
+          ctx.lineTo(Math.cos(angle) * radius * 1.02, Math.sin(angle) * radius * 1.02);
+          ctx.stroke();
+        }
+        ctx.fillStyle = art.base;
+        ctx.strokeStyle = rim;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.72, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        break;
+      case "silencer":
+        ctx.setLineDash([8, 8]);
+        ctx.strokeStyle = "rgba(177, 108, 255, 0.58)";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.52, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = rim;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, radius * 0.78, radius * 0.94, 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = art.plate;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.42, Math.PI * 0.15, Math.PI * 1.85);
+        ctx.stroke();
+        break;
+      case "target":
+        ctx.beginPath();
+        ctx.moveTo(0, -radius * 1.08);
+        ctx.lineTo(radius * 1.05, 0);
+        ctx.lineTo(0, radius * 1.08);
+        ctx.lineTo(-radius * 1.05, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = art.plate;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.68, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.34 + Math.sin(this.elapsed * 5) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = core;
+    ctx.shadowColor = core;
+    ctx.shadowBlur = 9;
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.max(3.2, radius * 0.2), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  private drawLeafFin(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, fill: string): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(0, -7);
+    ctx.quadraticCurveTo(14, -5, 18, 0);
+    ctx.quadraticCurveTo(14, 5, 0, 7);
+    ctx.quadraticCurveTo(4, 0, 0, -7);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private renderProjectiles(ctx: CanvasRenderingContext2D): void {
+    for (const projectile of this.projectiles) {
+      const color = projectile.explosion ? "#ff9a3d" : projectile.freeze ? "#a8ecff" : projectile.lightning ? "#b16cff" : "#75eee2";
+      const tail = normalize({ x: -projectile.velocity.x, y: -projectile.velocity.y });
+      ctx.strokeStyle = projectile.explosion
+        ? "rgba(255, 154, 61, 0.38)"
+        : projectile.lightning
+          ? "rgba(177, 108, 255, 0.38)"
+          : projectile.freeze
+            ? "rgba(168, 236, 255, 0.38)"
+            : "rgba(117, 238, 226, 0.34)";
+      ctx.lineWidth = Math.max(2, projectile.radius * 0.72);
+      ctx.beginPath();
+      ctx.moveTo(projectile.position.x, projectile.position.y);
+      ctx.lineTo(projectile.position.x + tail.x * 24, projectile.position.y + tail.y * 24);
+      ctx.stroke();
+      if (projectile.pierce > 0) {
+        ctx.strokeStyle = "rgba(117, 238, 226, 0.72)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(projectile.position.x + tail.y * 5, projectile.position.y - tail.x * 5);
+        ctx.lineTo(projectile.position.x - tail.x * 18 + tail.y * 5, projectile.position.y - tail.y * 18 - tail.x * 5);
+        ctx.moveTo(projectile.position.x - tail.y * 5, projectile.position.y + tail.x * 5);
+        ctx.lineTo(projectile.position.x - tail.x * 18 - tail.y * 5, projectile.position.y - tail.y * 18 + tail.x * 5);
+        ctx.stroke();
+      }
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(projectile.position.x, projectile.position.y, projectile.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(34, 41, 46, 0.58)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  private renderEnemyShots(ctx: CanvasRenderingContext2D): void {
+    for (const shot of this.enemyShots) {
+      ctx.fillStyle = "#ff4a5f";
+      ctx.shadowColor = "rgba(255, 74, 95, 0.56)";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(shot.position.x, shot.position.y, shot.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  private renderDrops(ctx: CanvasRenderingContext2D): void {
+    for (const drop of this.drops) {
+      const pullDistance = distance(drop.position, this.player.position);
+      if (pullDistance < Math.min(150, this.magnetRadius + drop.magnet)) {
+        const alpha = clamp(1 - pullDistance / 150, 0, 1) * 0.32;
+        ctx.strokeStyle = `rgba(117, 238, 226, ${alpha})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(drop.position.x, drop.position.y);
+        ctx.quadraticCurveTo(
+          (drop.position.x + this.player.position.x) / 2,
+          (drop.position.y + this.player.position.y) / 2 - 12,
+          this.player.position.x,
+          this.player.position.y,
+        );
+        ctx.stroke();
+      }
+      ctx.save();
+      ctx.translate(drop.position.x, drop.position.y);
+      ctx.rotate(Math.PI / 4 + this.elapsed * 0.8);
+      ctx.fillStyle = "#9cff8a";
+      ctx.shadowColor = "rgba(156, 255, 138, 0.5)";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.rect(-drop.radius * 0.68, -drop.radius * 0.68, drop.radius * 1.36, drop.radius * 1.36);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(216, 255, 246, 0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  private renderTurrets(ctx: CanvasRenderingContext2D): void {
+    for (const turret of this.turrets) {
+      ctx.save();
+      ctx.translate(turret.position.x, turret.position.y);
+      ctx.fillStyle = "#10191d";
+      ctx.strokeStyle = "rgba(117, 238, 226, 0.86)";
+      ctx.shadowColor = "rgba(117, 238, 226, 0.5)";
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(156, 255, 138, 0.76)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-15, 0);
+      ctx.lineTo(-8, 0);
+      ctx.moveTo(8, 0);
+      ctx.lineTo(15, 0);
+      ctx.stroke();
+      ctx.fillStyle = "#9cff8a";
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+  }
+
+  private renderOrbitWeapons(ctx: CanvasRenderingContext2D): void {
+    if (this.guardTurretCount > 0) {
+      for (let i = 0; i < this.guardTurretCount; i += 1) {
+        const position = this.guardTurretPosition(i);
+        ctx.save();
+        ctx.translate(position.x, position.y);
+        ctx.rotate(this.elapsed * 1.8 + i);
+        ctx.fillStyle = "#10191d";
+        ctx.strokeStyle = "rgba(117, 238, 226, 0.78)";
+        ctx.shadowColor = "rgba(117, 238, 226, 0.5)";
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 10, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(156, 255, 138, 0.76)";
+        ctx.beginPath();
+        ctx.moveTo(5, 0);
+        ctx.lineTo(16, 0);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+    }
+    if (this.bladeCount > 0) {
+      ctx.strokeStyle = "rgba(117, 238, 226, 0.18)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(this.player.position.x, this.player.position.y, this.bladeRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < this.bladeCount; i += 1) {
+        const position = this.bladePosition(i);
+        const angle = this.bladeAngle + (Math.PI * 2 * i) / Math.max(1, this.bladeCount);
+        ctx.save();
+        ctx.translate(position.x, position.y);
+        ctx.rotate(angle + Math.PI / 2);
+        ctx.strokeStyle = "rgba(177, 108, 255, 0.92)";
+        ctx.shadowColor = "rgba(177, 108, 255, 0.72)";
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 11, -Math.PI * 0.82, Math.PI * 0.28);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(117, 238, 226, 0.72)";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(-7, 8);
+        ctx.lineTo(7, -8);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+    }
+  }
+
+  private renderParticles(ctx: CanvasRenderingContext2D): void {
+    for (const particle of this.particles) {
+      ctx.globalAlpha = clamp(particle.life / particle.maxLife, 0, 1);
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.position.x, particle.position.y, particle.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
