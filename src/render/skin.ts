@@ -71,6 +71,64 @@ export function resolveSkinAssets(): SkinAssets {
   };
 }
 
+// ─── Theme (scene + HUD colour palette) ───────────────────────────────────────
+// Controlled by ?theme=<id>  (default: "dark")
+// Independent of ?skin= so existing sprite sets are reused without new assets.
+
+export interface SkinTheme {
+  readonly id: string;
+  /** WebGL clear colour & scene.background */
+  readonly clearColor: number;
+  /** THREE.AmbientLight colour */
+  readonly ambientColor: number;
+  readonly ambientIntensity: number;
+  /** 2D top-down floor texture tint */
+  readonly floorTint: number;
+  /** 2D top-down wall body colour */
+  readonly wallColor: number;
+  /** 2D top-down inner wall lip colour */
+  readonly wallLipColor: number;
+  /** Marble mesh base colour */
+  readonly marbleColor: number;
+  readonly marbleEmissive: number;
+  readonly marbleEmissiveIntensity: number;
+  /** CSS class applied to the stage-shell element */
+  readonly cssClass: string;
+}
+
+export function resolveSkinTheme(): SkinTheme {
+  const id = new URLSearchParams(window.location.search).get("theme") ?? "dark";
+  if (id === "hozy") {
+    return {
+      id: "hozy",
+      clearColor: 0xf0e4cc,
+      ambientColor: 0xfff0d0,
+      ambientIntensity: 5.0,
+      floorTint: 0xd4a46a,
+      wallColor: 0x8a4820,
+      wallLipColor: 0xcc6030,
+      marbleColor: 0xffcc88,
+      marbleEmissive: 0xff8020,
+      marbleEmissiveIntensity: 2.5,
+      cssClass: "theme-hozy",
+    };
+  }
+  // Default: dark space / relic-ruins
+  return {
+    id: "dark",
+    clearColor: 0x0a0a0f,
+    ambientColor: 0xffffff,
+    ambientIntensity: 3.2,
+    floorTint: 0x555560,
+    wallColor: 0x14102a,
+    wallLipColor: 0x2a1f56,
+    marbleColor: 0xaaefff,
+    marbleEmissive: 0x00ddff,
+    marbleEmissiveIntensity: 3.0,
+    cssClass: "theme-dark",
+  };
+}
+
 export function preparePixelTexture(texture: THREE.Texture, markForUpdate = true): THREE.Texture {
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;

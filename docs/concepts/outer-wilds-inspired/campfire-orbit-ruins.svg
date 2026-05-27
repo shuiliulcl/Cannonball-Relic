@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <radialGradient id="space" cx="47%" cy="39%" r="82%">
+      <stop offset="0%" stop-color="#1c3b55"/>
+      <stop offset="48%" stop-color="#091728"/>
+      <stop offset="100%" stop-color="#02040a"/>
+    </radialGradient>
+    <radialGradient id="moon" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#4d3b31"/>
+      <stop offset="55%" stop-color="#28221e"/>
+      <stop offset="100%" stop-color="#111019"/>
+    </radialGradient>
+    <radialGradient id="beacon" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#fff2a8"/>
+      <stop offset="35%" stop-color="#ffbd58"/>
+      <stop offset="70%" stop-color="#e65d2e"/>
+      <stop offset="100%" stop-color="#4a1517"/>
+    </radialGradient>
+    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="4" seed="24"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.18"/>
+      </feComponentTransfer>
+      <feBlend mode="overlay" in2="SourceGraphic"/>
+    </filter>
+    <filter id="rough" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="8"/>
+      <feDisplacementMap in="SourceGraphic" scale="8"/>
+    </filter>
+    <filter id="glow" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#space)"/>
+  <g opacity="0.65" fill="#d5f5ff">
+    <circle cx="98" cy="84" r="1.4"/><circle cx="164" cy="220" r="1"/><circle cx="258" cy="148" r="1.7"/>
+    <circle cx="412" cy="86" r="1.1"/><circle cx="1098" cy="120" r="1.8"/><circle cx="1182" cy="268" r="1.2"/>
+    <circle cx="1016" cy="568" r="1.5"/><circle cx="182" cy="548" r="1.1"/><circle cx="760" cy="92" r="1.2"/>
+    <circle cx="902" cy="626" r="1.3"/><circle cx="1152" cy="548" r="0.9"/><circle cx="558" cy="638" r="1"/>
+  </g>
+  <path d="M72 610 C226 576 332 614 454 582 C609 542 746 610 894 570 C1038 532 1126 554 1238 520" fill="none" stroke="#203952" stroke-width="20" opacity="0.32"/>
+
+  <g filter="url(#rough)">
+    <path d="M208 402 C234 250 397 196 602 190 C815 184 1016 249 1067 380 C1114 499 949 594 700 604 C438 615 184 545 208 402 Z" fill="#12131b"/>
+    <path d="M266 397 C291 278 425 236 610 229 C820 222 976 284 1009 383 C1046 493 903 559 683 568 C452 578 242 504 266 397 Z" fill="url(#moon)" stroke="#69533f" stroke-width="7"/>
+  </g>
+
+  <g opacity="0.45" stroke="#8b7662" stroke-width="3" fill="none">
+    <path d="M326 388 C420 342 535 320 662 327 C770 333 880 362 960 416"/>
+    <path d="M356 476 C468 519 619 532 760 503 C846 486 916 452 968 408"/>
+    <path d="M439 283 C498 269 568 262 642 264 C764 268 868 296 929 341"/>
+  </g>
+
+  <g opacity="0.82">
+    <path d="M328 394 C398 314 535 280 694 293 C795 301 880 329 946 384" fill="none" stroke="#31d9d5" stroke-width="7" stroke-linecap="round"/>
+    <path d="M356 475 C476 545 688 558 846 483 C897 459 940 428 970 389" fill="none" stroke="#1a8888" stroke-width="5" stroke-linecap="round"/>
+    <path d="M448 526 C373 478 344 410 378 346" fill="none" stroke="#67f1e8" stroke-width="5" stroke-linecap="round" stroke-dasharray="28 17"/>
+    <path d="M872 282 C961 332 991 408 930 482" fill="none" stroke="#67f1e8" stroke-width="5" stroke-linecap="round" stroke-dasharray="24 14"/>
+  </g>
+
+  <g stroke="#2e211c" stroke-width="3">
+    <path d="M337 367 L433 336 L466 381 L373 427 Z" fill="#77513d"/>
+    <path d="M830 347 L931 374 L905 427 L804 397 Z" fill="#6b4e3f"/>
+    <path d="M586 216 L693 206 L718 255 L606 265 Z" fill="#5a4539"/>
+    <path d="M584 530 L714 521 L690 573 L557 576 Z" fill="#624737"/>
+    <path d="M434 338 L457 366 M392 355 L420 411 M854 354 L832 405 M897 363 L879 420" stroke="#d7a965" stroke-width="4"/>
+    <circle cx="376" cy="376" r="5" fill="#ffcf72"/><circle cx="426" cy="357" r="5" fill="#ffcf72"/>
+    <circle cx="855" cy="377" r="5" fill="#ffcf72"/><circle cx="902" cy="392" r="5" fill="#ffcf72"/>
+  </g>
+
+  <g opacity="0.9" fill="none" stroke-linecap="round">
+    <path d="M486 418 C544 398 584 424 626 391 C670 357 716 373 769 350" stroke="#b87e45" stroke-width="6"/>
+    <path d="M488 432 C548 413 596 448 640 412 C683 376 724 392 781 367" stroke="#33221c" stroke-width="3"/>
+    <path d="M532 300 C578 326 621 302 656 276 C688 253 733 268 770 242" stroke="#b87e45" stroke-width="5"/>
+  </g>
+
+  <circle cx="640" cy="390" r="80" fill="#ff8a3b" opacity="0.2" filter="url(#glow)"/>
+  <circle cx="640" cy="390" r="53" fill="url(#beacon)" filter="url(#glow)"/>
+  <path d="M615 399 C630 366 658 364 668 394 C654 385 640 386 615 399 Z" fill="#fff0a8"/>
+  <path d="M628 448 C602 430 588 402 592 370 C608 397 646 421 688 410 C679 440 655 455 628 448 Z" fill="#8d4d31" opacity="0.75"/>
+
+  <g fill="#73f8ff" filter="url(#glow)">
+    <circle cx="512" cy="343" r="10"/><circle cx="786" cy="435" r="10"/><circle cx="718" cy="301" r="7"/>
+  </g>
+  <g fill="#e35f44" stroke="#4b1817" stroke-width="3">
+    <path d="M446 459 C466 443 492 454 493 478 C475 491 450 486 446 459 Z"/>
+    <path d="M805 302 C829 288 851 306 844 331 C820 337 799 326 805 302 Z"/>
+    <path d="M699 500 C722 487 748 505 742 529 C719 535 698 525 699 500 Z"/>
+  </g>
+
+  <rect width="1280" height="720" fill="#000" opacity="0.02" filter="url(#grain)"/>
+  <text x="60" y="88" fill="#f4f1df" font-family="Segoe UI, Arial" font-size="38" font-weight="700">Campfire Orbit Ruins</text>
+  <text x="60" y="132" fill="#aec7cf" font-family="Segoe UI, Arial" font-size="20">Painterly moonlet arena, warm field beacon, root-cable relic plates, rough hand-built materials.</text>
+  <g transform="translate(60 580)">
+    <rect width="420" height="78" rx="10" fill="#071322" opacity="0.78" stroke="#2bd1d5"/>
+    <text x="22" y="32" fill="#ffd36a" font-family="Segoe UI, Arial" font-size="18" font-weight="700">Style Upgrade</text>
+    <text x="22" y="58" fill="#d8eef2" font-family="Segoe UI, Arial" font-size="16">Less icon-like; more hand-painted, weathered, and asymmetrical.</text>
+  </g>
+</svg>

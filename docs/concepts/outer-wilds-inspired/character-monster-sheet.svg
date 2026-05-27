@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="82%">
+      <stop offset="0%" stop-color="#172c35"/>
+      <stop offset="58%" stop-color="#071016"/>
+      <stop offset="100%" stop-color="#020407"/>
+    </radialGradient>
+    <radialGradient id="amber" cx="50%" cy="48%" r="55%">
+      <stop offset="0%" stop-color="#fff1a8"/>
+      <stop offset="42%" stop-color="#ffba58"/>
+      <stop offset="100%" stop-color="#9d3d24"/>
+    </radialGradient>
+    <radialGradient id="cyanCore" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#eaffff"/>
+      <stop offset="42%" stop-color="#4eeaf0"/>
+      <stop offset="100%" stop-color="#147e91"/>
+    </radialGradient>
+    <radialGradient id="violet" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#f1d7ff"/>
+      <stop offset="44%" stop-color="#9a55ff"/>
+      <stop offset="100%" stop-color="#2a123d"/>
+    </radialGradient>
+    <filter id="glow" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="rough" x="-30%" y="-30%" width="160%" height="160%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="14"/>
+      <feDisplacementMap in="SourceGraphic" scale="4"/>
+    </filter>
+    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.78" numOctaves="4" seed="45"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 0.16"/></feComponentTransfer>
+      <feBlend mode="overlay" in2="SourceGraphic"/>
+    </filter>
+    <style>
+      .label { fill: #f4f1df; font-family: "Segoe UI", Arial, sans-serif; font-size: 18px; font-weight: 700; }
+      .note { fill: #adc4c9; font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; }
+      .tiny { fill: #86a8af; font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; }
+      .panel { fill: #0b141b; stroke: #263944; stroke-width: 2; opacity: 0.86; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <g opacity="0.48" fill="#cdefff">
+    <circle cx="92" cy="90" r="1.2"/><circle cx="214" cy="152" r="1.4"/><circle cx="522" cy="82" r="1.1"/>
+    <circle cx="1048" cy="126" r="1.5"/><circle cx="1184" cy="260" r="1.1"/><circle cx="950" cy="626" r="1.2"/>
+  </g>
+  <text x="48" y="62" fill="#f4f1df" font-family="Segoe UI, Arial" font-size="36" font-weight="700">Character And Monster Complexity Pass</text>
+  <text x="48" y="98" fill="#adc4c9" font-family="Segoe UI, Arial" font-size="18">Original designs: layered silhouettes, ritual instruments, weathered brass/stone, signal cores, no copied Outer Wilds species or props.</text>
+
+  <g transform="translate(48 132)">
+    <rect class="panel" width="270" height="248" rx="8"/>
+    <ellipse cx="135" cy="155" rx="73" ry="25" fill="#020407" opacity="0.45"/>
+    <g filter="url(#rough)">
+      <path d="M108 89 C119 54 154 48 174 75 C192 101 175 140 137 145 C103 149 91 119 108 89 Z" fill="#23606d" stroke="#07161a" stroke-width="5"/>
+      <path d="M82 130 C102 104 124 105 139 133 C120 152 94 153 82 130 Z" fill="#d59a45" stroke="#3c2615" stroke-width="4"/>
+      <path d="M188 128 C169 101 145 105 132 133 C151 153 178 153 188 128 Z" fill="#d59a45" stroke="#3c2615" stroke-width="4"/>
+      <path d="M123 65 C134 53 154 53 166 66 C154 62 136 62 123 65 Z" fill="#c7eef4"/>
+      <path d="M117 95 C131 111 150 111 168 94" fill="none" stroke="#7ff4f7" stroke-width="5" stroke-linecap="round" filter="url(#glow)"/>
+      <circle cx="143" cy="91" r="12" fill="url(#cyanCore)" filter="url(#glow)"/>
+      <path d="M98 159 C127 175 158 175 185 158" fill="none" stroke="#3fd9dc" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <text class="label" x="20" y="204">Signal Explorer</text>
+    <text class="note" x="20" y="226">Player skin: cloak fins, brass braces,</text>
+    <text class="note" x="20" y="244">cyan aim core, readable top-down mass.</text>
+  </g>
+
+  <g transform="translate(350 132)">
+    <rect class="panel" width="270" height="248" rx="8"/>
+    <ellipse cx="135" cy="158" rx="70" ry="24" fill="#020407" opacity="0.45"/>
+    <g filter="url(#rough)">
+      <circle cx="135" cy="105" r="54" fill="url(#cyanCore)" stroke="#07323d" stroke-width="6" filter="url(#glow)"/>
+      <path d="M96 92 C117 78 154 77 175 92" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.72"/>
+      <path d="M93 128 C118 147 153 148 179 127" fill="none" stroke="#0d6c82" stroke-width="8" stroke-linecap="round"/>
+      <path d="M74 104 C93 93 100 76 94 58" fill="none" stroke="#ffbf5c" stroke-width="5" stroke-linecap="round"/>
+      <path d="M196 104 C177 93 170 76 176 58" fill="none" stroke="#ffbf5c" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="91" cy="58" r="7" fill="#ffdd83" filter="url(#glow)"/>
+      <circle cx="179" cy="58" r="7" fill="#ffdd83" filter="url(#glow)"/>
+    </g>
+    <text class="label" x="20" y="204">Signal Core Marble</text>
+    <text class="note" x="20" y="226">Projectile as relic probe: side coils,</text>
+    <text class="note" x="20" y="244">bright core, warm sensor nodes.</text>
+  </g>
+
+  <g transform="translate(652 132)">
+    <rect class="panel" width="270" height="248" rx="8"/>
+    <ellipse cx="135" cy="160" rx="79" ry="27" fill="#020407" opacity="0.45"/>
+    <g filter="url(#rough)">
+      <path d="M78 108 C93 55 152 41 190 83 C216 112 197 160 142 164 C93 168 66 144 78 108 Z" fill="#65483a" stroke="#211714" stroke-width="6"/>
+      <path d="M94 77 C125 55 160 58 184 83 C155 78 126 79 94 77 Z" fill="#b7834e"/>
+      <path d="M73 129 C100 112 122 118 137 149 C110 171 83 161 73 129 Z" fill="#d4a35d" stroke="#3b2515" stroke-width="4"/>
+      <path d="M197 128 C169 111 147 118 133 149 C159 172 187 161 197 128 Z" fill="#d4a35d" stroke="#3b2515" stroke-width="4"/>
+      <path d="M110 101 C124 116 148 119 165 102" fill="none" stroke="#ffdc7a" stroke-width="5" stroke-linecap="round"/>
+      <path d="M111 132 C127 143 150 144 166 131" fill="none" stroke="#3ee8de" stroke-width="5" stroke-linecap="round" filter="url(#glow)"/>
+      <path d="M137 57 C134 39 146 30 162 25" fill="none" stroke="#e0b565" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="164" cy="25" r="7" fill="#ffdc7a" filter="url(#glow)"/>
+    </g>
+    <text class="label" x="20" y="204">Solar Root Sentinel</text>
+    <text class="note" x="20" y="226">Elite guard: leaf panels, root antenna,</text>
+    <text class="note" x="20" y="244">ceremonial but non-copied silhouette.</text>
+  </g>
+
+  <g transform="translate(954 132)">
+    <rect class="panel" width="270" height="248" rx="8"/>
+    <ellipse cx="135" cy="160" rx="72" ry="25" fill="#020407" opacity="0.45"/>
+    <g filter="url(#rough)">
+      <path d="M100 86 C121 50 170 58 184 101 C194 132 167 159 128 153 C95 148 82 117 100 86 Z" fill="#263f48" stroke="#081315" stroke-width="6"/>
+      <path d="M77 116 L113 96 L123 130 L90 151 Z" fill="#42d7ca" stroke="#062f32" stroke-width="4"/>
+      <path d="M193 116 L157 96 L147 130 L180 151 Z" fill="#42d7ca" stroke="#062f32" stroke-width="4"/>
+      <path d="M112 82 C133 72 154 75 172 91" fill="none" stroke="#e8c16f" stroke-width="5" stroke-linecap="round"/>
+      <path d="M117 118 C130 128 149 128 164 117" fill="none" stroke="#fff4c6" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="135" cy="104" r="19" fill="url(#cyanCore)" filter="url(#glow)"/>
+      <path d="M135 58 L135 31 M119 64 L101 43 M151 64 L171 43" stroke="#ffd77a" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <text class="label" x="20" y="204">Lens Warden</text>
+    <text class="note" x="20" y="226">Ranged enemy: mirror fins, sensor eye,</text>
+    <text class="note" x="20" y="244">telegraphs shots with glass highlights.</text>
+  </g>
+
+  <g transform="translate(48 426)">
+    <rect class="panel" width="270" height="236" rx="8"/>
+    <ellipse cx="135" cy="147" rx="76" ry="26" fill="#020407" opacity="0.45"/>
+    <g filter="url(#rough)">
+      <path d="M87 116 C90 73 120 48 161 55 C196 61 214 94 195 131 C170 157 116 158 87 116 Z" fill="#5b3840" stroke="#1a0e12" stroke-width="6"/>
+      <path d="M94 108 L64 93 L87 77" fill="#ff8a3d" stroke="#3c1910" stroke-width="4"/>
+      <path d="M190 108 L220 93 L197 77" fill="#ff8a3d" stroke="#3c1910" stroke-width="4"/>
+      <path d="M103 84 C125 71 154 73 181 89" fill="none" stroke="#ffca73" stroke-width="5" stroke-linecap="round"/>
+      <path d="M108 122 C128 134 156 134 179 120" fill="none" stroke="#ff6f3c" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+      <path d="M126 55 C116 33 132 23 152 16" stroke="#ffb35c" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path d="M157 55 C167 33 151 23 131 16" stroke="#ffb35c" stroke-width="6" fill="none" stroke-linecap="round"/>
+    </g>
+    <text class="label" x="20" y="196">Crust Charger</text>
+    <text class="note" x="20" y="218">Fast threat: ember fins, cracked shell,</text>
+    <text class="note" x="20" y="236">clear forward-facing danger shape.</text>
+  </g>
+
+  <g transform="translate(350 426)">
+    <rect class="panel" width="270" height="236" rx="8"/>
+    <ellipse cx="135" cy="148" rx="78" ry="27" fill="#020407" opacity="0.45"/>
+    <g filter="url(#rough)">
+      <path d="M86 105 C93 59 139 40 177 66 C209 88 201 135 162 152 C124 168 80 143 86 105 Z" fill="#251936" stroke="#090511" stroke-width="6"/>
+      <circle cx="135" cy="105" r="46" fill="none" stroke="#8f56ff" stroke-width="7" opacity="0.86"/>
+      <circle cx="135" cy="105" r="18" fill="url(#violet)" filter="url(#glow)"/>
+      <path d="M83 101 C55 88 53 63 74 47" fill="none" stroke="#8f56ff" stroke-width="6" stroke-linecap="round"/>
+      <path d="M187 101 C215 88 217 63 196 47" fill="none" stroke="#8f56ff" stroke-width="6" stroke-linecap="round"/>
+      <path d="M105 137 C126 151 151 151 172 136" fill="none" stroke="#d5b9ff" stroke-width="5" stroke-linecap="round"/>
+      <path d="M115 70 C130 62 150 62 165 70" fill="none" stroke="#ffcf72" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text class="label" x="20" y="196">Gravity Cantor</text>
+    <text class="note" x="20" y="218">Caster enemy: offset rings, violet core,</text>
+    <text class="note" x="20" y="236">pull-field identity without face copying.</text>
+  </g>
+
+  <g transform="translate(652 426)">
+    <rect class="panel" width="270" height="236" rx="8"/>
+    <ellipse cx="135" cy="148" rx="78" ry="27" fill="#020407" opacity="0.45"/>
+    <g filter="url(#rough)">
+      <path d="M80 107 C91 59 142 42 183 70 C216 94 207 140 162 154 C120 167 73 144 80 107 Z" fill="#234131" stroke="#091410" stroke-width="6"/>
+      <path d="M100 83 C126 65 154 67 180 88" fill="none" stroke="#d79d55" stroke-width="6" stroke-linecap="round"/>
+      <path d="M96 125 C123 143 153 143 180 124" fill="none" stroke="#79e883" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+      <path d="M77 108 C50 102 42 82 55 63" fill="none" stroke="#6ecf78" stroke-width="6" stroke-linecap="round"/>
+      <path d="M193 108 C220 102 228 82 215 63" fill="none" stroke="#6ecf78" stroke-width="6" stroke-linecap="round"/>
+      <path d="M135 61 C128 38 144 25 165 20" fill="none" stroke="#d79d55" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="166" cy="20" r="7" fill="#ffcf72" filter="url(#glow)"/>
+    </g>
+    <text class="label" x="20" y="196">Lantern Sleeper</text>
+    <text class="note" x="20" y="218">Ambush enemy: mossy shell, dormant lamp,</text>
+    <text class="note" x="20" y="236">wakes when signal path crosses it.</text>
+  </g>
+
+  <g transform="translate(954 426)">
+    <rect class="panel" width="270" height="236" rx="8"/>
+    <g transform="translate(26 34)">
+      <rect x="0" y="0" width="218" height="128" rx="8" fill="#111a20" stroke="#334854"/>
+      <path d="M20 95 C52 49 97 39 136 62 C165 79 183 106 203 116" fill="none" stroke="#4eeaf0" stroke-width="7" stroke-linecap="round" filter="url(#glow)"/>
+      <circle cx="52" cy="72" r="16" fill="url(#cyanCore)" filter="url(#glow)"/>
+      <circle cx="118" cy="58" r="12" fill="url(#amber)" filter="url(#glow)"/>
+      <circle cx="176" cy="101" r="14" fill="url(#violet)" filter="url(#glow)"/>
+      <path d="M30 28 L86 20 L122 38 L180 24" fill="none" stroke="#d79d55" stroke-width="5" stroke-linecap="round"/>
+      <path d="M43 111 L96 96 L151 112" fill="none" stroke="#6b5132" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <text class="label" x="20" y="196">Field Manual Motif</text>
+    <text class="note" x="20" y="218">Use poster-like diagrams for upgrade cards,</text>
+    <text class="note" x="20" y="236">tutorials, and relic explanations.</text>
+  </g>
+
+  <rect width="1280" height="720" fill="#000" opacity="0.03" filter="url(#grain)"/>
+</svg>

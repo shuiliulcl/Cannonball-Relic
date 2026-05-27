@@ -2020,3 +2020,164 @@ button:focus-visible {
     grid-template-columns: 92px minmax(420px, 1fr) 320px;
   }
 }
+
+/* ============================================================
+   Hozy Warm Theme  (?theme=hozy)
+   European cozy ruins — cream parchment, terracotta, amber
+   ============================================================ */
+
+.theme-hozy.stage-shell {
+  border-color: #c89050;
+  background: #f0e4cc;
+}
+
+.theme-hozy .game-hud {
+  color: #3a2010;
+  text-shadow: 0 1px 4px rgba(160, 90, 20, 0.22);
+}
+
+.theme-hozy .hp-panel,
+.theme-hozy .progress-panel,
+.theme-hozy .controls-panel,
+.theme-hozy .buff-panel,
+.theme-hozy .combat-panel,
+.theme-hozy .charge-panel,
+.theme-hozy .voice-panel {
+  border-color: rgba(180, 110, 40, 0.42);
+  background: rgba(252, 241, 218, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 220, 140, 0.3),
+    0 6px 18px rgba(120, 60, 10, 0.16);
+  color: #3a2010;
+}
+
+.theme-hozy .panel-title {
+  color: #8b5a30;
+}
+
+.theme-hozy .progress-wave {
+  color: #3a2010;
+}
+
+.theme-hozy .progress-label {
+  color: #b87020;
+}
+
+.theme-hozy .hp-frame,
+.theme-hozy .buff-meter,
+.theme-hozy .progress-track,
+.theme-hozy .dash-track {
+  background: rgba(180, 110, 40, 0.14);
+  border-color: rgba(180, 110, 40, 0.28);
+}
+
+.theme-hozy .hp-fill {
+  background: linear-gradient(90deg, #cc4420, #e05535 68%, #f07050);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 12px rgba(200, 68, 30, 0.2);
+}
+
+.theme-hozy .hp-panel.is-low {
+  border-color: rgba(200, 80, 40, 0.86);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 200, 100, 0.1),
+    0 0 24px rgba(200, 80, 40, 0.2);
+}
+
+.theme-hozy .progress-fill {
+  background: linear-gradient(90deg, #c06808, #e89828);
+  box-shadow: 0 0 10px rgba(180, 100, 10, 0.2);
+}
+
+.theme-hozy .charge-fill {
+  background: linear-gradient(90deg, #d06020, #f0a030);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 12px rgba(200, 100, 20, 0.18);
+}
+
+.theme-hozy .dash-fill {
+  background: linear-gradient(90deg, #cc7020, #f0c060);
+}
+
+.theme-hozy .dash-meter strong {
+  color: #5a3010;
+}
+
+.theme-hozy .dash-meter.is-ready strong {
+  color: #8a5a10;
+}
+
+.theme-hozy .buff-icon {
+  border-color: rgba(200, 140, 40, 0.28);
+  background:
+    radial-gradient(circle at center, rgba(220, 150, 40, 0.95) 0 38%, transparent 39%),
+    conic-gradient(#d4960a var(--charge-angle, 0deg), rgba(200, 140, 40, 0.18) 0);
+  color: #fff4dc;
+}
+
+.theme-hozy .buff-score {
+  color: #3a2010;
+}
+
+.theme-hozy #marbleState {
+  color: #6b3a18;
+}
+
+.theme-hozy .damage-scale {
+  background: rgba(200, 110, 20, 0.16);
+  color: #b07020;
+}
+
+.theme-hozy .damage-scale.is-boosted {
+  background: rgba(200, 110, 20, 0.28);
+  color: #cc8020;
+  box-shadow: 0 0 14px rgba(200, 110, 20, 0.18);
+}
+
+.theme-hozy .shields-badge {
+  background: rgba(200, 140, 40, 0.14);
+  color: #9a6030;
+}
+
+.theme-hozy .shields-badge::before {
+  background: #c89030;
+  box-shadow: 18px 0 0 #c89030;
+}
+
+.theme-hozy .shields-badge.is-empty {
+  color: rgba(154, 96, 48, 0.5);
+}
+
+.theme-hozy .shields-badge.is-empty::before {
+  background: rgba(200, 140, 48, 0.28);
+  box-shadow: 18px 0 0 rgba(200, 140, 48, 0.28);
+}
+
+.theme-hozy .control-row {
+  border-color: rgba(180, 110, 40, 0.28);
+  background: rgba(240, 218, 168, 0.22);
+  color: #3a2010;
+}
+
+.theme-hozy .control-row kbd {
+  border-color: rgba(150, 90, 30, 0.38);
+  background: rgba(220, 180, 100, 0.22);
+  color: #5a3010;
+}
+
+.theme-hozy .buff-button {
+  border-color: rgba(200, 140, 40, 0.7);
+  background: linear-gradient(180deg, #f4d04a, #c08020);
+  color: #2a1a06;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 8px 20px rgba(80, 40, 5, 0.28);
+}
+
+.theme-hozy .buff-button::after {
+  border-color: #f0e0c0;
+  background: #e07820;
+  color: #fff4dc;
+}

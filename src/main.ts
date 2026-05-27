@@ -4,6 +4,7 @@ import { Input } from "./game/input";
 import { VoiceInput } from "./game/voice";
 import { SceneView } from "./render/SceneView";
 import { Hud } from "./ui/Hud";
+import { resolveSkinTheme } from "./render/skin";
 import { LevelEditor } from "./editor/LevelEditor";
 import { VoiceSurvivorGame } from "./survivor/VoiceSurvivorGame";
 import { levelToRuntime } from "./levels/convert";
@@ -172,6 +173,7 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
   return levels.filter((level): level is LevelDefinition => Boolean(level));
 }
 
+  stageShell.classList.add(resolveSkinTheme().cssClass);
   const runtimeLevel = await loadRequestedLevel();
   const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
   const campaignLevels = runtimeLevel ? [] : (await loadCampaignLevels()).map(levelToRuntime);

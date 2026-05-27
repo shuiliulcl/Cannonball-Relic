@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cannonball Relic — Hozy Style Direction Board</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f0e8;
+      --panel: #ffffff;
+      --panel-2: #fdf8f2;
+      --text: #2a1f14;
+      --muted: #7a6a58;
+      --line: #ddd4c4;
+      --amber: #d4843a;
+      --teal: #4a9a8c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      padding: 32px 40px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fffaf3, #f5f0e8);
+    }
+
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    h2 { margin: 34px 0 16px; font-size: 20px; color: var(--amber); }
+
+    p { margin: 0; color: var(--muted); max-width: 980px; }
+
+    main { padding: 0 40px 42px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    figure {
+      margin: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: #e8e0d5;
+    }
+
+    figcaption {
+      padding: 12px 14px 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    figcaption strong {
+      display: block;
+      color: var(--text);
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .note {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--amber);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--muted);
+    }
+
+    .tag { color: var(--amber); font-weight: 700; }
+
+    .featured { grid-column: 1 / -1; }
+    .featured img {
+      aspect-ratio: 16 / 9;
+      max-height: 540px;
+      object-fit: cover;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-bottom: 6px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--amber);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .badge.ref {
+      background: var(--teal);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cannonball Relic — Hozy 风格探索板</h1>
+    <p>借鉴《Hozy》的软渲染 3D 美术语言：欧式建筑废墟、暖色漫反射、圆润低多边形、马卡龙色调、浮岛构图。与深空遗迹方向并行探索。</p>
+  </header>
+
+  <main>
+    <h2>Hozy 参考风格</h2>
+    <section class="grid" aria-label="Hozy reference images">
+      <figure>
+        <img src="concepts/outer-wilds-inspired/_hozy-ref-header.jpg" alt="Hozy Steam header" style="aspect-ratio:460/215; object-fit:cover;" />
+        <figcaption>
+          <span class="badge ref">Reference</span>
+          <strong>Hozy — Steam Header</strong>
+          柔和室内 3D、暖色漫射光、低饱和马卡龙色调、圆角家具形体。
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="concepts/outer-wilds-inspired/_hozy-ref-1.jpg" alt="Hozy achievement screenshot 1" />
+        <figcaption>
+          <span class="badge ref">Reference</span>
+          <strong>Hozy — 小公寓截图</strong>
+          Study: 软环境光、细腻 AO、砖墙/木地板材质细节、无硬阴影。
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="concepts/outer-wilds-inspired/_hozy-ref-2.jpg" alt="Hozy achievement screenshot 2" />
+        <figcaption>
+          <span class="badge ref">Reference</span>
+          <strong>Hozy — 工坊截图</strong>
+          Study: 温暖侧光、做旧工具质感、空间层次感。
+        </figcaption>
+      </figure>
+    </section>
+
+    <div class="note">
+      <span class="tag">方向目标：</span>
+      不复制 Hozy 的室内装修玩法，只借鉴其视觉语言：欧式建筑碎片作为遗迹竞技场材料，柔软圆润的 3D 风格替代深空遗迹的硬边锋利感，暖色调主导。怪物设计转向"误入战场的可爱生物"而非威胁感怪兽。
+    </div>
+
+    <h2>原创概念图</h2>
+    <section class="grid" aria-label="Hozy style concept art">
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-hozy-style-v2.png" alt="Hozy-style arena concept v2" />
+        <figcaption>
+          <span class="badge">Concept · v2</span>
+          <strong>Hozy 风格竞技场 v2 — 欧式浮岛废墟</strong>
+          赤陶砖墙、拱门、围栏、露台地板，漂浮于云层之上。五种可爱怪物：根系木头生物、龟壳镜面生物、岩浆裂缝生物、紫环浮空生物、提灯苔藓生物。软渲染暖光，HUD 融入建筑石框元素。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-hozy-style-v1.png" alt="Hozy-style arena concept v1" />
+        <figcaption>
+          <span class="badge">Concept · v1</span>
+          <strong>Hozy 风格竞技场 v1 — 木地板蜡烛版</strong>
+          初代尝试：暖木地板、石柱、布艺靠垫障碍物。风格正确但过于扁平，v2 已改善立体感和建筑细节。
+        </figcaption>
+      </figure>
+    </section>
+
+    <div class="note">
+      <span class="tag">下一步方向：</span>
+      可在 v2 基础上继续迭代：① 加入更多建筑层次（阶梯、断桥、悬挂铁链）；② ✅ 怪物单体设计表已完成；③ ✅ HUD 专项图已完成；④ 可出竞技场日景/黄昏光版本，或更多怪物变体。
+    </div>
+
+    <h2>怪物设计表</h2>
+    <section class="grid" aria-label="Hozy monster designs">
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-hozy-monsters-v1.png" alt="Hozy style monster character sheet v1" />
+        <figcaption>
+          <span class="badge">Concept · v1</span>
+          <strong>Hozy 风格怪物设计表 v1</strong>
+          六只可爱生物：苔藓树根生物、龟壳镜面生物、熔岩裂缝石像鬼、紫环水母、提灯苔藓生物、云朵兔。暖奶油羊皮纸底、赤陶砖边框，圆润无硬阴影软渲染。
+        </figcaption>
+      </figure>
+    </section>
+
+    <h2>HUD / UI 概念图</h2>
+    <section class="grid" aria-label="Hozy HUD concept">
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-hozy-hud-v1.png" alt="Hozy style HUD UI concept v1" />
+        <figcaption>
+          <span class="badge">Concept · v1</span>
+          <strong>Hozy 风格 HUD 概念图 v1</strong>
+          石拱框血量条、石刻勋章遗物计数、圆石板技能按钮、做旧木牌分数显示、罗马数字石碑波次计数、石质罗盘小地图。暖琥珀烛光点亮交互元素，欧式家具感界面风格。
+        </figcaption>
+      </figure>
+    </section>
+  </main>
+</body>
+</html>

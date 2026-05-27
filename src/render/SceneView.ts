@@ -5,7 +5,7 @@ import type { FloorMaterial, ObstacleMaterial, RuntimeLevel } from "../levels/ty
 import { makeBox, makeCylinder, makeToonMaterial } from "./factories";
 import { Effects } from "./effects";
 import { TrajectoryView } from "./TrajectoryView";
-import { preparePixelTexture, resolveSkinAssets } from "./skin";
+import { preparePixelTexture, resolveSkinAssets, resolveSkinTheme } from "./skin";
 
 type ViewMode = "2d" | "2.5d";
 
@@ -45,6 +45,7 @@ export class SceneView {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: resolveAntialias() });
   private readonly textureLoader = new THREE.TextureLoader();
   private readonly skin = resolveSkinAssets();
+  private readonly theme = resolveSkinTheme();
   private readonly viewMode = resolveViewMode();
   private readonly cameraRatio = resolveCameraRatio();
   private readonly scrollMode = resolveScrollMode();
@@ -52,7 +53,11 @@ export class SceneView {
   private readonly playerSprite = this.createSprite(this.skin.player, 1.25, 1.1);
   private readonly marbleMesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.2, 24, 16),
-    new THREE.MeshStandardMaterial({ color: 0xaaefff, emissive: 0x00ddff, emissiveIntensity: 3.0 }),
+    new THREE.MeshStandardMaterial({
+      color: this.theme.marbleColor,
+      emissive: this.theme.marbleEmissive,
+      emissiveIntensity: this.theme.marbleEmissiveIntensity,
+    }),
   );
   private readonly marbleSprite = this.createSprite(this.skin.marble, 0.58, 0.58);
   private readonly auxiliaryMarbleMeshes = new Map<string, THREE.Sprite>();
@@ -94,11 +99,11 @@ export class SceneView {
     private runtimeLevel?: RuntimeLevel,
   ) {
     this.renderer.setPixelRatio(resolvePixelRatio());
-    this.renderer.setClearColor(0x0a0a0f);
+    this.renderer.setClearColor(this.theme.clearColor);
     this.renderer.shadowMap.enabled = false;
     root.appendChild(this.renderer.domElement);
 
-    this.scene.background = new THREE.Color(0x0a0a0f);
+    this.scene.background = new THREE.Color(this.theme.clearColor);
     this.scene.add(this.worldGroup);
     this.effects = new Effects(this.worldGroup);
     this.trajectory = new TrajectoryView(this.worldGroup);
@@ -441,8 +446,7 @@ export class SceneView {
   }
 
   private setupLights(): void {
-    // HM2 style: flat unlit look, single ambient fills everything evenly
-    const ambient = new THREE.AmbientLight(0xffffff, 3.2);
+    const ambient = new THREE.AmbientLight(this.theme.ambientColor, this.theme.ambientIntensity);
     this.scene.add(ambient);
   }
 
@@ -466,7 +470,7 @@ export class SceneView {
     floorTexture.repeat.set(5, 4);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(hw * 2, hd * 2),
-      new THREE.MeshBasicMaterial({ map: floorTexture, color: 0x666670, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ map: floorTexture, color: this.theme.floorTint, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
@@ -516,18 +520,14 @@ export class SceneView {
     floorTexture.repeat.set(9, 7);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(hw * 2, hd * 2),
-      // HM2: tint floor texture dark so characters pop against it
-      new THREE.MeshBasicMaterial({ map: floorTexture, color: 0x555560, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ map: floorTexture, color: this.theme.floorTint, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
     this.arenaGroup.add(floor);
 
-    // No grid — HM2 floor is clean with no tile grid overlay
-
-    // HM2 walls: very dark purple-black body, subtle neon-purple inner lip
-    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x14102a });
-    const lipMaterial = new THREE.MeshBasicMaterial({ color: 0x2a1f56 });
+    const wallMaterial = new THREE.MeshBasicMaterial({ color: this.theme.wallColor });
+    const lipMaterial = new THREE.MeshBasicMaterial({ color: this.theme.wallLipColor });
     const frontBackWidth = hw * 2 + 0.55;
     const sideDepth = hd * 2 + 0.55;
     const wallThickness = 0.28;

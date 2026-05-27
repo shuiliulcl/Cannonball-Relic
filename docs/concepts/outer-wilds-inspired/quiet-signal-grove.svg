@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <radialGradient id="darkGrove" cx="48%" cy="48%" r="82%">
+      <stop offset="0%" stop-color="#173b32"/>
+      <stop offset="48%" stop-color="#071b16"/>
+      <stop offset="100%" stop-color="#020405"/>
+    </radialGradient>
+    <filter id="rough" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="4" seed="7"/>
+      <feDisplacementMap in="SourceGraphic" scale="7"/>
+    </filter>
+    <filter id="glow" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="4" seed="12"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 0.18"/></feComponentTransfer>
+      <feBlend mode="overlay" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#darkGrove)"/>
+  <g filter="url(#rough)">
+    <path d="M220 393 C250 254 440 208 664 219 C877 230 1041 303 1058 401 C1078 515 900 591 664 594 C410 598 195 516 220 393 Z" fill="#0e1715" stroke="#315843" stroke-width="8"/>
+    <path d="M296 389 C328 296 468 260 656 268 C846 276 972 332 992 406 C1016 497 874 546 682 551 C482 556 268 481 296 389 Z" fill="#111b18" stroke="#3e6c4d" stroke-width="5"/>
+  </g>
+  <g fill="none" stroke="#6ecf78" stroke-width="5" opacity="0.38" stroke-linecap="round">
+    <path d="M312 418 C442 338 553 440 655 381 S843 315 975 393"/>
+    <path d="M418 509 C522 444 582 501 696 475 S824 422 920 487"/>
+    <path d="M466 286 C544 333 610 254 704 292 S817 343 895 283"/>
+    <path d="M350 352 C458 380 512 328 596 346 C704 369 746 316 847 340"/>
+  </g>
+  <g fill="none" stroke="#7d5c36" stroke-width="8" stroke-linecap="round" opacity="0.86">
+    <path d="M468 414 C533 387 579 425 635 386 C683 353 727 380 795 342"/>
+    <path d="M420 468 C507 430 567 479 645 442 C719 406 783 434 874 386"/>
+    <path d="M530 294 C592 322 650 284 700 252 C748 220 812 244 866 212"/>
+  </g>
+  <g fill="#2a2119" stroke="#d79641" stroke-width="5">
+    <path d="M377 335 C396 324 426 328 440 348 L432 421 C409 437 383 427 374 406 Z"/>
+    <path d="M839 334 C858 324 887 329 902 349 L895 420 C873 437 844 428 836 406 Z"/>
+    <path d="M608 241 C628 228 657 232 672 252 L665 329 C642 344 616 334 606 312 Z"/>
+    <path d="M608 448 C630 435 659 439 674 460 L665 537 C642 552 615 540 605 518 Z"/>
+  </g>
+  <g fill="#ffd072" filter="url(#glow)">
+    <circle cx="409" cy="332" r="18"/><circle cx="871" cy="332" r="18"/>
+    <circle cx="640" cy="240" r="18"/><circle cx="640" cy="448" r="18"/>
+  </g>
+  <g fill="none" stroke="#9eefff" stroke-width="7" stroke-linecap="round" filter="url(#glow)">
+    <path d="M486 391 C548 346 601 344 640 390 C682 440 734 440 796 387"/>
+    <path d="M640 390 C614 417 584 452 558 498"/>
+    <path d="M524 360 C580 376 610 358 660 330"/>
+  </g>
+  <g fill="#9eefff" stroke="#16333a" stroke-width="3">
+    <circle cx="486" cy="391" r="10"/><circle cx="640" cy="390" r="14"/><circle cx="796" cy="387" r="10"/>
+    <circle cx="558" cy="498" r="8"/><circle cx="660" cy="330" r="8"/>
+  </g>
+  <g fill="#a37a3d" stroke="#2d2116" stroke-width="3">
+    <ellipse cx="532" cy="315" rx="22" ry="13"/>
+    <ellipse cx="758" cy="468" rx="22" ry="13"/>
+    <ellipse cx="813" cy="321" rx="22" ry="13"/>
+    <ellipse cx="462" cy="487" rx="18" ry="11"/>
+  </g>
+  <g opacity="0.65" fill="#d9ffdf">
+    <path d="M382 465 C392 448 408 443 424 448 C410 462 397 470 382 465 Z"/>
+    <path d="M884 278 C899 260 917 260 934 270 C915 283 901 287 884 278 Z"/>
+    <path d="M610 569 C628 552 648 556 660 571 C639 579 624 580 610 569 Z"/>
+  </g>
+  <rect width="1280" height="720" fill="#000" opacity="0.03" filter="url(#grain)"/>
+  <text x="60" y="88" fill="#f4f1df" font-family="Segoe UI, Arial" font-size="38" font-weight="700">Quiet Signal Grove</text>
+  <text x="60" y="132" fill="#c5e2d0" font-family="Segoe UI, Arial" font-size="20">Dark artificial grove, lantern pillars, root cables, blue signal paths revealing sleeping threats.</text>
+  <g transform="translate(840 562)">
+    <rect width="364" height="78" rx="10" fill="#06110f" opacity="0.82" stroke="#9eefff"/>
+    <text x="20" y="32" fill="#9eefff" font-family="Segoe UI, Arial" font-size="18" font-weight="700">Lighting Candidate</text>
+    <text x="20" y="57" fill="#e3efe8" font-family="Segoe UI, Arial" font-size="16">Best later fit for Godot glow and fog tests.</text>
+  </g>
+</svg>

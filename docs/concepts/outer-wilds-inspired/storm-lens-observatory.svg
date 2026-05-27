@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="storm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#020a0f"/>
+      <stop offset="38%" stop-color="#0b383c"/>
+      <stop offset="72%" stop-color="#1f5146"/>
+      <stop offset="100%" stop-color="#141a1b"/>
+    </linearGradient>
+    <radialGradient id="eye" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#effff5"/>
+      <stop offset="31%" stop-color="#62e4c6"/>
+      <stop offset="64%" stop-color="#197063"/>
+      <stop offset="100%" stop-color="#081c1d"/>
+    </radialGradient>
+    <filter id="mist" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="5" seed="40"/>
+      <feDisplacementMap in="SourceGraphic" scale="18"/>
+    </filter>
+    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" seed="9"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 0.16"/></feComponentTransfer>
+      <feBlend mode="overlay" in2="SourceGraphic"/>
+    </filter>
+    <filter id="soft" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="13"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#storm)"/>
+  <g opacity="0.34" fill="none" stroke-linecap="round" filter="url(#mist)">
+    <path d="M-40 520 C156 380 304 585 500 456 C704 322 827 230 1320 384" stroke="#77ecd8" stroke-width="28"/>
+    <path d="M-10 296 C206 164 390 330 608 260 C818 194 995 112 1312 246" stroke="#b9fff0" stroke-width="17"/>
+    <path d="M114 646 C320 558 484 646 668 558 C844 474 987 497 1210 436" stroke="#2a897e" stroke-width="34"/>
+  </g>
+
+  <g>
+    <path d="M214 386 C252 250 440 194 658 207 C862 219 1034 290 1066 386 C1105 504 950 582 710 586 C450 590 188 519 214 386 Z" fill="#111b20" stroke="#7f5f35" stroke-width="8"/>
+    <path d="M282 382 C323 283 464 245 650 254 C829 262 963 316 994 390 C1024 475 894 535 704 542 C489 550 255 476 282 382 Z" fill="#132526" stroke="#43d8c4" stroke-width="4"/>
+  </g>
+
+  <circle cx="640" cy="382" r="112" fill="url(#eye)" opacity="0.92"/>
+  <circle cx="640" cy="382" r="160" fill="none" stroke="#c59242" stroke-width="13" stroke-dasharray="35 17"/>
+  <circle cx="640" cy="382" r="205" fill="none" stroke="#6e552f" stroke-width="5" stroke-dasharray="12 18"/>
+  <g stroke="#e2b85f" stroke-width="11" stroke-linecap="round">
+    <path d="M640 149 C627 180 626 212 640 245"/>
+    <path d="M640 519 C655 548 656 578 640 606"/>
+    <path d="M352 381 C390 367 423 369 464 384"/>
+    <path d="M816 383 C852 369 889 371 929 388"/>
+  </g>
+
+  <g fill="#45e5d1" stroke="#071312" stroke-width="4" opacity="0.92">
+    <path d="M438 270 L536 243 L555 290 L458 329 Z"/>
+    <path d="M736 428 L840 397 L858 443 L760 488 Z"/>
+    <path d="M744 273 L847 313 L825 358 L722 318 Z"/>
+    <path d="M432 438 L530 478 L510 524 L407 480 Z"/>
+  </g>
+  <g stroke="#fff0b0" stroke-width="4" opacity="0.78">
+    <path d="M470 276 C493 285 512 287 542 283"/>
+    <path d="M770 432 C797 432 823 426 851 414"/>
+    <path d="M769 288 C791 302 812 318 836 348"/>
+    <path d="M432 463 C456 477 482 489 516 500"/>
+  </g>
+
+  <g fill="#f8df9b" stroke="#5a3b20" stroke-width="3">
+    <path d="M1032 184 L1082 211 L1032 238 Z"/>
+    <path d="M1070 187 L1116 211 L1070 235 Z"/>
+    <path d="M247 521 L196 494 L247 467 Z"/>
+    <path d="M209 518 L164 494 L209 470 Z"/>
+  </g>
+  <g fill="none" stroke="#a6753b" stroke-width="5" stroke-linecap="round">
+    <path d="M502 366 C548 332 583 340 620 308 C656 276 708 292 754 254"/>
+    <path d="M475 417 C535 389 576 416 632 391 C683 368 726 387 792 352"/>
+    <path d="M533 466 C588 444 642 475 694 444 C736 419 778 427 824 406"/>
+  </g>
+
+  <circle cx="1085" cy="575" r="88" fill="#58ffe2" opacity="0.18" filter="url(#soft)"/>
+  <path d="M1055 572 C1071 541 1104 540 1118 569 C1105 594 1074 602 1055 572 Z" fill="#83fff0"/>
+  <rect width="1280" height="720" fill="#000" opacity="0.03" filter="url(#grain)"/>
+  <text x="60" y="88" fill="#f4f1df" font-family="Segoe UI, Arial" font-size="38" font-weight="700">Storm Lens Observatory</text>
+  <text x="60" y="132" fill="#c1eee6" font-family="Segoe UI, Arial" font-size="20">Brushy gas-giant storm, brass weather instruments, lens plates, wind-carved relic cables.</text>
+</svg>
