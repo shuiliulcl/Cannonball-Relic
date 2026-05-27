@@ -888,7 +888,7 @@ export class VoiceSurvivorGame {
         <div id="survivorStart" class="survivor-overlay">
           <span class="survivor-kicker">语音幸存者肉鸽</span>
           <h1>人间大炮一级准备</h1>
-          <p>自动攻击怪潮，升级抽取咒语 Buff。底部“人间大炮”按钮会按装填、瞄准、发射顺序推进；不开麦也能完整游玩。</p>
+          <p>自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。</p>
           <button type="button" data-action="start">开始整活</button>
         </div>
         <div id="survivorUpgrade" class="survivor-overlay survivor-upgrade" hidden>
@@ -962,18 +962,14 @@ export class VoiceSurvivorGame {
   }
 
   private castManualShortcut(event: KeyboardEvent): boolean {
-    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || !/^[1-9]$/.test(event.key)) {
+    const shortcut = event.key.toLowerCase();
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || !/^[1-9qer]$/.test(shortcut)) {
       return false;
     }
     if (!this.running || this.selectingBuff || this.gameOver) {
       return false;
     }
-    const button = this.commandDock.querySelector<HTMLButtonElement>(`button[data-shortcut="${event.key}"]`);
-    if (button?.dataset.command === "cannon") {
-      this.pulseCommandButton(button);
-      this.castCannonStage();
-      return true;
-    }
+    const button = this.commandDock.querySelector<HTMLButtonElement>(`button[data-shortcut="${shortcut}"]`);
     const spell = button?.dataset.spell as SpellKey | undefined;
     if (!spell) {
       return false;
@@ -1179,7 +1175,7 @@ export class VoiceSurvivorGame {
     this.bangLevel = 1;
     this.skillGoLevel = 1;
     this.renderCommandDock();
-    this.say("开局：按 1 使用人间大炮，按钮会自动推进装填、瞄准、发射。");
+    this.say("开局：按 Q 一级准备，按 E 人间大炮瞄准，按 R 发射；普通咒语从 1 开始。");
   }
 
   private loop(time: number): void {
@@ -3334,17 +3330,17 @@ export class VoiceSurvivorGame {
       { id: "weapon-fan", title: "备用炮口", description: "自动攻击额外发射两枚小角度弹。", rarity: "gold", apply: () => { this.bonusProjectiles = Math.min(2, this.bonusProjectiles + 1); this.attackDamage += 1; } },
       { id: "weapon-speed", title: "弹速校准", description: "自动攻击弹速 +15%，拾取范围 +20，经验返能小幅提高。", rarity: "bronze", apply: () => { this.projectileSpeed += 84; this.magnetRadius += 20; this.dropEnergyRatio += 0.02; } },
       { id: "weapon-guard-turret", title: "护身小炮塔", description: "小炮塔数量 +1，自动向附近敌人开火。", rarity: "bronze", phase: "starter", maxStacks: 4, apply: () => { this.guardTurretCount += 1; this.guardTurretDamage += 1; } },
-      { id: "weapon-guard-damage", title: "炮塔火力", description: "小炮塔子弹伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretCount = Math.max(1, this.guardTurretCount); this.guardTurretDamage += 3; } },
-      { id: "weapon-guard-rate", title: "炮塔连发", description: "小炮塔射速提高。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretCount = Math.max(1, this.guardTurretCount); this.guardTurretRate *= 0.86; } },
-      { id: "weapon-guard-range", title: "炮塔射程", description: "小炮塔索敌范围 +70。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.guardTurretCount = Math.max(1, this.guardTurretCount); this.guardTurretRange += 70; } },
+      { id: "weapon-guard-damage", title: "炮塔火力", description: "小炮塔子弹伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretDamage += 3; } },
+      { id: "weapon-guard-rate", title: "炮塔连发", description: "小炮塔射速提高。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretRate *= 0.86; } },
+      { id: "weapon-guard-range", title: "炮塔射程", description: "小炮塔索敌范围 +70。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.guardTurretRange += 70; } },
       { id: "weapon-guard-ricochet", title: "哨戒跳弹", description: "小炮塔数量 +1，弹射范围 +20，开启弹射时炮塔子弹也会跳。", rarity: "gold", phase: "combo", maxStacks: 3, apply: () => { this.guardTurretCount += 1; this.ricochetRange += 20; } },
       { id: "weapon-blade", title: "旋转刀刃", description: "刀刃数量 +2，贴身切开怪潮。", rarity: "bronze", phase: "starter", maxStacks: 3, apply: () => { this.bladeCount += 2; this.bladeDamage += 1; } },
       { id: "weapon-blade-count", title: "刀刃数量", description: "刀刃 +1，近身覆盖更稳定。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.bladeCount += 1; } },
-      { id: "weapon-blade-radius", title: "刀圈外扩", description: "刀刃旋转半径 +10。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeRadius += 10; } },
-      { id: "weapon-blade-damage", title: "刀刃锋利", description: "刀刃伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeDamage += 3; } },
-      { id: "weapon-blade-motor", title: "高速刀盘", description: "刀刃转速提高。", rarity: "gold", phase: "branch", maxStacks: 4, apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeSpinSpeed += 0.9; } },
-      { id: "combo-blade-freeze", title: "冰刀护身", description: "刀刃伤害提高；冻结 Buff 开启时，刀刃会短暂冻住命中的敌人。", rarity: "gold", apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeDamage += 2; this.freezeDuration += 0.15; } },
-      { id: "combo-blade-boom", title: "爆裂刀盘", description: "刀刃伤害提高；爆炸 Buff 开启时，刀刃偶尔触发小爆破。", rarity: "gold", apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeDamage += 2; this.explosionRadius += 8; } },
+      { id: "weapon-blade-radius", title: "刀圈外扩", description: "刀刃旋转半径 +10。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.bladeRadius += 10; } },
+      { id: "weapon-blade-damage", title: "刀刃锋利", description: "刀刃伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.bladeDamage += 3; } },
+      { id: "weapon-blade-motor", title: "高速刀盘", description: "刀刃转速提高。", rarity: "gold", phase: "branch", maxStacks: 4, apply: () => { this.bladeSpinSpeed += 0.9; } },
+      { id: "combo-blade-freeze", title: "冰刀护身", description: "刀刃伤害提高；冻结 Buff 开启时，刀刃会短暂冻住命中的敌人。", rarity: "gold", apply: () => { this.bladeDamage += 2; this.freezeDuration += 0.15; } },
+      { id: "combo-blade-boom", title: "爆裂刀盘", description: "刀刃伤害提高；爆炸 Buff 开启时，刀刃偶尔触发小爆破。", rarity: "gold", apply: () => { this.bladeDamage += 2; this.explosionRadius += 8; } },
       { id: "survive-hp", title: "先把血抬上来", description: "生命上限 +18，并立即回复 18。", rarity: "bronze", apply: () => { this.player.maxHp += 18; this.player.hp = Math.min(this.player.maxHp, this.player.hp + 18); } },
       { id: "survive-armor", title: "安全帽", description: "受到的每次伤害 -2，落地也体面一点。", rarity: "gold", apply: () => { this.armor += 2; } },
       { id: "survive-regen", title: "慢慢缓过来", description: "每秒恢复少量 HP，适合操作不过来时稳住。", rarity: "gold", apply: () => { this.hpRegen += 0.75; } },
@@ -3395,12 +3391,30 @@ export class VoiceSurvivorGame {
       "combo-cannon-shards": "ricochet",
       "combo-blade-freeze": "freeze",
       "combo-blade-boom": "explode",
+      "weapon-guard-ricochet": "ricochet",
       "stat-bang-plus": "bang",
       "stat-skillgo-plus": "skillGo",
     };
     const required = requirements[buff.id];
-    if (!required) return true;
-    return Array.isArray(required) ? required.every((spell) => this.hasSpell(spell)) : this.hasSpell(required);
+    const spellReady = !required || (Array.isArray(required) ? required.every((spell) => this.hasSpell(spell)) : this.hasSpell(required));
+    if (!spellReady) return false;
+
+    const ownedRequirements: Record<string, string | string[]> = {
+      "weapon-guard-damage": "weapon-guard-turret",
+      "weapon-guard-rate": "weapon-guard-turret",
+      "weapon-guard-range": "weapon-guard-turret",
+      "weapon-guard-ricochet": "weapon-guard-turret",
+      "weapon-blade-count": "weapon-blade",
+      "weapon-blade-radius": "weapon-blade",
+      "weapon-blade-damage": "weapon-blade",
+      "weapon-blade-motor": "weapon-blade",
+      "combo-blade-freeze": "weapon-blade",
+      "combo-blade-boom": "weapon-blade",
+    };
+    const ownedRequired = ownedRequirements[buff.id];
+    if (!ownedRequired) return true;
+    const hasOwnedBuff = (id: string) => (this.ownedBuffs.get(id) ?? 0) > 0;
+    return Array.isArray(ownedRequired) ? ownedRequired.every(hasOwnedBuff) : hasOwnedBuff(ownedRequired);
   }
 
   private isMidPowerBuff(buff: Buff): boolean {
@@ -4089,23 +4103,29 @@ export class VoiceSurvivorGame {
     const list = document.createElement("div");
     list.className = "survivor-command-list";
 
-    const cannonButton = document.createElement("button");
-    cannonButton.type = "button";
-    cannonButton.dataset.command = "cannon";
-    cannonButton.dataset.shortcut = "1";
-    cannonButton.addEventListener("click", () => {
-      this.pulseCommandButton(cannonButton);
-      this.castCannonStage();
+    ([
+      ["cannonPrep", "q"],
+      ["cannon", "e"],
+      ["cannonFire", "r"],
+    ] as const).forEach(([spell, shortcut]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.spell = spell;
+      button.dataset.shortcut = shortcut;
+      button.addEventListener("click", () => {
+        this.pulseCommandButton(button);
+        this.castSpell(spell);
+      });
+      list.append(button);
     });
-    list.append(cannonButton);
 
     const visible = this.commandSpells();
     visible.forEach((spell, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.spell = spell;
-      if (index < 8) {
-        button.dataset.shortcut = String(index + 2);
+      if (index < 9) {
+        button.dataset.shortcut = String(index + 1);
       }
       button.addEventListener("click", () => {
         this.pulseCommandButton(button);
@@ -4164,7 +4184,7 @@ export class VoiceSurvivorGame {
 
     const key = document.createElement("span");
     key.className = "survivor-command-key";
-    key.textContent = shortcut || "-";
+    key.textContent = shortcut ? shortcut.toUpperCase() : "-";
 
     const copy = document.createElement("span");
     copy.className = "survivor-command-copy";
