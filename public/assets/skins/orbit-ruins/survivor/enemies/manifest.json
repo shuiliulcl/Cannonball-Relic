@@ -1,0 +1,175 @@
+{
+  "source": "docs\\concepts\\voice-survivor-orbit-ruins\\sheets\\lineglow-enemy-tokens-v6-clean-shape.png",
+  "note": "v6: clean preserved-shape enemy tokens. Thick lines, stable silhouettes, closed internal marks, no stray lineheads.",
+  "assetCount": 28,
+  "assets": [
+    {
+      "name": "runner_01",
+      "file": "runner_01.png",
+      "family": "runner",
+      "variant": 1
+    },
+    {
+      "name": "brute_01",
+      "file": "brute_01.png",
+      "family": "brute",
+      "variant": 1
+    },
+    {
+      "name": "pouncer_01",
+      "file": "pouncer_01.png",
+      "family": "pouncer",
+      "variant": 1
+    },
+    {
+      "name": "ranged_01",
+      "file": "ranged_01.png",
+      "family": "ranged",
+      "variant": 1
+    },
+    {
+      "name": "repeater_01",
+      "file": "repeater_01.png",
+      "family": "repeater",
+      "variant": 1
+    },
+    {
+      "name": "silencer_01",
+      "file": "silencer_01.png",
+      "family": "silencer",
+      "variant": 1
+    },
+    {
+      "name": "target_01",
+      "file": "target_01.png",
+      "family": "target",
+      "variant": 1
+    },
+    {
+      "name": "runner_02",
+      "file": "runner_02.png",
+      "family": "runner",
+      "variant": 2
+    },
+    {
+      "name": "brute_02",
+      "file": "brute_02.png",
+      "family": "brute",
+      "variant": 2
+    },
+    {
+      "name": "pouncer_02",
+      "file": "pouncer_02.png",
+      "family": "pouncer",
+      "variant": 2
+    },
+    {
+      "name": "ranged_02",
+      "file": "ranged_02.png",
+      "family": "ranged",
+      "variant": 2
+    },
+    {
+      "name": "repeater_02",
+      "file": "repeater_02.png",
+      "family": "repeater",
+      "variant": 2
+    },
+    {
+      "name": "silencer_02",
+      "file": "silencer_02.png",
+      "family": "silencer",
+      "variant": 2
+    },
+    {
+      "name": "target_02",
+      "file": "target_02.png",
+      "family": "target",
+      "variant": 2
+    },
+    {
+      "name": "runner_03",
+      "file": "runner_03.png",
+      "family": "runner",
+      "variant": 3
+    },
+    {
+      "name": "brute_03",
+      "file": "brute_03.png",
+      "family": "brute",
+      "variant": 3
+    },
+    {
+      "name": "pouncer_03",
+      "file": "pouncer_03.png",
+      "family": "pouncer",
+      "variant": 3
+    },
+    {
+      "name": "ranged_03",
+      "file": "ranged_03.png",
+      "family": "ranged",
+      "variant": 3
+    },
+    {
+      "name": "repeater_03",
+      "file": "repeater_03.png",
+      "family": "repeater",
+      "variant": 3
+    },
+    {
+      "name": "silencer_03",
+      "file": "silencer_03.png",
+      "family": "silencer",
+      "variant": 3
+    },
+    {
+      "name": "target_03",
+      "file": "target_03.png",
+      "family": "target",
+      "variant": 3
+    },
+    {
+      "name": "runner_04",
+      "file": "runner_04.png",
+      "family": "runner",
+      "variant": 4
+    },
+    {
+      "name": "brute_04",
+      "file": "brute_04.png",
+      "family": "brute",
+      "variant": 4
+    },
+    {
+      "name": "pouncer_04",
+      "file": "pouncer_04.png",
+      "family": "pouncer",
+      "variant": 4
+    },
+    {
+      "name": "ranged_04",
+      "file": "ranged_04.png",
+      "family": "ranged",
+      "variant": 4
+    },
+    {
+      "name": "repeater_04",
+      "file": "repeater_04.png",
+      "family": "repeater",
+      "variant": 4
+    },
+    {
+      "name": "silencer_04",
+      "file": "silencer_04.png",
+      "family": "silencer",
+      "variant": 4
+    },
+    {
+      "name": "target_04",
+      "file": "target_04.png",
+      "family": "target",
+      "variant": 4
+    }
+  ]
+}

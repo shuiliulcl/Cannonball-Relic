@@ -221,6 +221,163 @@
         </div>
       </section>
 
+      <section aria-label="Production source sheets">
+        <h2>Production Source Sheets</h2>
+        <div class="grid">
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-v6-runtime-scale-preview-clean.png" alt="Lineglow enemy v6 clean-shape runtime scale preview" />
+            <figcaption>
+              <strong>Enemy v6 clean-shape runtime preview</strong>
+              Current clean-shape candidate after feedback on v5C. It keeps thick glowing contours but reduces irregular line jitter, preserves each family silhouette, and replaces open internal strokes with closed eyes, cores, capsules, and attached plates.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v6-clean-shape/review-contact.png" alt="Lineglow enemy v6 clean-shape token review sheet" />
+            <figcaption>
+              <strong>Enemy v6 clean-shape tokens</strong>
+              28 transparent PNG tokens with stable shapes and no stray lineheads. This is less wild than v5C, but better preserves intentional silhouettes at small scale.
+            </figcaption>
+          </figure>
+
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-v5c-runtime-scale-preview-clean.png" alt="Lineglow enemy v5C creature-readable runtime scale preview" />
+            <figcaption>
+              <strong>Enemy v5C creature-readable runtime preview</strong>
+              Current best non-symbolized candidate. It keeps v4's clean scale discipline and true-alpha exports, but pushes silhouettes back toward irregular living enemies: loped brute, comet runner, predator pouncer, lens creature, pulse organism, violet cantor, and red target organism.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v5c-creature-readable/review-contact.png" alt="Lineglow enemy v5C creature-readable token review sheet" />
+            <figcaption>
+              <strong>Enemy v5C token review</strong>
+              28 transparent PNG tokens. Compared with v5A/v5B, this keeps stronger creature contours while preserving the big-shape readability needed at 26-42 px.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-v5-ab-runtime-comparison-clean.png" alt="Lineglow enemy v5A versus v5B clean runtime comparison" />
+            <figcaption>
+              <strong>Enemy v5A / v5B comparison</strong>
+              A explores v3 cleanup with more living irregularity. B explores v4 organicized with chunkier symbols. Both are useful bounds, but C is the better midpoint.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v5a-living-clean/review-contact.png" alt="Lineglow enemy v5A living clean review sheet" />
+            <figcaption>
+              <strong>Enemy v5A living clean</strong>
+              More organic than v4 and less detailed than v3. Useful as a style upper bound, though some families still read thin at dense runtime scale.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v5b-organic-readable/review-contact.png" alt="Lineglow enemy v5B organic readable review sheet" />
+            <figcaption>
+              <strong>Enemy v5B organic readable</strong>
+              Readability is strong, but it remains closer to geometric glyphs than living enemies. Keep as the lower-detail bound.
+            </figcaption>
+          </figure>
+
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-v4-runtime-scale-preview-clean.png" alt="Clean runtime scale preview for procedural lineglow enemy v4 tokens" />
+            <figcaption>
+              <strong>Enemy v4 clean runtime scale preview</strong>
+              Current readability baseline. This preview removes the bright background cracks that were being mistaken for gameplay lines, uses true transparent procedural enemy PNGs, and tests the monsters at approximate 26-42 px scale beside the current player skill VFX.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v4-procedural/review-contact.png" alt="Procedural lineglow enemy v4 transparent token review sheet" />
+            <figcaption>
+              <strong>Enemy v4 procedural transparent tokens</strong>
+              Controlled 28-token set with real alpha and no generated UI/background artifacts. The tradeoff is that v4 is more symbolic and less organic than v3, but it is much safer for small-scale gameplay readability.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-enemy-tokens-v4-procedural-clean.png" alt="Procedural lineglow enemy v4 source sheet" />
+            <figcaption>
+              <strong>Enemy tokens v4 procedural source</strong>
+              Clean source sheet for the controlled enemy vocabulary: runner, brute, pouncer, ranged, repeater, silencer, and target. Use this as the next implementation baseline if readability beats painterly detail.
+            </figcaption>
+          </figure>
+
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-v3-runtime-scale-preview-v1.png" alt="Lineglow enemy v3 runtime scale preview against player VFX" />
+            <figcaption>
+              <strong>Enemy v3 runtime scale preview</strong>
+              Current preferred enemy direction. Compared with v1, monsters are brighter and closer to the player/VFX lineglow language. Watch points: runner should not shrink below readability, brute still needs a less dark center, and floor lines must stay quieter than this preview.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v3-selected-review/review-contact.png" alt="Selected extracted lineglow enemy v3 review contact sheet" />
+            <figcaption>
+              <strong>Enemy v3 selected extraction</strong>
+              28 selected crops from the v3 sheet: runner, brute, pouncer, ranged, repeater, silencer, and target. The generated source had an extra violet aura family, so this selection skips that duplicate group.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-enemy-tokens-v3-living-bright.png" alt="Lineglow enemy v3 living bright source sheet" />
+            <figcaption>
+              <strong>Enemy tokens v3 living bright</strong>
+              Best style match so far: brighter contour, stronger VFX connection, more living-token silhouettes. Layout is not production-perfect because the generator produced 32 tokens, but the selected review set gives a usable next direction.
+            </figcaption>
+          </figure>
+
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-skills-runtime-scale-preview-v1.png" alt="Lineglow enemy and player skill runtime scale preview" />
+            <figcaption>
+              <strong>Enemy + player skills runtime scale preview v1</strong>
+              Priority review for the current pass. Enemy tokens are checked at approximate 26-42 px gameplay size; player skill overlays are checked around a small cyan core. This is a scale/readability preview, not final runtime wiring.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v1-review/review-contact.png" alt="Extracted enemy token review contact sheet" />
+            <figcaption>
+              <strong>Enemy extraction review</strong>
+              28 extracted review crops from the enemy sheet. The body shapes survived alpha extraction well enough for scale tests; target-core fill and brute character-likeness remain watch points.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/extracted/lineglow-player-vfx-v3-review/review-contact.png" alt="Extracted player skill and VFX review contact sheet" />
+            <figcaption>
+              <strong>Player skill extraction review</strong>
+              20 component crops from the clean VFX sheet. This is the preferred source for player-centered Buff rings, cannon cues, projectile shards, orbit blade, guard drone, and evade/chain effects.
+            </figcaption>
+          </figure>
+
+          <figure class="is-wide">
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-enemy-tokens-v1.png" alt="Lineglow enemy token production source sheet" />
+            <figcaption>
+              <strong>Enemy tokens v1</strong>
+              Seven runtime enemy families in four pose/read variations: runner, brute, pouncer, ranged lens, repeater wheel, silencer, and red target core. This is a source sheet for review and extraction planning, not a final wired sprite pack.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-hud-icons-v1.png" alt="Lineglow HUD icon production source sheet" />
+            <figcaption>
+              <strong>HUD icons v1</strong>
+              Usable 5x4 command icon sheet. The symbols avoid readable text and keep compact glowing frames, so this is a good candidate for conservative grid extraction.
+            </figcaption>
+          </figure>
+
+          <figure>
+            <img src="concepts/voice-survivor-orbit-ruins/sheets/lineglow-player-vfx-v3-loose-clean.png" alt="Lineglow player and VFX production source sheet" />
+            <figcaption>
+              <strong>Player and VFX v3 loose clean</strong>
+              Preferred VFX source sheet. Earlier VFX passes had generated runes, cracks, or visible grid separators; this version uses a seamless background and should be extracted by components or manual crops.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
       <section aria-label="Lineglow concept sheets">
         <h2>Lineglow Concept Direction</h2>
         <div class="grid">
@@ -337,6 +494,22 @@
 
       <section class="grid" aria-label="Runtime screenshots">
         <h2 class="is-wide">Current Runtime Pass</h2>
+        <figure class="is-wide">
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/lineglow-v6-root-ingame-enlarged.png" alt="Lineglow v6 clean-shape enemy sprites in the current root gameplay" />
+          <figcaption>
+            <strong>Lineglow runtime v6 enemy sprites</strong>
+            First runtime wiring of the v6 clean-shape PNG enemy tokens. Sprites load from the orbit-ruins skin, keep a procedural Canvas fallback, and use enlarged per-family draw scales because the 192 px source crops have generous transparent margins.
+          </figcaption>
+        </figure>
+
+        <figure class="is-wide">
+          <img src="concepts/voice-survivor-orbit-ruins/screenshots/lineglow-runtime-v4-hud-glyphs.png" alt="Lineglow survivor HUD glyph runtime screenshot" />
+          <figcaption>
+            <strong>Lineglow runtime v4 HUD glyphs</strong>
+            Current resource pass: command buttons and Buff rows now draw from a shared spell glyph/tone map, while enemy token colors live in the lineglow theme module.
+          </figcaption>
+        </figure>
+
         <figure class="is-wide">
           <img src="concepts/voice-survivor-orbit-ruins/screenshots/lineglow-runtime-v2-density.png" alt="Lineglow root survivor density screenshot" />
           <figcaption>

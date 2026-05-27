@@ -455,3 +455,325 @@ Use the attached Cannonball Relic gameplay mockup as a strict style reference an
 - The asset-level style is promising: silhouettes are readable, the enemy value/color families survived, and no readable text appeared.
 - This sheet is a visual test, not final production export. The background is not transparent and each asset still needs manual cleanup or a dedicated transparent-background generation pass.
 - Best next production step: generate focused transparent sheets by category, starting with enemies and gameplay props before HUD icons.
+
+---
+
+## Separated Asset Sheet Pass (2026-05-27)
+
+### Outputs
+
+| File | Resolution | Category |
+|---|---:|---|
+| `docs/concepts/outer-wilds-inspired/raster-player-vfx-sheet-v1.png` | 2816x1504 | Player, marble projectile, ricochet trails, impact VFX, pickup cores. |
+| `docs/concepts/outer-wilds-inspired/raster-enemy-sheet-v1.png` | 2816x1504 | Enemy variants for solar-root sentinel, lens warden, crust charger, gravity caster. |
+| `docs/concepts/outer-wilds-inspired/raster-prop-tile-sheet-v1.png` | 2816x1504 | Bounce walls, bumpers, orbital rail pieces, lamps, signal nodes, floor tiles. |
+| `docs/concepts/outer-wilds-inspired/raster-hud-icon-sheet-v1.png` | 2816x1504 | Abstract HUD and cooldown icons. |
+
+### Notes
+
+- The categories are now separated enough to evaluate style direction independently.
+- The model drew checker/neutral backgrounds as actual pixels; these PNGs are `Format24bppRgb`, not alpha-transparent production files.
+- Enemy readability remains the strongest result: the four enemy families retain distinct value/color/shape language.
+- Props and tiles are good candidates for the first crop/cleanup experiment because their silhouettes are stable and the backgrounds are relatively simple.
+- HUD icons are visually appealing but need a stricter second pass for 32px readability and consistent icon-frame sizing.
+- Player/VFX sheet is useful for direction, but final projectile trails should probably be redrawn as clean runtime VFX instead of sliced directly from this sheet.
+
+---
+
+## Extraction-Friendly Enemy Sheet Pass (2026-05-27)
+
+### Output
+
+| File | Resolution | Purpose |
+|---|---:|---|
+| `docs/concepts/outer-wilds-inspired/raster-enemy-sheet-v2-clean-silhouette.png` | 2816x1536 | Redesign enemy silhouettes to reduce thin edge detail and improve automatic extraction. |
+| `docs/concepts/outer-wilds-inspired/extracted/enemies-v2-clean/` | mixed | First grid-extracted transparent PNG pass from the v2 enemy sheet. |
+
+### Notes
+
+- User feedback: `enemy_01` and `enemy_02` from v1 had branch/root edges that were too complex for clean extraction.
+- v2 shifts enemy design toward chunky closed shapes: large leaf plates, short thick root feet, simple glass orbs, wedge rock brutes, and thick gravity rings.
+- Automatic extraction confirmed exported PNGs as `Format32bppArgb`; corner alpha is 0 and subject alpha is 255.
+- Remaining issue: the generated sheet uses a dark gray gradient background. Future sheets should request a flat solid background with no checkerboard and no gradient to reduce possible edge contamination.
+- Design rule going forward: source sheets should be designed for extraction first, then detail can be added inside the silhouette.
+
+---
+
+## In-Game Orbit Ruins Skin Prototype (2026-05-27)
+
+### Output
+
+| File / path | Purpose |
+|---|---|
+| `public/assets/skins/orbit-ruins/` | First H5 runtime skin using converted concept assets. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v1.png` | Browser screenshot from the running H5 game. |
+
+### Implementation
+
+- Copied `relic-ruins` as the base skin so existing floor, obstacle, marble, wall, and prop slots continue to resolve.
+- Replaced player with `extracted/player-vfx-v1/player_vfx_01.png`.
+- Replaced every enemy slot with mappings from `extracted/enemies-v2-clean/enemy_01.png` through `enemy_08.png`.
+- Kept marble and environment props from `relic-ruins` because the current marble/VFX sheet has row-overlap artifacts and the prop sheet needs a separate crop pass.
+- Use with: `?game=relic&skin=orbit-ruins&theme=dark`.
+
+### Validation
+
+- `npm run build` passed.
+- Browser smoke test passed at `http://127.0.0.1:5176/?game=relic&skin=orbit-ruins&theme=dark&level=bounce-01-training-court`.
+- No failed requests and no console errors were reported.
+- Runtime screenshot confirms the converted enemies and player render in the scene.
+
+### Findings
+
+- The clean silhouette enemies extract and render much better than the branch/root v1 sheet.
+- At current runtime scale, some enemies read slightly small relative to HUD and obstacles.
+- Old orange obstacle sprites dominate the scene, so the next visual integration pass should replace props/tiles or add a skin-specific scale adjustment for orbit enemy sprites.
+
+---
+
+## Orbit Ruins Runtime Prop Pass (2026-05-27)
+
+### Output
+
+| File / path | Purpose |
+|---|---|
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v3-clean-props.png` | Runtime screenshot after enemy scale and prop integration changes. |
+| `docs/concepts/outer-wilds-inspired/extracted/props-tiles-v1-lowtol/` | First usable prop extraction pass for clear-silhouette props only. |
+
+### Implementation
+
+- Increased `orbit-ruins` enemy sprite scale in `SceneView` so the clean silhouettes read better in-game.
+- Replaced orbit skin obstacle sprite slots with clear prop crops: bounce walls, bumper/signal tiles, root tile, lava/bomb tile, and lamp.
+- Enabled transparent obstacle top materials and skipped the old rectangular obstacle body only for `orbit-ruins`, because transparent prop sprites exposed the old brown collision-body rectangle.
+- Did not use gray stone floor/tile crops for runtime, because automatic alpha extraction eats gray tile content.
+
+### Findings
+
+- Clear-silhouette props work well enough for a prototype runtime pass.
+- Tile/floor assets need a separate generation strategy: opaque edge-to-edge textures, not transparent crops from checkerboard sheets.
+- The extraction skill was updated to use border-connected background removal and to document the split between prop sprites and opaque tiles.
+
+---
+
+## Orbit Ruins Obstacle Correction Pass (2026-05-27)
+
+### Output
+
+| File / path | Purpose |
+|---|---|
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v4-procedural-obstacles.png` | Runtime screenshot after replacing stretched obstacle prop textures with procedural collision-true blocks. |
+
+### Implementation
+
+- Stopped using extracted prop PNGs as stretched top materials for `orbit-ruins` obstacles.
+- Added an `orbit-ruins`-specific top-down obstacle renderer in `SceneView`.
+- The new visual block always matches the collision AABB, then layers brass rails, cyan signal seams, warm rivets, and material-specific palette variants on top.
+- Kept the fix runtime-only so other skins still use their existing obstacle sprite/texture behavior.
+
+### Findings
+
+- The previous prop crops were concept props, not rectangular top-down obstacle textures; stretching them over `PlaneGeometry(width, depth)` caused the wrong deformation.
+- Production rule: collision blocks need either procedural rectangular art or generated edge-to-edge rectangular textures. Decorative props should render as sprites/planes with preserved aspect ratio and separate invisible collision if needed.
+- Browser verification passed at `http://127.0.0.1:5176/?game=relic&skin=orbit-ruins&theme=dark&level=bounce-01-training-court`; no console warnings or errors were reported.
+
+---
+
+## Orbit Ruins Textured Obstacle Pass (2026-05-27)
+
+### Outputs
+
+| File / path | Purpose |
+|---|---|
+| `docs/concepts/outer-wilds-inspired/raster-obstacle-texture-sheet-v1.png` | Nano Banana Pro generation pass for orthographic rectangular obstacle textures. |
+| `docs/concepts/outer-wilds-inspired/extracted/obstacle-textures-v1-components/` | Component extraction from the obstacle texture sheet. |
+| `public/assets/skins/orbit-ruins/textures/obstacle-long-h.png` | Normalized 4:1 horizontal bumper texture. |
+| `public/assets/skins/orbit-ruins/textures/obstacle-long-v.png` | Normalized 1:5 vertical bumper texture for the current training level. |
+| `public/assets/skins/orbit-ruins/textures/obstacle-medium-h.png` | Normalized 2:1 horizontal block texture. |
+| `public/assets/skins/orbit-ruins/textures/obstacle-medium-v.png` | Normalized 1:2 vertical block texture. |
+| `public/assets/skins/orbit-ruins/textures/obstacle-square.png` | Normalized 1:1 block texture. |
+| `public/assets/skins/orbit-ruins/textures/obstacle-signal-square.png` | Normalized 1:1 special signal bumper texture. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v5-textured-obstacles.png` | Browser screenshot after wiring normalized texture selection into the game. |
+
+### Generation Prompt
+
+Use the input image only as a style reference. Generate an original game asset sheet for Cannonball Relic obstacle textures, not a scene. Top-down orthographic texture assets for H5 roguelite collision blocks, in the same readable warm-cyan relic style: weathered brass frames, rough moon-stone centers, cyan signal seams, warm amber rivets, subtle hand-painted mottled texture. Arrange exactly 6 isolated assets in a clean 3 columns by 2 rows grid on a plain dark neutral background with generous spacing. Each asset must be a true flat rectangular top-down texture with no perspective tilt, no cast shadow, no decorative legs, no protruding roots, no wispy edges, no complex silhouette. Include: 1 horizontal long bumper texture 4:1, 1 vertical long bumper texture 1:4, 1 square block texture 1:1, 1 medium horizontal block 2:1, 1 medium vertical block 1:2, 1 square special signal bumper. Every rectangle should have straight simple edges and fill its own cell as much as possible. Painterly but simple, game-ready, high readability at small size. No readable text, no letters, no numbers, no watermark, no characters, no UI, no background scene. Avoid copying any existing IP, no recognizable Outer Wilds symbols, masks, ships, logos, Eye symbols, or specific architecture.
+
+### Implementation
+
+- Generated a focused obstacle texture sheet with Nano Banana Pro using the preferred v8 gameplay concept as style reference.
+- Extracted 7 component assets from the sheet with the `concept-to-game-assets` extraction script; the model generated one extra horizontal variant.
+- Added `normalize_orbit_obstacle_textures.py` to convert extracted crops into exact runtime aspect buckets using cap/middle/cap resizing instead of arbitrary in-game stretching.
+- Updated `SceneView` so `orbit-ruins` selects obstacle textures by collision aspect ratio: long horizontal, long vertical, medium horizontal, medium vertical, square, or signal square.
+
+### Findings
+
+- This is the better pipeline for collision blocks: generate source art in the same category as the final use, extract it, normalize it to known aspect buckets, then select the closest bucket in runtime.
+- The long vertical texture is normalized to 1:5 because the current training-court side bumpers are 1x5 cells.
+- Browser verification passed with no console warnings or errors.
+
+---
+
+## Orbit Ruins Floor / Wall Texture Pass (2026-05-27)
+
+### Outputs
+
+| File / path | Purpose |
+|---|---|
+| `docs/concepts/outer-wilds-inspired/raster-floor-wall-texture-sheet-v1.png` | Nano Banana Pro source sheet for opaque floor and wall textures. |
+| `docs/concepts/outer-wilds-inspired/extracted/floor-wall-textures-v1/crop_floor_wall_textures.py` | Reproducible crop script for runtime texture slots. |
+| `public/assets/skins/orbit-ruins/textures/floor.png` | Plain moon-stone floor texture. |
+| `public/assets/skins/orbit-ruins/textures/floor-cracked.png` | Cyan cracked moon-stone texture. |
+| `public/assets/skins/orbit-ruins/textures/floor-moss.png` | Root-cable / moss moon-stone texture. |
+| `public/assets/skins/orbit-ruins/textures/floor-danger.png` | Amber fracture danger texture. |
+| `public/assets/skins/orbit-ruins/textures/wall-border.png` | Brass and dark-stone wall border strip. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v6-floor-wall-textures.png` | Browser screenshot after wiring floor/wall textures into the skin. |
+
+### Implementation
+
+- Generated a focused floor/wall texture sheet using the preferred gameplay concept and obstacle sheet as style references.
+- Treated these as opaque textures, not transparent sprites.
+- Cropped floor samples to their inner stone regions after the first crop made repeated floor borders too strong in-game.
+- Replaced the inherited `relic-ruins` floor and wall texture files in `orbit-ruins`.
+
+### Findings
+
+- Edge-to-edge floor textures need weaker borders than standalone texture samples; strong painted tile outlines become a heavy grid when repeated.
+- The current default floor now supports the warmer/cooler relic style without overpowering enemies and obstacles.
+- Browser verification passed with no console warnings or errors.
+
+---
+
+## Orbit Ruins Marble / VFX Pass (2026-05-27)
+
+### Outputs
+
+| File / path | Purpose |
+|---|---|
+| `docs/concepts/outer-wilds-inspired/raster-marble-vfx-sheet-v2.png` | Source sheet for marble states and compact combat feedback VFX. |
+| `docs/concepts/outer-wilds-inspired/extracted/marble-vfx-v2/` | Grid extraction pass from the marble/VFX sheet. |
+| `public/assets/skins/orbit-ruins/sprites/marble.png` | Runtime ready signal-core marble sprite. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v7-marble-vfx.png` | Browser screenshot after replacing the marble sprite. |
+
+### Implementation
+
+- Generated 12 isolated marble/VFX assets in a 4x3 grid.
+- Extracted the sheet with conservative padding.
+- Verified the ready marble crop has real transparent corners after extraction.
+- Replaced only the runtime marble sprite; kept trail, impact, shield, gravity, and dust VFX as references for runtime-drawn effects.
+
+### Findings
+
+- The ready marble crop is clean enough for runtime.
+- Generated semi-transparent VFX sprites should not be blindly wired into gameplay; runtime-drawn arcs and bursts will be easier to tune and less likely to show gray edge contamination.
+- Browser verification passed with no console warnings or errors.
+
+---
+
+## Orbit Ruins HUD Instrument Pass (2026-05-27)
+
+### Outputs
+
+| File / path | Purpose |
+|---|---|
+| `docs/concepts/outer-wilds-inspired/raster-hud-icon-sheet-v2.png` | Source sheet for normalized HUD icons in the orbit ruins style. |
+| `docs/concepts/outer-wilds-inspired/extracted/hud-icons-v2/` | Extracted HUD icon crops and normalized 64px / 128px icon exports. |
+| `public/assets/skins/orbit-ruins/ui/` | Runtime HUD icon pack. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v8-hud-skin.png` | Browser screenshot after skin-specific HUD styling and high-frequency icon wiring. |
+
+### Implementation
+
+- Generated a focused 4x4 HUD icon sheet using the locked gameplay/HUD concept and current in-game screenshot as style references.
+- Extracted the sheet with a 4x4 grid and normalized icons to 64px and 128px square canvases.
+- Added `skin-orbit-ruins` to the stage shell so HUD styling can be scoped to this skin.
+- Added orbit-specific HUD CSS: brass borders, dark stone translucent panels, cyan instrument lines, warm progress accents, and lower-noise panel glows.
+- Wired high-frequency icons first: health, shield, charge, and the top-right settings/manual button.
+
+### Findings
+
+- The first manual icon was too dark for the top-right action button, so the button now uses the clearer settings gear from the same sheet.
+- Full HUD icon replacement should wait until the HUD DOM has explicit icon slots; the current pass safely styles existing controls without restructuring every panel.
+- Playwright verification passed with no page console errors; only benign WebGL readback performance warnings appeared during screenshot capture.
+
+---
+
+## Orbit Ruins Runtime VFX Pass (2026-05-27)
+
+### Outputs
+
+| File / path | Purpose |
+|---|---|
+| `src/render/TrajectoryView.ts` | Skin-specific orbit-ruins trajectory styling: cyan signal beads/segments, amber bounce markers, and violet tertiary accents. |
+| `src/render/effects.ts` | Skin-specific orbit-ruins combat particles: brass/stone chips, cyan signal motes, and expanding pulse rings. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v9-runtime-vfx.png` | Runtime screenshot after wiring the VFX pass. |
+
+### Implementation
+
+- Passed `skin.id` from `SceneView` into `Effects` and `TrajectoryView`, so only `orbit-ruins` receives the new VFX treatment.
+- Kept generated VFX sheet art as reference, not as directly sliced runtime sprites.
+- Replaced the default red bounce preview in orbit-ruins with a warmer signal palette: cyan for player agency, amber for bounce/contact, violet for gravity-like tertiary effects.
+- Changed spark bursts from simple round particles into mixed chunky chips, signal motes, and short pulse rings. This better matches the hand-painted relic material direction while staying cheap and tunable in code.
+
+### Findings
+
+- Runtime-drawn VFX is the right conversion method for this category: semi-transparent generated sprites risk gray edges, while code VFX can be recolored and scaled per skin.
+- The current trajectory is readable and no longer introduces the old red warning color into normal aiming.
+- Playwright verification passed at `http://127.0.0.1:5176/?game=relic&skin=orbit-ruins&theme=dark&level=bounce-01-training-court` with no page console errors.
+
+---
+
+## Orbit Ruins Interactable Prop Pass (2026-05-27)
+
+### Outputs
+
+| File / path | Purpose |
+|---|---|
+| `docs/concepts/outer-wilds-inspired/raster-interactable-pickup-sheet-v1.png` | Focused 3x3 Nano Banana source sheet for interactables and future pickup props. |
+| `docs/concepts/outer-wilds-inspired/extracted/interactable-pickups-v1/` | Grid extraction pass from the focused prop sheet. |
+| `public/assets/skins/orbit-ruins/sprites/interactable-*.png` | Runtime prop sprites for `brazier`, `pinball`, `iceBall`, `alarmPost`, and `doorSwitch`. |
+| `public/assets/skins/orbit-ruins/sprites/pickup-*.png` | Reserved future pickup/upgrade prop candidates. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v10-interactables.png` | Runtime screenshot on `zodiac-schema-smoke`, showing all five interactable categories. |
+
+### Generation Prompt
+
+```text
+Use the attached Cannonball Relic orbit-ruins gameplay images only as style references. Generate an original game asset sheet, not a scene. Clean readable H5 roguelite production props in the same restrained banana style: rough painterly texture, dark moon-stone, weathered brass, cyan signal glow, warm amber lamps, chunky closed silhouettes, no wispy roots, no thin branches, no complex jagged edges.
+
+Arrange exactly 9 isolated top-down / slight 2.5D prop sprites in a tidy 3 columns by 3 rows grid on a plain flat dark neutral background with generous spacing between cells. Include: warm amber brazier signal lamp, cyan pinball duplicator node, pale blue ice-ball condenser, amber alarm post, door switch, pickup core, shield seed, repair heart relic, and upgrade card pedestal. No readable text, no letters, no numbers, no labels, no watermark.
+```
+
+### Implementation
+
+- Extracted the sheet with fixed 3x3 grid slicing instead of component detection, because the source layout is regular and glow halos should stay with each prop.
+- Verified exported corners are transparent; the crop pass did not erase the prop bodies.
+- Wired the first five sprites into an `orbit-ruins`-specific interactable renderer in `SceneView`.
+- Kept gameplay unchanged: the visual sprites sit on top of the existing interactable positions and trigger radii.
+
+### Findings
+
+- This pass works better than the earlier broad prop sheet because the generator was constrained to compact closed silhouettes.
+- The door switch, pinball node, brazier, and alarm post read well in-game.
+- The ice-ball condenser is usable but slightly too horizontal; a future polish pass should regenerate it as a more round, top-down object if ice interactables become frequent.
+- Playwright verification passed at `http://127.0.0.1:5176/?game=relic&skin=orbit-ruins&theme=dark&level=zodiac-schema-smoke` with no page console errors.
+
+---
+
+## Grid-Aligned Runtime Floor Fix (2026-05-27)
+
+### Output
+
+| File / path | Purpose |
+|---|---|
+| `src/render/SceneView.ts` | Floor texture repeat now follows runtime level grid dimensions. |
+| `docs/concepts/outer-wilds-inspired/orbit-ruins-ingame-v11-grid-aligned-floor.png` | Runtime screenshot after fixing the visible floor tile scale. |
+
+### Implementation
+
+- Found that the 2D arena floor used a fixed `repeat.set(9, 7)` regardless of the loaded level size.
+- Runtime levels already define `grid.width`, `grid.height`, and `cellSize`; gameplay positions, obstacles, interactables, floor patches, and void cells are all based on this grid.
+- Added a helper so runtime floor textures repeat by `grid.width` and `grid.height`. Fallback scenes without a runtime level still use the old fixed repeat values.
+
+### Findings
+
+- The earlier screenshots showed a real visual scale mismatch: for a 12x10 level, a fixed 9x7 floor repeat made each painted floor tile larger than one gameplay cell.
+- After the fix, one visible floor tile corresponds to one gameplay cell, so 1x1 obstacles and interactables read at the correct map scale.
+- `npm run build` passed, and Playwright verification on `zodiac-schema-smoke` reported no page console errors.

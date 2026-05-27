@@ -213,6 +213,166 @@
         </figcaption>
       </figure>
       <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-player-vfx-sheet-v1.png" alt="Cannonball Relic player marble and VFX asset sheet" />
+        <figcaption>
+          <span class="badge">Separated Assets · Player/VFX</span>
+          <strong>Player, Marble, And VFX Sheet</strong>
+          主角、信号弹珠、弹道弧线、命中特效和拾取核心单独拆出，方便先验证移动主体和高频战斗反馈。当前背景不是 alpha 透明，适合作为方向板，后续需要重新生成或抠成透明单图。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-enemy-sheet-v1.png" alt="Cannonball Relic enemy asset sheet" />
+        <figcaption>
+          <span class="badge">Separated Assets · Enemies</span>
+          <strong>Enemy Sheet</strong>
+          四类敌人各两版：太阳根哨兵、镜片守卫、岩壳冲锋者、重力施法者。重点验证中明度身体、彩色边缘光和功能色能否在暗场景中保持识别度。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-enemy-sheet-v2-clean-silhouette.png" alt="Cannonball Relic clean silhouette enemy asset sheet" />
+        <figcaption>
+          <span class="badge">Enemy Sheet · clean silhouette v2</span>
+          <strong>Extraction-Friendly Enemy Sheet</strong>
+          针对 v1 的树枝/根须边缘太复杂、自动抠图容易出灰边的问题重做。敌人改为更封闭、更大块的轮廓：大叶甲、短粗根脚、球形镜片、楔形岩壳、厚环重力核心。牺牲一点概念细节，换取更稳定的裁切、缩放和碰撞盒。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v1.png" alt="Cannonball Relic orbit ruins skin in-game prototype screenshot" />
+        <figcaption>
+          <span class="badge">In-game · skin prototype</span>
+          <strong>Orbit Ruins Skin Test In H5</strong>
+          第一版实际接入：新增 <code>public/assets/skins/orbit-ruins</code>，把 clean silhouette v2 敌人和信号探索者主角放进现有 H5 游戏。验证结果：资源无 404、alpha 有效、敌人能在真实场景中显示；问题是敌人在当前缩放下偏小，环境/障碍仍是继承旧皮肤，下一步要做尺寸调优和场景道具替换。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v3-clean-props.png" alt="Cannonball Relic orbit ruins skin in-game prototype with clean props" />
+        <figcaption>
+          <span class="badge">In-game · props v3</span>
+          <strong>Orbit Ruins Runtime Test With Clean Props</strong>
+          第二轮实装修正：敌人放大，接入反弹墙/道具裁切图，并关闭 orbit-ruins 皮肤下旧障碍矩形底座，避免透明 PNG 后面露出棕色方块。灰石地砖类素材暂不自动抠图，后续应单独生成 edge-to-edge 贴图。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v4-procedural-obstacles.png" alt="Cannonball Relic orbit ruins skin with procedural rectangular obstacles" />
+        <figcaption>
+          <span class="badge">In-game · obstacle fix v4</span>
+          <strong>Procedural Collision-True Obstacles</strong>
+          纠正道具图被拉伸进碰撞盒的问题：<code>orbit-ruins</code> 的障碍物现在改为程序化矩形遗迹块，视觉宽深严格跟随碰撞体，用黄铜边框、青色信号缝和暖色铆钉保留美术方向。AI prop 图后续应作为保持比例的装饰 sprite，或重新生成真正俯视、矩形、edge-to-edge 的障碍贴图。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v5-textured-obstacles.png" alt="Cannonball Relic orbit ruins skin with normalized textured obstacles" />
+        <figcaption>
+          <span class="badge">In-game · textured obstacles v5</span>
+          <strong>Normalized Obstacle Texture Pass</strong>
+          使用专门生成的俯视障碍贴图 sheet，并把裁切图规格化成 4:1、1:5、2:1、1:2、1:1 几种生产尺寸。运行时按碰撞盒长宽选择对应贴图，因此长条、竖条和方块都保持正确方向，避免把概念道具强行变形。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-obstacle-texture-sheet-v1.png" alt="Cannonball Relic orthographic obstacle texture sheet" />
+        <figcaption>
+          <span class="badge">Texture Sheet · obstacles v1</span>
+          <strong>Orthographic Rectangular Obstacle Textures</strong>
+          单独生成的障碍贴图方向板：黄铜边框、月岩内芯、青色信号缝、暖色铆钉。约束重点是正交俯视、直边矩形、无复杂根须、无斜透视，适合作为真正游戏图素的来源，而不是场景概念图。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v6-floor-wall-textures.png" alt="Cannonball Relic orbit ruins skin with floor and wall textures" />
+        <figcaption>
+          <span class="badge">In-game · floor/wall v6</span>
+          <strong>Orbit Ruins Floor And Wall Texture Pass</strong>
+          补齐默认地表与墙边纹理：从专门生成的 opaque edge-to-edge 纹理板中裁出月岩地面、裂缝地面、根系地面、危险地面和墙边条。第一次裁切格线太重，已改为裁内芯区域，避免地面黑线抢角色。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-floor-wall-texture-sheet-v1.png" alt="Cannonball Relic floor and wall texture sheet" />
+        <figcaption>
+          <span class="badge">Texture Sheet · floor/wall v1</span>
+          <strong>Opaque Edge-To-Edge Floor And Wall Textures</strong>
+          针对 runtime 纹理单独生成：普通月岩、青色裂缝、根系缆线、琥珀危险裂缝，以及横向墙边条和竖向墙边条。此类素材不做透明抠图，而是裁成不透明贴图。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v7-marble-vfx.png" alt="Cannonball Relic orbit ruins skin with updated marble sprite" />
+        <figcaption>
+          <span class="badge">In-game · marble v7</span>
+          <strong>Signal-Core Marble Runtime Sprite</strong>
+          从新的 marble/VFX sheet 中抽取 ready signal-core marble，替换 <code>orbit-ruins</code> 的弹珠 sprite。其余轨迹、命中、回收、护盾与重力 VFX 暂作为 runtime 绘制参考，避免直接使用半透明特效图带来灰边。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-marble-vfx-sheet-v2.png" alt="Cannonball Relic marble and VFX sheet" />
+        <figcaption>
+          <span class="badge">Separated Assets · marble/VFX v2</span>
+          <strong>Marble States And Combat Feedback Sheet</strong>
+          12 格弹珠与战斗反馈素材：ready、charged、recall ghost、overheat、弹道段、命中爆点、拾取核心、重力脉冲、护盾闪光和碎屑。弹珠可直接接入，VFX 更适合作为运行时代码效果的视觉参考。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v8-hud-skin.png" alt="Cannonball Relic orbit ruins skin with HUD instrument styling" />
+        <figcaption>
+          <span class="badge">In-game · HUD v8</span>
+          <strong>Orbit Ruins HUD Instrument Pass</strong>
+          为 <code>orbit-ruins</code> 增加 skin-specific HUD 样式：暗石半透明面板、黄铜边、青色仪器内线、暖色状态条，并接入生命、护盾、蓄力和右上入口图标。重点是先统一实机界面气质，不影响其他皮肤。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v9-runtime-vfx.png" alt="Cannonball Relic orbit ruins skin with runtime signal trajectory VFX" />
+        <figcaption>
+          <span class="badge">In-game · VFX v9</span>
+          <strong>Runtime Signal Trajectory Pass</strong>
+          Orbit-ruins now uses skin-specific runtime VFX instead of sliced semi-transparent effect sprites: cyan signal beads/segments for aim preview, warm brass/amber bounce markers, and styled burst particles for hits, recalls, pickups, and danger feedback. This keeps the VFX tunable and avoids gray extraction edges.
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v10-interactables.png" alt="Cannonball Relic orbit ruins skin with runtime interactable props" />
+        <figcaption>
+          <span class="badge">In-game · interactables v10</span>
+          <strong>Runtime Interactable Prop Pass</strong>
+          Five gameplay interactables now use orbit-ruins prop sprites while keeping their original trigger logic: door switch, pinball duplicator, ice-ball condenser, brazier signal lamp, and alarm post. The sprite pass favors chunky closed silhouettes and compact shapes so it survives extraction and 64px-scale readability.
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-interactable-pickup-sheet-v1.png" alt="Cannonball Relic interactable and pickup prop sheet" />
+        <figcaption>
+          <span class="badge">Separated Assets · interactables v1</span>
+          <strong>Interactable And Pickup Prop Sheet</strong>
+          Focused 3x3 Nano Banana sheet for gameplay props: brazier, pinball node, ice condenser, alarm post, door switch, pickup core, shield seed, repair heart, and upgrade pedestal. The first five are wired into runtime; the remaining four are reserved as future pickup/upgrade prop candidates.
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/orbit-ruins-ingame-v11-grid-aligned-floor.png" alt="Cannonball Relic orbit ruins skin with grid-aligned floor texture" />
+        <figcaption>
+          <span class="badge">In-game · floor grid v11</span>
+          <strong>Grid-Aligned Floor Texture Pass</strong>
+          Corrected the runtime floor repeat so the visible floor tile scale follows the level grid width and height instead of a fixed 9x7 repeat. One visual floor tile now matches one gameplay cell in runtime levels, keeping obstacle sizes, interactables, and background texture in the same spatial language.
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-hud-icon-sheet-v2.png" alt="Cannonball Relic HUD icon sheet v2" />
+        <figcaption>
+          <span class="badge">Separated Assets · HUD v2</span>
+          <strong>Normalized Expedition Instrument Icons</strong>
+          16 个 HUD 图标方向：生命、护盾、波次、设置、弹珠、回收、蓄力、闪避、反弹、伤害、重力、危险、根系、镜片、拾取核心和手册。已裁成 64px / 128px 图标包，目前只接入高频 HUD 位置。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-prop-tile-sheet-v1.png" alt="Cannonball Relic prop and tile asset sheet" />
+        <figcaption>
+          <span class="badge">Separated Assets · Props/Tiles</span>
+          <strong>Gameplay Props And Tiles</strong>
+          反弹墙、中心 bumper、弧形断轨、琥珀灯、信号节点、月岩地砖、根系电缆砖和熔岩裂缝砖。适合后续拆解成关卡道具与地表贴图。
+        </figcaption>
+      </figure>
+      <figure class="featured">
+        <img src="concepts/outer-wilds-inspired/raster-hud-icon-sheet-v1.png" alt="Cannonball Relic HUD icon asset sheet" />
+        <figcaption>
+          <span class="badge">Separated Assets · HUD</span>
+          <strong>HUD Icon Sheet</strong>
+          16 个抽象图标方向：生命、护盾、蓄力、回收、反弹、重力、火焰、镜片、根系、信标、冲刺、bumper、buff 卡和设置等。没有文字标签，适合继续收敛成 32px/64px 图标系统。
+        </figcaption>
+      </figure>
+      <figure class="featured">
         <img src="concepts/outer-wilds-inspired/raster-gameplay-ui-concept-v7-readable-monsters.png" alt="Cannonball Relic gameplay and HUD concept — readable monster banana pass" />
         <figcaption>
           <span class="badge">Banana · preferred v7</span>
