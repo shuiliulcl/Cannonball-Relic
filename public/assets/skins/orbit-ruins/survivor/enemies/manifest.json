@@ -1,6 +1,14 @@
 {
   "source": "docs\\concepts\\voice-survivor-orbit-ruins\\sheets\\lineglow-enemy-tokens-v6-clean-shape.png",
-  "note": "v6: clean preserved-shape enemy tokens. Thick lines, stable silhouettes, closed internal marks, no stray lineheads.",
+  "note": "v6: clean preserved-shape enemy tokens. Thick lines, stable silhouettes, closed internal marks, no stray lineheads. v6.4 overrides pouncer with transparent procedural crouched-body PNGs because the original triangular body read as an unclear symbol.",
+  "overrides": [
+    {
+      "family": "pouncer",
+      "version": "v6.4-pouncer-rebody",
+      "source": "docs\\concepts\\voice-survivor-orbit-ruins\\extracted\\lineglow-enemy-tokens-v6-4-pouncer-rebody",
+      "reason": "Replace triangular/arrow-like body language with a movement-aligned crouched leap body."
+    }
+  ],
   "assetCount": 28,
   "assets": [
     {

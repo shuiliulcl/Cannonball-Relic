@@ -375,7 +375,7 @@ Notes:
 - Runtime draw scale is intentionally larger than the collision radius. The v6 source PNGs are 192 px with generous transparent/glow margins, so a direct `2x radius` draw made enemies read like tiny symbols.
 - First enlarged runtime check has no missing requests or console/page errors. Runner and target reads are stronger in the early wave, but later mixed-wave validation is still needed before locking all family scales.
 
-## Runtime Readability Cue Pass v6.1
+## Runtime Readability Cue Pass v6.2
 
 Validation screenshot:
 
@@ -384,15 +384,55 @@ Validation screenshot:
 Adjustment:
 
 - Kept the v6 PNG sprites as the primary enemy bodies.
-- Added small Canvas-drawn functional cues on top of the sprites:
+- Added small Canvas-drawn functional cues under and outside the sprites:
   - runner: trailing tail tick so the fast enemy reads as a speed token instead of a generic orange dot.
-  - brute: partial heavy arcs to separate mass from the other orange families.
-  - pouncer: forward wedge aligned to movement, with stronger stroke during windup.
-  - ranged: cyan lens and firing line aimed toward the player.
-  - repeater: three rotating green pulse dots.
-  - silencer: violet arc rings on the body, separate from the larger area aura.
+  - brute: outer partial heavy arcs to separate mass from the other orange families.
+  - pouncer: forward chevrons aligned to movement, with stronger stroke during windup.
+  - ranged: cyan lens tip and short firing line aimed toward the player.
+  - repeater: three rotating green pulse dots outside the wheel body.
+  - silencer: violet outer arc rings, separate from the larger area aura.
 
 Reason:
 
 - In the first v6 runtime screenshot, orange-family enemies could collapse together under motion and projectile noise.
-- The cue layer preserves the clean sprite shapes while adding gameplay-role read at actual camera scale.
+- Drawing cues above the sprite made the cue/body proportion feel too overlapped, so the cue layer now renders before the sprite and mostly outside the visible body.
+
+## Runtime Readability Cue Pass v6.3
+
+Validation screenshots:
+
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/lineglow-v6-runtime-midwave-cues.png`
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/enemy-cue-v6-3-review/`
+
+Adjustment:
+
+- Damaged enemy HP bars now reserve space above the enlarged sprite footprint, not just above the collision radius. The v6 PNG bodies are intentionally larger than their gameplay hit circles, so the old bar position could cover top-side cue lines.
+- Runner and pouncer sprites rotate to their movement direction; ranged rotates to its aim direction. This keeps directional bodies aligned with actual behavior instead of leaving fixed right-facing silhouettes in the world.
+- Runner cue changed from an arrowhead/tail tick to two short speed wakes behind the moving body.
+- Brute cue changed to lower shoulder arcs so its mass cue does not fight the HP bar area.
+- Pouncer cue changed from forward chevrons to rear compression curves, reading as a stored leap rather than an unexplained icon.
+- Ranged cue no longer uses stacked arrow language; it uses a short firing glint plus broken lens arcs.
+- Repeater cue changed from orbiting dots to segmented pulse arcs so it does not duplicate the body's internal node/dot design.
+- Silencer and target keep their accepted body direction, with top-side rings reduced or opened to avoid HP-bar overlap.
+
+Rule added:
+
+- Treat the top of every enlarged enemy sprite as a UI reserve zone. Do not place critical enemy-family cue lines there, and position damaged HP bars from the visual sprite footprint rather than the collision radius.
+
+## Runtime Player / Pouncer Correction v6.4
+
+Validation screenshots:
+
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/enemy-player-v6-4-review/player-core.png`
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/enemy-player-v6-4-review/pouncer.png`
+
+Adjustment:
+
+- Pouncer body was regenerated as transparent procedural PNGs in `docs/concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v6-4-pouncer-rebody/` and copied into `public/assets/skins/orbit-ruins/survivor/enemies/`.
+- The new pouncer body is a crouched, compressed leap core with tucked hind plates and a blunt forward sensor. It avoids the earlier triangle/arrow symbol language while still rotating with movement in runtime.
+- The player body changed from an up-pointing cloak/rocket silhouette to a nondirectional signal core: round dark body, cyan/amber center, symmetric rotating instrument arcs, and no fixed nose or fins.
+- Directional meaning for the player is now reserved for the aim line, target marker, projectile path, and cannon state VFX rather than the idle body silhouette.
+
+Rule added:
+
+- If a player body does not rotate in normal movement, keep the base silhouette radially balanced. Directional silhouettes are only acceptable when the renderer also rotates them to an actual movement, aim, or launch vector.

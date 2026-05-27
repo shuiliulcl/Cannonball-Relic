@@ -310,24 +310,30 @@ export class LineglowSurvivorRenderer {
     ctx.strokeStyle = cannon ? "rgba(255, 154, 61, 0.92)" : "rgba(117, 238, 226, 0.88)";
     ctx.lineWidth = 2.2;
     ctx.beginPath();
-    ctx.moveTo(0, -this.player.radius * 1.12);
-    ctx.quadraticCurveTo(this.player.radius * 0.88, -this.player.radius * 0.56, this.player.radius * 0.78, this.player.radius * 0.62);
-    ctx.quadraticCurveTo(this.player.radius * 0.18, this.player.radius * 1.08, 0, this.player.radius * 0.82);
-    ctx.quadraticCurveTo(-this.player.radius * 0.18, this.player.radius * 1.08, -this.player.radius * 0.78, this.player.radius * 0.62);
-    ctx.quadraticCurveTo(-this.player.radius * 0.88, -this.player.radius * 0.56, 0, -this.player.radius * 1.12);
-    ctx.closePath();
+    ctx.arc(0, 0, this.player.radius * 0.96, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = "rgba(117, 238, 226, 0.36)";
+    ctx.strokeStyle = cannon ? "rgba(255, 207, 90, 0.5)" : "rgba(117, 238, 226, 0.46)";
+    ctx.lineWidth = 1.35;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = this.elapsed * 0.35 + i * (Math.PI / 2);
+      ctx.beginPath();
+      ctx.arc(0, 0, this.player.radius * 1.16, angle + 0.18, angle + 0.82);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = cannon ? "rgba(255, 154, 61, 0.66)" : "rgba(117, 238, 226, 0.34)";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(-this.player.radius * 0.58, this.player.radius * 0.1);
-    ctx.quadraticCurveTo(-this.player.radius * 1.2, this.player.radius * 0.72, -this.player.radius * 0.34, this.player.radius * 0.96);
-    ctx.moveTo(this.player.radius * 0.58, this.player.radius * 0.1);
-    ctx.quadraticCurveTo(this.player.radius * 1.2, this.player.radius * 0.72, this.player.radius * 0.34, this.player.radius * 0.96);
+    ctx.arc(0, 0, this.player.radius * 0.56, 0, Math.PI * 2);
     ctx.stroke();
+    for (let i = 0; i < 4; i += 1) {
+      const angle = Math.PI / 4 + i * (Math.PI / 2);
+      ctx.beginPath();
+      ctx.arc(Math.cos(angle) * this.player.radius * 0.72, Math.sin(angle) * this.player.radius * 0.72, 1.45, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     ctx.fillStyle = cannon ? "#ffcf5a" : "#75eee2";
     ctx.shadowColor = cannon ? "rgba(255, 207, 90, 0.9)" : "rgba(117, 238, 226, 0.9)";
@@ -352,10 +358,11 @@ export class LineglowSurvivorRenderer {
       this.renderOrbitRuinsEnemy(ctx, enemy);
       const hpRatio = clamp(enemy.hp / enemy.maxHp, 0, 1);
       if (hpRatio < 0.985) {
+        const hpY = -this.enemyVisualHalfSize(enemy) - 6;
         ctx.fillStyle = "rgba(19, 20, 24, 0.72)";
-        ctx.fillRect(-enemy.radius, -enemy.radius - 10, enemy.radius * 2, 4);
+        ctx.fillRect(-enemy.radius, hpY, enemy.radius * 2, 4);
         ctx.fillStyle = "#a9e888";
-        ctx.fillRect(-enemy.radius, -enemy.radius - 10, enemy.radius * 2 * hpRatio, 4);
+        ctx.fillRect(-enemy.radius, hpY, enemy.radius * 2 * hpRatio, 4);
       }
       ctx.restore();
     }
@@ -364,15 +371,20 @@ export class LineglowSurvivorRenderer {
   private renderOrbitRuinsEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
     const art = LINEGLOW_ENEMY_ART[enemy.type];
     const radius = enemy.radius;
-    if (this.renderOrbitRuinsEnemySprite(ctx, enemy)) {
+    const enemyImage = this.readyEnemySprite(enemy);
+    if (enemyImage) {
       this.renderEnemyReadabilityCue(ctx, enemy);
+      this.renderOrbitRuinsEnemySprite(ctx, enemy, enemyImage);
       if (enemy.type === "target") {
         ctx.strokeStyle = art.outline;
         ctx.lineWidth = 2;
         ctx.shadowColor = art.glow;
         ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.36 + Math.sin(this.elapsed * 5) * 2, 0, Math.PI * 2);
+        const ringRadius = radius * 1.36 + Math.sin(this.elapsed * 5) * 2;
+        ctx.arc(0, 0, ringRadius, Math.PI * 0.08, Math.PI * 0.46);
+        ctx.moveTo(Math.cos(Math.PI * 0.54) * ringRadius, Math.sin(Math.PI * 0.54) * ringRadius);
+        ctx.arc(0, 0, ringRadius, Math.PI * 0.54, Math.PI * 0.92);
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
@@ -518,7 +530,10 @@ export class LineglowSurvivorRenderer {
         ctx.arc(0, 0, radius * 0.68, 0, Math.PI * 2);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.34 + Math.sin(this.elapsed * 5) * 2, 0, Math.PI * 2);
+        const ringRadius = radius * 1.34 + Math.sin(this.elapsed * 5) * 2;
+        ctx.arc(0, 0, ringRadius, Math.PI * 0.08, Math.PI * 0.46);
+        ctx.moveTo(Math.cos(Math.PI * 0.54) * ringRadius, Math.sin(Math.PI * 0.54) * ringRadius);
+        ctx.arc(0, 0, ringRadius, Math.PI * 0.54, Math.PI * 0.92);
         ctx.stroke();
         break;
     }
@@ -533,22 +548,42 @@ export class LineglowSurvivorRenderer {
     ctx.shadowBlur = 0;
   }
 
-  private renderOrbitRuinsEnemySprite(ctx: CanvasRenderingContext2D, enemy: Enemy): boolean {
-    const image = this.enemySprite(enemy);
-    if (!image.complete || image.naturalWidth <= 0) return false;
-
+  private renderOrbitRuinsEnemySprite(ctx: CanvasRenderingContext2D, enemy: Enemy, image: HTMLImageElement): void {
     const art = LINEGLOW_ENEMY_ART[enemy.type];
     const size = enemy.radius * LINEGLOW_ENEMY_DRAW_SCALE[enemy.type];
     const pulse = enemy.type === "target" ? 1 + Math.sin(this.elapsed * 5) * 0.035 : 1;
     const squash = enemy.type === "runner" ? 1.08 : 1;
+    const rotation = enemy.type === "ranged"
+      ? this.enemyAimFacing(enemy)
+      : enemy.type === "runner" || enemy.type === "pouncer"
+        ? this.enemyMoveFacing(enemy)
+        : 0;
 
     ctx.save();
+    ctx.rotate(rotation);
     ctx.scale(pulse, pulse * squash);
     ctx.shadowColor = enemy.frozen > 0 ? "rgba(168, 236, 255, 0.58)" : art.glow;
     ctx.shadowBlur = enemy.type === "target" ? 18 : enemy.type === "silencer" ? 16 : 11;
     ctx.drawImage(image, -size / 2, -size / 2, size, size);
     ctx.restore();
-    return true;
+  }
+
+  private enemyVisualHalfSize(enemy: Enemy): number {
+    return enemy.radius * (LINEGLOW_ENEMY_DRAW_SCALE[enemy.type] / 2);
+  }
+
+  private enemyMoveFacing(enemy: Enemy): number {
+    const move = normalize(enemy.velocity);
+    if (Math.hypot(move.x, move.y) > 0.05) return Math.atan2(move.y, move.x);
+    return this.enemyAimFacing(enemy);
+  }
+
+  private enemyAimFacing(enemy: Enemy): number {
+    const toPlayer = normalize({
+      x: this.player.position.x - enemy.position.x,
+      y: this.player.position.y - enemy.position.y,
+    });
+    return Math.atan2(toPlayer.y, toPlayer.x);
   }
 
   private enemySprite(enemy: Enemy): HTMLImageElement {
@@ -564,88 +599,91 @@ export class LineglowSurvivorRenderer {
     return image;
   }
 
+  private readyEnemySprite(enemy: Enemy): HTMLImageElement | null {
+    const image = this.enemySprite(enemy);
+    return image.complete && image.naturalWidth > 0 ? image : null;
+  }
+
   private renderEnemyReadabilityCue(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
     const art = LINEGLOW_ENEMY_ART[enemy.type];
     const radius = enemy.radius;
-    const toPlayer = normalize({
-      x: this.player.position.x - enemy.position.x,
-      y: this.player.position.y - enemy.position.y,
-    });
-    const move = normalize(enemy.velocity);
-    const facing = Math.hypot(move.x, move.y) > 0.05 ? Math.atan2(move.y, move.x) : Math.atan2(toPlayer.y, toPlayer.x);
+    const moveFacing = this.enemyMoveFacing(enemy);
+    const aimFacing = this.enemyAimFacing(enemy);
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.shadowColor = art.glow;
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 5;
+    ctx.globalAlpha = 0.68;
 
     switch (enemy.type) {
       case "runner":
-        ctx.rotate(facing);
-        ctx.strokeStyle = "rgba(255, 194, 71, 0.78)";
-        ctx.lineWidth = 2.2;
+        ctx.rotate(moveFacing);
+        ctx.strokeStyle = "rgba(255, 194, 71, 0.48)";
+        ctx.lineWidth = 1.45;
         ctx.beginPath();
-        ctx.moveTo(-radius * 1.1, -radius * 0.28);
-        ctx.lineTo(-radius * 1.42, 0);
-        ctx.lineTo(-radius * 1.1, radius * 0.28);
+        ctx.moveTo(-radius * 1.22, -radius * 0.24);
+        ctx.lineTo(-radius * 1.82, -radius * 0.24);
+        ctx.moveTo(-radius * 1.22, radius * 0.24);
+        ctx.lineTo(-radius * 1.82, radius * 0.24);
         ctx.stroke();
         break;
       case "brute":
-        ctx.strokeStyle = "rgba(255, 154, 61, 0.72)";
-        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = "rgba(255, 154, 61, 0.52)";
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.18, Math.PI * 0.12, Math.PI * 1.42);
+        ctx.arc(0, 0, radius * 1.42, Math.PI * 0.12, Math.PI * 0.42);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 0.64, Math.PI * 1.2, Math.PI * 1.88);
+        ctx.arc(0, 0, radius * 1.42, Math.PI * 0.58, Math.PI * 0.88);
         ctx.stroke();
         break;
       case "pouncer":
-        ctx.rotate(facing);
-        ctx.strokeStyle = enemy.windup > 0 ? "rgba(255, 232, 114, 0.94)" : "rgba(255, 194, 71, 0.78)";
-        ctx.lineWidth = enemy.windup > 0 ? 3 : 2.2;
+        ctx.rotate(moveFacing);
+        ctx.strokeStyle = enemy.windup > 0 ? "rgba(255, 232, 114, 0.78)" : "rgba(255, 194, 71, 0.5)";
+        ctx.lineWidth = enemy.windup > 0 ? 2.2 : 1.55;
         ctx.beginPath();
-        ctx.moveTo(radius * 1.35, 0);
-        ctx.lineTo(-radius * 0.45, -radius * 0.82);
-        ctx.lineTo(-radius * 0.12, 0);
-        ctx.lineTo(-radius * 0.45, radius * 0.82);
-        ctx.closePath();
+        ctx.moveTo(-radius * 1.28, -radius * 0.62);
+        ctx.quadraticCurveTo(-radius * 1.88, 0, -radius * 1.28, radius * 0.62);
+        ctx.moveTo(-radius * 0.9, -radius * 0.42);
+        ctx.quadraticCurveTo(-radius * 1.28, 0, -radius * 0.9, radius * 0.42);
         ctx.stroke();
         break;
       case "ranged": {
-        const angle = Math.atan2(toPlayer.y, toPlayer.x);
-        ctx.rotate(angle);
-        ctx.strokeStyle = "rgba(117, 238, 226, 0.84)";
-        ctx.lineWidth = 2.3;
+        ctx.rotate(aimFacing);
+        ctx.strokeStyle = "rgba(117, 238, 226, 0.56)";
+        ctx.lineWidth = 1.55;
         ctx.beginPath();
-        ctx.moveTo(radius * 0.52, 0);
-        ctx.lineTo(radius * 1.48, 0);
+        ctx.moveTo(radius * 1.1, 0);
+        ctx.lineTo(radius * 1.54, 0);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(radius * 0.14, 0, radius * 0.42, 0, Math.PI * 2);
+        ctx.arc(0, 0, radius * 1.2, Math.PI * 1.72, Math.PI * 0.28);
+        ctx.moveTo(Math.cos(Math.PI * 0.72) * radius * 1.2, Math.sin(Math.PI * 0.72) * radius * 1.2);
+        ctx.arc(0, 0, radius * 1.2, Math.PI * 0.72, Math.PI * 1.28);
         ctx.stroke();
         break;
       }
       case "repeater":
-        ctx.strokeStyle = "rgba(156, 255, 138, 0.7)";
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i += 1) {
-          const angle = this.elapsed * 1.7 + i * ((Math.PI * 2) / 3);
+        ctx.strokeStyle = "rgba(156, 255, 138, 0.5)";
+        ctx.lineWidth = 1.4;
+        for (let i = 0; i < 4; i += 1) {
+          const angle = this.elapsed * 1.45 + i * (Math.PI / 2);
           ctx.beginPath();
-          ctx.arc(Math.cos(angle) * radius * 0.88, Math.sin(angle) * radius * 0.88, radius * 0.16, 0, Math.PI * 2);
+          ctx.arc(0, 0, radius * 1.36, angle, angle + Math.PI * 0.18);
           ctx.stroke();
         }
         break;
       case "silencer":
-        ctx.strokeStyle = "rgba(177, 108, 255, 0.72)";
-        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = "rgba(177, 108, 255, 0.54)";
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.24 + Math.sin(this.elapsed * 4) * 1.8, Math.PI * 0.12, Math.PI * 1.86);
+        ctx.arc(0, 0, radius * 1.58 + Math.sin(this.elapsed * 4) * 1.6, Math.PI * 0.16, Math.PI * 0.84);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.58 + Math.sin(this.elapsed * 3) * 2.4, Math.PI * 0.64, Math.PI * 1.36);
+        ctx.arc(0, 0, radius * 1.92 + Math.sin(this.elapsed * 3) * 2, Math.PI * 0.34, Math.PI * 0.66);
         ctx.stroke();
         break;
       case "target":
