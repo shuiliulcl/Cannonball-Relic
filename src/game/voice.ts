@@ -25,23 +25,46 @@ type RecognitionCtor = new () => Recognition;
 
 export type VoiceStatus = "idle" | "listening" | "error" | "unsupported";
 
-export type VoiceInfo = {
+export type VoiceInfo<TAction = VoiceAction> = {
   status: VoiceStatus;
   transcript: string;
-  actions: VoiceAction[];
+  actions: TAction[];
   error?: string;
 };
 
-export class VoiceInput {
+type VoiceMatcher<TAction> = (text: string) => TAction[];
+type VoiceActionKey<TAction> = (action: TAction) => string;
+
+function defaultActionKey<TAction>(action: TAction): string {
+  if (typeof action === "string") {
+    return action;
+  }
+  const typedAction = action as { type?: string; id?: string };
+  if (typedAction.type === "hidden") {
+    return `hidden:${typedAction.id ?? ""}`;
+  }
+  return typedAction.type ?? JSON.stringify(action);
+}
+
+export class VoiceInput<TAction = VoiceAction> {
   private readonly recognition: Recognition | null = null;
-  private observer: ((info: VoiceInfo) => void) | null = null;
+  private observer: ((info: VoiceInfo<TAction>) => void) | null = null;
   private active = false;
   private shouldRestart = false;
   private lastActionAt = 0;
   private lastActionKey = "";
   private lastRecognitionText = "";
+  private readonly matcher: VoiceMatcher<TAction>;
+  private readonly actionKey: VoiceActionKey<TAction>;
 
-  constructor(private readonly onActions: (actions: VoiceAction[]) => void) {
+  constructor(
+    private readonly onActions: (actions: TAction[]) => void,
+    matcher?: VoiceMatcher<TAction>,
+    actionKey?: VoiceActionKey<TAction>,
+  ) {
+    this.matcher = matcher ?? (matchVoiceActions as unknown as VoiceMatcher<TAction>);
+    this.actionKey = actionKey ?? defaultActionKey;
+
     const ctor =
       (window as unknown as { SpeechRecognition?: RecognitionCtor }).SpeechRecognition ??
       (window as unknown as { webkitSpeechRecognition?: RecognitionCtor }).webkitSpeechRecognition;
@@ -85,7 +108,7 @@ export class VoiceInput {
     return this.recognition !== null;
   }
 
-  observe(observer: (info: VoiceInfo) => void): void {
+  observe(observer: (info: VoiceInfo<TAction>) => void): void {
     this.observer = observer;
     if (!this.recognition) {
       this.notify({ status: "unsupported", transcript: "", actions: [] });
@@ -154,7 +177,7 @@ export class VoiceInput {
         : latestTranscript;
     this.lastRecognitionText = combinedTranscript;
 
-    const actions = matchVoiceActions(newTranscript || latestTranscript);
+    const actions = this.matcher(newTranscript || latestTranscript);
     if (actions.length > 0) {
       const actionsToEmit = this.dedupeActions(actions);
       if (actionsToEmit.length > 0) {
@@ -164,8 +187,8 @@ export class VoiceInput {
     this.notify({ status: "listening", transcript: latestTranscript, actions });
   }
 
-  private dedupeActions(actions: VoiceAction[]): VoiceAction[] {
-    const key = actions.map((action) => (action.type === "hidden" ? `hidden:${action.id}` : action.type)).join("|");
+  private dedupeActions(actions: TAction[]): TAction[] {
+    const key = actions.map((action) => this.actionKey(action)).join("|");
     const now = performance.now();
     if (key === this.lastActionKey && now - this.lastActionAt < 900) {
       return [];
@@ -175,7 +198,7 @@ export class VoiceInput {
     return actions;
   }
 
-  private notify(info: VoiceInfo): void {
+  private notify(info: VoiceInfo<TAction>): void {
     this.observer?.(info);
   }
 }

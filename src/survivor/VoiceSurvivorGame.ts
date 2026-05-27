@@ -1,29 +1,191 @@
+import { VoiceInput } from "../game/voice";
+
 type Vec2 = {
   x: number;
   y: number;
 };
 
-type SpellKey =
-  | "explode"
-  | "freeze"
-  | "lightning"
-  | "split"
-  | "pierce"
-  | "ricochet"
-  | "evade"
-  | "shield"
-  | "gather"
-  | "focus"
-  | "cannon"
-  | "cannonPrep"
-  | "cannonFire"
-  | "bang"
-  | "skillGo"
-  | "xiexiu"
-  | "serious"
-  | "wealth"
-  | "calm"
-  | "scramble";
+type SpellConfig = {
+  name: string;
+  cost: number;
+  category: "持续战斗 Buff" | "通用操作/救场" | "强力/乐子技能" | "人间大炮核心";
+  stage: string;
+  effect: string;
+  links?: readonly string[];
+  aliases: readonly string[];
+};
+
+const SPELL_CONFIG = {
+  explode: {
+    name: "爆炸",
+    cost: 26,
+    category: "持续战斗 Buff",
+    stage: "早期基础咒语",
+    effect: "自动攻击附带范围爆破，持续约 8.5 秒，可被爆炸续唱延长。",
+    links: ["冻结", "弹射", "雷电", "刀刃"],
+    aliases: ["爆炸", "爆破", "爆发", "爆了", "报炸", "暴炸", "暴躁", "爆照", "抱炸", "爆", "炸", "boom", "boom boom"],
+  },
+  freeze: {
+    name: "冻结",
+    cost: 24,
+    category: "持续战斗 Buff",
+    stage: "早期基础咒语",
+    effect: "立刻冻结周围敌人，并让攻击短时间附带冻结。",
+    links: ["爆炸", "刀刃", "冰裂弹片"],
+    aliases: ["冻结", "冻住", "冰冻", "冰霜", "冷冻", "冰封", "冻洁", "东结", "东洁", "冰住", "冰一下", "冰", "冻", "封", "冷"],
+  },
+  lightning: {
+    name: "雷电",
+    cost: 30,
+    category: "持续战斗 Buff",
+    stage: "中期咒语",
+    effect: "立刻连锁电击，并让攻击短时间附带雷链。",
+    links: ["弹射", "爆炸", "雷爆导火"],
+    aliases: ["雷电", "闪电", "电击", "来电", "连电", "雷霆", "雷击", "放电", "链电", "雷", "电", "闪", "lightning"],
+  },
+  split: {
+    name: "分裂",
+    cost: 22,
+    category: "持续战斗 Buff",
+    stage: "早期基础咒语",
+    effect: "自动攻击分裂成多路弹幕，持续约 8.5 秒。",
+    links: ["弹射", "分裂数量", "分裂角度"],
+    aliases: ["分裂", "散开", "散射", "裂开", "分身", "分列", "分烈", "分开", "分散", "扩散", "散", "分", "裂"],
+  },
+  pierce: {
+    name: "穿透",
+    cost: 24,
+    category: "持续战斗 Buff",
+    stage: "中期咒语",
+    effect: "子弹短时间贯穿怪潮。",
+    links: ["弹射", "折线贯穿"],
+    aliases: ["穿透", "贯穿", "刺穿", "串透", "穿头", "穿偷", "传透", "穿过", "穿", "透", "串", "刺"],
+  },
+  ricochet: {
+    name: "弹射",
+    cost: 24,
+    category: "持续战斗 Buff",
+    stage: "早期基础咒语",
+    effect: "子弹命中后跳向附近未命中的敌人。",
+    links: ["雷电", "爆炸", "分裂", "炮塔"],
+    aliases: ["弹射", "跳弹", "反弹", "弹跳", "谈射", "蛋射", "弹社", "弹设", "反射", "回弹", "弹", "跳", "反"],
+  },
+  evade: {
+    name: "闪避",
+    cost: 20,
+    category: "通用操作/救场",
+    stage: "早期基础咒语",
+    effect: "自动向安全方向位移，并获得短暂无敌。",
+    aliases: ["闪避", "闪开", "闪一下", "躲避", "躲开", "避开", "冲刺", "闪闭", "闪币", "闪壁", "闪必", "躲一下", "跑位", "位移", "闪", "躲", "避", "冲", "dash", "dodge", "evade"],
+  },
+  shield: {
+    name: "护盾",
+    cost: 24,
+    category: "通用操作/救场",
+    stage: "早期基础咒语",
+    effect: "获得护盾，并获得短暂无敌。",
+    aliases: ["护盾", "保护", "防护", "套盾", "开盾", "户盾", "护顿", "互盾", "糊盾", "加盾", "盾牌", "盾", "护", "防"],
+  },
+  gather: {
+    name: "聚拢",
+    cost: 18,
+    category: "通用操作/救场",
+    stage: "早期基础咒语",
+    effect: "吸取周围掉落经验。",
+    aliases: ["聚拢", "聚集", "吸过来", "收集", "吸收", "聚龙", "巨龙", "聚笼", "聚过来", "捡起来", "吸起来", "吸经验", "聚", "拢", "吸", "收"],
+  },
+  focus: {
+    name: "锁定",
+    cost: 16,
+    category: "通用操作/救场",
+    stage: "中期战术咒语",
+    effect: "自动攻击优先处理静音、远程、高血量等危险目标。",
+    links: ["当个事儿办"],
+    aliases: ["锁定", "集火", "集中", "瞄准", "盯住", "锁住", "锁敌", "锁头", "索定", "所定", "锁", "瞄", "盯"],
+  },
+  cannon: {
+    name: "人间大炮",
+    cost: 0,
+    category: "人间大炮核心",
+    stage: "锁定",
+    effect: "锁定敌群或进入手动瞄准，鼠标可调整方向。",
+    aliases: ["人间大炮", "人体大炮", "人间大抱", "人间大爆", "大炮", "炮弹", "本人就是弹药", "我是炮弹", "上大炮", "炮", "弹"],
+  },
+  cannonPrep: {
+    name: "一级准备",
+    cost: 0,
+    category: "人间大炮核心",
+    stage: "充能",
+    effect: "消耗声能增加 1 层大炮充能，最多 3 层。",
+    aliases: ["一级准备", "一集准备", "一击准备", "已经准备", "已准备", "准备", "预备", "充能", "装弹", "上膛", "蓄力", "备弹", "装填", "准", "备"],
+  },
+  cannonFire: {
+    name: "发射",
+    cost: 0,
+    category: "人间大炮核心",
+    stage: "爆发",
+    effect: "把玩家发射出去，充能越高，速度、伤害、弹射、落地冲击越强。",
+    aliases: ["发射", "开火", "开炮", "发社", "发设", "发涉", "发誓", "法射", "射击", "设计", "开伙", "开活", "开跑", "发", "开", "射", "打", "放", "fire", "shoot"],
+  },
+  bang: {
+    name: "梆梆不梆梆",
+    cost: 28,
+    category: "强力/乐子技能",
+    stage: "后期强力咒语",
+    effect: "对附近敌人打冲击拳，命中返声能和大炮槽。",
+    aliases: ["梆梆不梆梆", "梆梆两拳", "你就说梆不梆", "梆不梆", "邦邦不邦邦", "棒棒不棒棒", "邦邦", "棒棒", "帮帮", "梆梆", "梆", "邦", "棒"],
+  },
+  skillGo: {
+    name: "技能五子棋",
+    cost: 38,
+    category: "强力/乐子技能",
+    stage: "后期钻石咒语",
+    effect: "放出短时棋子炮台阵，等级提高后可带爆炸/雷电。",
+    aliases: ["技能五子棋", "技能五指棋", "技能无子棋", "五子棋", "五指棋", "棋来", "落子无悔", "下棋", "下子", "落子", "五子", "棋"],
+  },
+  xiexiu: {
+    name: "邪修",
+    cost: 18,
+    category: "强力/乐子技能",
+    stage: "后期强力咒语",
+    effect: "随机施放已有攻击咒语，并提高爆发，有概率受伤。",
+    aliases: ["邪修", "野路子", "歪门", "邪术", "斜修", "协修", "写修", "邪门", "野", "邪", "修"],
+  },
+  serious: {
+    name: "当个事儿办",
+    cost: 26,
+    category: "强力/乐子技能",
+    stage: "后期战术咒语",
+    effect: "强化锁敌和自动攻击处理危险目标。",
+    aliases: ["当个事儿办", "当回事办", "认真模式", "办一下", "认真处理", "认真", "办事", "办", "事儿", "当回事"],
+  },
+  wealth: {
+    name: "来财",
+    cost: 18,
+    category: "通用操作/救场",
+    stage: "中期功能咒语",
+    effect: "大范围吸取经验，强化经验返能节奏。",
+    aliases: ["来财", "发财", "收钱", "来钱", "招财", "财来", "来才", "莱财", "理财", "捡钱", "钱来", "财", "钱"],
+  },
+  calm: {
+    name: "从容",
+    cost: 18,
+    category: "通用操作/救场",
+    stage: "中期功能咒语",
+    effect: "优雅闪避，位移更短但偏冷静返能。",
+    aliases: ["从容", "游刃有余", "稳住", "冷静", "从荣", "葱蓉", "从容一点", "淡定", "稳", "从", "静"],
+  },
+  scramble: {
+    name: "连滚带爬",
+    cost: 26,
+    category: "通用操作/救场",
+    stage: "后期救场咒语",
+    effect: "残血逃生，获得更强位移和生存窗口。",
+    aliases: ["连滚带爬", "救命", "跑路", "快跑", "逃命", "溜了", "快逃", "保命", "救", "跑", "逃", "爬", "溜"],
+  },
+} as const satisfies Record<string, SpellConfig>;
+
+type SpellKey = keyof typeof SPELL_CONFIG;
 
 type EnemyType = "runner" | "brute" | "pouncer" | "ranged" | "repeater" | "silencer" | "target";
 
@@ -98,99 +260,21 @@ type Buff = {
   apply: () => void;
 };
 
-type RecognitionEvent = {
-  resultIndex: number;
-  results: ArrayLike<{
-    isFinal: boolean;
-    0: { transcript: string };
-  }>;
-};
+const SPELL_NAMES = Object.fromEntries(
+  Object.entries(SPELL_CONFIG).map(([key, config]) => [key, config.name]),
+) as Record<SpellKey, string>;
 
-type Recognition = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((event: RecognitionEvent) => void) | null;
-  onerror: ((event: { error?: string }) => void) | null;
-  onend: (() => void) | null;
-};
+const SPELL_COSTS = Object.fromEntries(
+  Object.entries(SPELL_CONFIG).map(([key, config]) => [key, config.cost]),
+) as Record<SpellKey, number>;
 
-type RecognitionCtor = new () => Recognition;
-
-const SPELL_NAMES: Record<SpellKey, string> = {
-  explode: "爆炸",
-  freeze: "冻结",
-  lightning: "雷电",
-  split: "分裂",
-  pierce: "穿透",
-  ricochet: "弹射",
-  evade: "闪避",
-  shield: "护盾",
-  gather: "聚拢",
-  focus: "锁定",
-  cannon: "人间大炮",
-  cannonPrep: "一级准备",
-  cannonFire: "发射",
-  bang: "梆梆不梆梆",
-  skillGo: "技能五子棋",
-  xiexiu: "邪修",
-  serious: "当个事儿办",
-  wealth: "来财",
-  calm: "从容",
-  scramble: "连滚带爬",
-};
-
-const SPELL_COSTS: Record<SpellKey, number> = {
-  explode: 26,
-  freeze: 24,
-  lightning: 30,
-  split: 22,
-  pierce: 24,
-  ricochet: 24,
-  evade: 20,
-  shield: 24,
-  gather: 18,
-  focus: 16,
-  cannon: 0,
-  cannonPrep: 0,
-  cannonFire: 0,
-  bang: 28,
-  skillGo: 38,
-  xiexiu: 18,
-  serious: 26,
-  wealth: 18,
-  calm: 18,
-  scramble: 26,
-};
+const SPELL_COMMAND_ALIASES = Object.entries(SPELL_CONFIG).map(([key, config]) => ({
+  key: key as SpellKey,
+  aliases: config.aliases,
+}));
 
 const BASE_ENERGY_REGEN = 5.4;
 const CANNON_PREP_COSTS = [34, 48, 62] as const;
-
-const COMMAND_ALIASES: Array<{ key: SpellKey; aliases: readonly string[] }> = [
-  { key: "cannonPrep", aliases: ["一级准备", "准备", "一集准备", "已准备"] },
-  { key: "cannonFire", aliases: ["发射", "开炮", "开火", "开", "发", "射"] },
-  { key: "cannon", aliases: ["人间大炮", "人体大炮", "大炮", "炮弹", "本人就是弹药"] },
-  { key: "explode", aliases: ["爆炸", "爆破", "炸", "爆", "boom"] },
-  { key: "freeze", aliases: ["冻结", "冻住", "冰冻", "冰霜", "冻"] },
-  { key: "lightning", aliases: ["雷电", "闪电", "电击", "雷"] },
-  { key: "split", aliases: ["分裂", "散开", "散射", "裂开"] },
-  { key: "pierce", aliases: ["穿透", "贯穿", "穿"] },
-  { key: "ricochet", aliases: ["弹射", "跳弹", "反弹", "弹"] },
-  { key: "evade", aliases: ["闪避", "闪", "躲开", "冲刺", "闪开"] },
-  { key: "shield", aliases: ["护盾", "盾", "保护"] },
-  { key: "gather", aliases: ["聚拢", "聚集", "吸过来", "吸"] },
-  { key: "focus", aliases: ["锁定", "集火", "集中"] },
-  { key: "bang", aliases: ["梆梆不梆梆", "梆梆", "梆梆两拳", "你就说梆不梆"] },
-  { key: "skillGo", aliases: ["技能五子棋", "五子棋", "棋来", "落子无悔"] },
-  { key: "xiexiu", aliases: ["邪修", "野路子"] },
-  { key: "serious", aliases: ["当个事儿办", "认真模式", "办一下"] },
-  { key: "wealth", aliases: ["来财", "发财", "收钱"] },
-  { key: "calm", aliases: ["从容", "游刃有余"] },
-  { key: "scramble", aliases: ["连滚带爬", "救命", "跑路"] },
-];
 
 const ENEMY_CONFIG: Record<EnemyType, { hp: number; speed: number; radius: number; color: string; label: string; xp: number }> = {
   runner: { hp: 12, speed: 68, radius: 13, color: "#ffbd4a", label: "跑", xp: 5 },
@@ -234,20 +318,36 @@ function matchSpells(text: string): SpellKey[] {
   const normalized = normalizeVoiceText(text);
   if (!normalized) return [];
   const matches: Array<{ key: SpellKey; position: number; length: number }> = [];
-  for (const command of COMMAND_ALIASES) {
+  for (const command of SPELL_COMMAND_ALIASES) {
+    let bestMatch: { key: SpellKey; position: number; length: number } | undefined;
     for (const alias of command.aliases) {
       const aliasForm = normalizeVoiceText(alias);
       const position = normalized.indexOf(aliasForm);
       if (position >= 0) {
-        matches.push({ key: command.key, position, length: aliasForm.length });
-        break;
+        const match = { key: command.key, position, length: aliasForm.length };
+        if (
+          !bestMatch ||
+          match.position < bestMatch.position ||
+          (match.position === bestMatch.position && match.length > bestMatch.length)
+        ) {
+          bestMatch = match;
+        }
       }
     }
+    if (bestMatch) {
+      matches.push(bestMatch);
+    }
   }
-  return matches
-    .sort((a, b) => a.position - b.position || b.length - a.length)
-    .map((match) => match.key)
-    .filter((key, index, keys) => keys.indexOf(key) === index);
+  const selected: Array<{ key: SpellKey; position: number; length: number }> = [];
+  for (const match of matches.sort((a, b) => a.position - b.position || b.length - a.length)) {
+    const end = match.position + match.length;
+    const overlaps = selected.some((item) => match.position < item.position + item.length && end > item.position);
+    if (!overlaps && !selected.some((item) => item.key === match.key)) {
+      selected.push(match);
+    }
+  }
+
+  return selected.map((match) => match.key);
 }
 
 export class VoiceSurvivorGame {
@@ -270,10 +370,8 @@ export class VoiceSurvivorGame {
   private xpFill!: HTMLElement;
   private xpText!: HTMLElement;
 
-  private recognition: Recognition | null = null;
+  private voiceInput!: VoiceInput<SpellKey>;
   private voiceActive = false;
-  private shouldRestartVoice = false;
-  private lastVoiceText = "";
   private lastFrame = 0;
   private rafId = 0;
   private running = false;
@@ -508,87 +606,64 @@ export class VoiceSurvivorGame {
   }
 
   private setupVoice(): void {
-    const ctor =
-      (window as unknown as { SpeechRecognition?: RecognitionCtor }).SpeechRecognition ??
-      (window as unknown as { webkitSpeechRecognition?: RecognitionCtor }).webkitSpeechRecognition;
-    if (!ctor) {
+    this.voiceInput = new VoiceInput<SpellKey>(
+      (spells) => {
+        for (const spell of spells) {
+          this.castSpell(spell);
+        }
+      },
+      matchSpells,
+      (spell) => spell,
+    );
+
+    if (!this.voiceInput.isSupported()) {
       this.voiceButton.disabled = true;
       this.voiceButton.textContent = "语音不可用";
       return;
     }
-    this.recognition = new ctor();
-    this.recognition.lang = "zh-CN";
-    this.recognition.continuous = true;
-    this.recognition.interimResults = true;
-    this.recognition.onresult = (event) => this.handleVoiceResult(event);
-    this.recognition.onerror = (event) => {
-      this.shouldRestartVoice = event.error !== "not-allowed" && event.error !== "service-not-allowed";
-      this.say(`语音出错：${event.error ?? "unknown"}`);
-    };
-    this.recognition.onend = () => {
-      if (!this.voiceActive || !this.shouldRestartVoice) {
+
+    this.voiceInput.observe(({ status, transcript, actions, error }) => {
+      if (status === "unsupported") {
+        this.voiceButton.disabled = true;
+        this.voiceButton.textContent = "语音不可用";
+        this.voiceActive = false;
+        return;
+      }
+      if (status === "error") {
+        this.voiceActive = false;
+        this.voiceButton.textContent = "开启语音";
+        this.say(`语音出错：${error ?? "unknown"}`);
+        return;
+      }
+      if (status === "idle") {
         this.voiceActive = false;
         this.voiceButton.textContent = "开启语音";
         return;
       }
-      window.setTimeout(() => {
-        try {
-          this.recognition?.start();
-        } catch {
-          // Browser speech recognizers often need a short cooldown after onend.
-        }
-      }, 260);
-    };
+
+      this.voiceActive = true;
+      this.voiceButton.textContent = "语音中";
+      if (actions.length > 0) {
+        this.say(`听见了：${transcript} -> ${actions.map((spell) => SPELL_NAMES[spell]).join(" / ")}`);
+      } else if (transcript) {
+        this.say(`听见了：${transcript}`);
+      }
+    });
   }
 
   private startVoice(): void {
-    if (!this.recognition || this.voiceActive) return;
+    if (this.voiceActive) return;
     this.voiceActive = true;
-    this.shouldRestartVoice = true;
-    this.lastVoiceText = "";
     this.voiceButton.textContent = "语音中";
-    try {
-      this.recognition.start();
-      this.say("正在听：爆炸、冻结、闪避、人间大炮、梆梆不梆梆。");
-    } catch {
-      this.voiceActive = false;
-      this.voiceButton.textContent = "开启语音";
-    }
+    this.voiceInput.start();
+    this.say("正在听：爆炸、冻结、闪避、护盾、人间大炮、梆梆不梆梆。");
   }
 
   private stopVoice(): void {
-    if (!this.recognition || !this.voiceActive) return;
+    if (!this.voiceActive) return;
     this.voiceActive = false;
-    this.shouldRestartVoice = false;
     this.voiceButton.textContent = "开启语音";
-    try {
-      this.recognition.stop();
-    } catch {
-      this.recognition.abort();
-    }
-  }
-
-  private handleVoiceResult(event: RecognitionEvent): void {
-    const all: string[] = [];
-    for (let i = 0; i < event.results.length; i += 1) {
-      const transcript = event.results[i][0].transcript.trim();
-      if (transcript) all.push(transcript);
-    }
-    const combined = all.join(" ").trim();
-    if (!combined) return;
-    const delta = this.lastVoiceText && combined.startsWith(this.lastVoiceText)
-      ? combined.slice(this.lastVoiceText.length).trim()
-      : combined;
-    this.lastVoiceText = combined;
-    const spells = matchSpells(delta || combined);
-    if (spells.length === 0) {
-      this.say(`听见了：${delta || combined}`);
-      return;
-    }
-    this.say(`听见了：${delta || combined} -> ${spells.map((spell) => SPELL_NAMES[spell]).join(" / ")}`);
-    for (const spell of spells) {
-      this.castSpell(spell);
-    }
+    this.voiceInput.stop();
   }
 
   private start(): void {
