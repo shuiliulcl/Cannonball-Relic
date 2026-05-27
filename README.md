@@ -51,3 +51,4 @@ Submit the generated `dist` folder as the HTML5 resource package after final pol
 - `docs/TechPlan.md`: architecture, module ownership, and handoff notes.
 - `docs/AIProcess.md`: AI-assisted creation notes for competition submission.
 - `docs/CollaboratorGuide.md`: onboarding guide for teammates and their AI agents.
+- `docs/SpellList.md`: canonical spell list for "人间大炮一级准备"; update this whenever a spell is added or changed.
