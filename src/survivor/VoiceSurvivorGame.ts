@@ -396,6 +396,71 @@ const SPELL_CONFIG = {
 
 type SpellKey = keyof typeof SPELL_CONFIG;
 
+const VOICE_COMBO_CONFIG = {
+  stormBloom: {
+    name: "雷爆跳弹",
+    spells: ["lightning", "explode", "ricochet"],
+    aliases: ["雷爆跳弹", "雷电爆炸弹射", "雷电弹射爆炸", "爆炸雷电弹射", "雷爆弹射", "闪电爆炸跳弹"],
+    effect: "雷电、爆炸、弹射同时接上时，额外触发多点雷爆和跳弹强化。",
+  },
+  iceBomb: {
+    name: "冻结爆炸",
+    spells: ["freeze", "explode"],
+    aliases: ["冻结爆炸", "冰冻爆炸", "冰爆", "冻爆", "先冻再炸", "冰封爆破"],
+    effect: "冻结和爆炸同时接上时，对近身怪潮造成冰爆冲击。",
+  },
+  thunderRicochet: {
+    name: "跳弹导电",
+    spells: ["lightning", "ricochet"],
+    aliases: ["跳弹导电", "雷电弹射", "弹射雷电", "电弧跳弹", "连电跳弹"],
+    effect: "雷电和弹射同时接上时，雷链跳跃更远，弹射更容易滚起来。",
+  },
+  scatterRicochet: {
+    name: "散射跳弹",
+    spells: ["split", "ricochet"],
+    aliases: ["散射跳弹", "分裂弹射", "分裂跳弹", "散开弹射", "裂开跳弹"],
+    effect: "分裂和弹射同时接上时，追加一圈会跳的散射弹。",
+  },
+  pierceRicochet: {
+    name: "折线贯穿",
+    spells: ["pierce", "ricochet"],
+    aliases: ["折线贯穿", "穿透弹射", "贯穿弹射", "穿透跳弹", "折返穿透"],
+    effect: "穿透和弹射同时接上时，发射贯穿折返弹处理密集怪潮。",
+  },
+  bloomRicochet: {
+    name: "弹跳开花",
+    spells: ["explode", "ricochet"],
+    aliases: ["弹跳开花", "爆炸弹射", "弹射爆炸", "跳弹爆炸", "弹跳爆破"],
+    effect: "爆炸和弹射同时接上时，在多个敌人身上连续开花。",
+  },
+  frostBlades: {
+    name: "冰刀护身",
+    spells: ["freeze"],
+    aliases: ["冰刀护身", "冻结刀刃", "冰霜刀刃", "冰刀", "刀刃冻结"],
+    effect: "有刀刃成长时，冻结咒语会让近身刀圈更强；没有刀刃时也能触发一次冰环。",
+  },
+  boomBlades: {
+    name: "爆裂刀盘",
+    spells: ["explode"],
+    aliases: ["爆裂刀盘", "爆炸刀刃", "刀刃爆炸", "爆裂刀刃", "刀盘爆破"],
+    effect: "有刀刃成长时，爆炸咒语会让刀圈喷出爆裂弹；没有刀刃时触发一次小爆破。",
+  },
+  cannonBloom: {
+    name: "炮弹开花",
+    spells: ["cannonPrep", "ricochet", "cannon", "cannonFire"],
+    aliases: ["炮弹开花", "人间大炮弹射发射", "弹射人间大炮发射", "大炮弹射发射", "弹射发射", "人间大炮开花"],
+    effect: "在人间大炮发射时接上弹射，额外喷出弹片并延长飞行冲击。",
+  },
+} as const satisfies Record<
+  string,
+  { name: string; spells: readonly SpellKey[]; aliases: readonly string[]; effect: string }
+>;
+
+type VoiceComboKey = keyof typeof VOICE_COMBO_CONFIG;
+type SurvivorVoiceAction =
+  | { type: "spell"; spell: SpellKey }
+  | { type: "combo"; combo: VoiceComboKey; spells: readonly SpellKey[] };
+
 type EnemyType = "runner" | "brute" | "pouncer" | "ranged" | "repeater" | "silencer" | "target";
 
 type Enemy = {
@@ -513,6 +578,7 @@ const SPELL_COMMAND_ALIASES = Object.entries(SPELL_CONFIG).map(([key, config]) =
 
 const BASE_ENERGY_REGEN = 5.4;
 const CANNON_PREP_COSTS = [34, 48, 62] as const;
+const INITIAL_XP_GOAL = 10;
 
 const ENEMY_CONFIG: Record<EnemyType, { hp: number; speed: number; radius: number; color: string; label: string; xp: number }> = {
   runner: { hp: 12, speed: 68, radius: 13, color: "#ffbd4a", label: "跑", xp: 5 },
@@ -589,6 +655,49 @@ function matchSpells(text: string): SpellKey[] {
   return selected.map((match) => match.key);
 }
 
+function hasSpellSequence(spells: readonly SpellKey[], sequence: readonly SpellKey[]): boolean {
+  let index = 0;
+  for (const spell of spells) {
+    if (spell === sequence[index]) {
+      index += 1;
+      if (index >= sequence.length) return true;
+    }
+  }
+  return false;
+}
+
+function matchVoiceCombo(text: string, spells: readonly SpellKey[]): VoiceComboKey | null {
+  const normalized = normalizeVoiceText(text);
+  const candidates = Object.entries(VOICE_COMBO_CONFIG) as Array<[VoiceComboKey, (typeof VOICE_COMBO_CONFIG)[VoiceComboKey]]>;
+  const aliasMatch = candidates
+    .filter(([, combo]) => combo.aliases.some((alias) => normalized.includes(normalizeVoiceText(alias))))
+    .sort(([, a], [, b]) => b.spells.length - a.spells.length)[0];
+  if (aliasMatch) return aliasMatch[0];
+
+  const sequenceMatch = candidates
+    .filter(([, combo]) => combo.spells.length > 1 && hasSpellSequence(spells, combo.spells))
+    .sort(([, a], [, b]) => b.spells.length - a.spells.length)[0];
+  return sequenceMatch?.[0] ?? null;
+}
+
+function matchSurvivorVoiceActions(text: string): SurvivorVoiceAction[] {
+  const spells = matchSpells(text);
+  const combo = matchVoiceCombo(text, spells);
+  if (!combo) {
+    return spells.map((spell) => ({ type: "spell", spell }));
+  }
+  const comboSpells = VOICE_COMBO_CONFIG[combo].spells;
+  const used = new Set<SpellKey>(comboSpells);
+  return [
+    { type: "combo", combo, spells: comboSpells },
+    ...spells.filter((spell) => !used.has(spell)).map((spell) => ({ type: "spell" as const, spell })),
+  ];
+}
+
+function voiceActionLabel(action: SurvivorVoiceAction): string {
+  return action.type === "combo" ? `组合：${VOICE_COMBO_CONFIG[action.combo].name}` : SPELL_NAMES[action.spell];
+}
+
 export class VoiceSurvivorGame {
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;
@@ -609,7 +718,7 @@ export class VoiceSurvivorGame {
   private xpFill!: HTMLElement;
   private xpText!: HTMLElement;
 
-  private voiceInput!: VoiceInput<SpellKey>;
+  private voiceInput!: VoiceInput<SurvivorVoiceAction>;
   private voiceActive = false;
   private lastFrame = 0;
   private rafId = 0;
@@ -675,7 +784,7 @@ export class VoiceSurvivorGame {
   private kills = 0;
   private level = 1;
   private xp = 0;
-  private xpGoal = 14;
+  private xpGoal = INITIAL_XP_GOAL;
   private elapsed = 0;
   private spawnTimer = 1.2;
   private spawnBudget = 0.45;
@@ -883,14 +992,10 @@ export class VoiceSurvivorGame {
   }
 
   private setupVoice(): void {
-    this.voiceInput = new VoiceInput<SpellKey>(
-      (spells) => {
-        for (const spell of spells) {
-          this.castSpell(spell);
-        }
-      },
-      matchSpells,
-      (spell) => spell,
+    this.voiceInput = new VoiceInput<SurvivorVoiceAction>(
+      (actions) => this.handleVoiceActions(actions),
+      matchSurvivorVoiceActions,
+      (action) => (action.type === "combo" ? `combo:${action.combo}` : `spell:${action.spell}`),
     );
 
     if (!this.voiceInput.isSupported()) {
@@ -923,7 +1028,10 @@ export class VoiceSurvivorGame {
       this.voiceActive = true;
       this.voiceButton.textContent = "语音中";
       if (actions.length > 0) {
-        this.say(`听见了：${transcript} -> ${actions.map((spell) => SPELL_NAMES[spell]).join(" / ")}`);
+        if (actions.some((action) => action.type === "combo")) {
+          return;
+        }
+        this.say(`听见了：${transcript} -> ${actions.map(voiceActionLabel).join(" / ")}`);
       } else if (transcript) {
         this.say(`听见了：${transcript}`);
       }
@@ -1011,10 +1119,10 @@ export class VoiceSurvivorGame {
     this.kills = 0;
     this.level = 1;
     this.xp = 0;
-    this.xpGoal = 14;
+    this.xpGoal = INITIAL_XP_GOAL;
     this.elapsed = 0;
-    this.spawnTimer = 1.2;
-    this.spawnBudget = 0.45;
+    this.spawnTimer = 0.72;
+    this.spawnBudget = 1.15;
     this.surgeTimer = 34;
     this.energy = 100;
     this.maxEnergy = 100;
@@ -1057,7 +1165,7 @@ export class VoiceSurvivorGame {
     this.bladeRadius = 54;
     this.bladeSpinSpeed = 3.2;
     this.moveSpeed = 210;
-    this.magnetRadius = 70;
+    this.magnetRadius = 92;
     this.explosionRadius = 82;
     this.explosionDamageScale = 0.48;
     this.explosionDurationBonus = 0;
@@ -1540,19 +1648,19 @@ export class VoiceSurvivorGame {
       return;
     }
     const earlyRush = this.elapsed < 20;
-    const maxBatch = earlyRush ? 3 : this.elapsed < 80 ? 6 + tier : 5 + tier;
+    const maxBatch = earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 5 + tier;
     const roomLeft = Math.max(0, targetCount - this.enemies.length);
     const count = Math.min(maxBatch, roomLeft, (earlyRush ? 2 : 1) + Math.floor(this.spawnBudget));
     for (let i = 0; i < count; i += 1) {
       this.spawnEnemy(this.pickEnemyType(wave));
     }
-    this.spawnBudget = Math.max(earlyRush ? 0.85 : 0.7, this.spawnBudget - count * 0.62);
+    this.spawnBudget = Math.max(earlyRush ? 1.05 : 0.7, this.spawnBudget - count * 0.62);
     this.spawnTimer = this.nextSpawnInterval(pressure);
   }
 
   private targetEnemyCount(): number {
     const tier = this.threatTier();
-    if (this.elapsed < 20) return 16;
+    if (this.elapsed < 20) return 20;
     if (this.elapsed < 55) return 24 + tier * 2;
     if (this.elapsed < 100) return 30 + tier * 3;
     return 34 + tier * 4;
@@ -1632,28 +1740,267 @@ export class VoiceSurvivorGame {
     return Math.round(ENEMY_DAMAGE[type] * scaling.damageMultiplier);
   }
 
-  private castSpell(spell: SpellKey): void {
-    if (!this.running || this.selectingBuff || this.gameOver) return;
+  private handleVoiceActions(actions: SurvivorVoiceAction[]): void {
+    for (const action of actions) {
+      if (action.type === "combo") {
+        this.castVoiceCombo(action.combo);
+      } else {
+        this.castSpell(action.spell);
+      }
+    }
+  }
+
+  private castVoiceCombo(comboKey: VoiceComboKey): boolean {
+    if (!this.running || this.selectingBuff || this.gameOver) return false;
+    const combo = VOICE_COMBO_CONFIG[comboKey];
+    let successfulCasts = 0;
+    for (const spell of combo.spells) {
+      if (this.castSpell(spell)) successfulCasts += 1;
+    }
+
+    if (successfulCasts <= 0 || !this.isVoiceComboArmed(comboKey)) {
+      this.say(`组合咒语「${combo.name}」没接上：需要 ${combo.spells.map((spell) => SPELL_NAMES[spell]).join(" + ")} 同时生效。`);
+      return false;
+    }
+
+    this.triggerVoiceCombo(comboKey);
+    return true;
+  }
+
+  private isVoiceComboArmed(comboKey: VoiceComboKey): boolean {
+    switch (comboKey) {
+      case "stormBloom":
+        return this.activeMods.lightningTime > 0 && this.activeMods.explosionTime > 0 && this.activeMods.ricochetTime > 0;
+      case "iceBomb":
+        return this.activeMods.freezeTime > 0 && this.activeMods.explosionTime > 0;
+      case "thunderRicochet":
+        return this.activeMods.lightningTime > 0 && this.activeMods.ricochetTime > 0;
+      case "scatterRicochet":
+        return this.activeMods.splitTime > 0 && this.activeMods.ricochetTime > 0;
+      case "pierceRicochet":
+        return this.activeMods.pierceTime > 0 && this.activeMods.ricochetTime > 0;
+      case "bloomRicochet":
+        return this.activeMods.explosionTime > 0 && this.activeMods.ricochetTime > 0;
+      case "frostBlades":
+        return this.activeMods.freezeTime > 0;
+      case "boomBlades":
+        return this.activeMods.explosionTime > 0;
+      case "cannonBloom":
+        return this.player.cannonTime > 0 && this.activeMods.ricochetTime > 0;
+      default:
+        return false;
+    }
+  }
+
+  private voiceComboPower(comboKey: VoiceComboKey): number {
+    const buffLinks: Record<VoiceComboKey, string[]> = {
+      stormBloom: ["stat-ricochet-spark", "stat-ricochet-bloom", "combo-lightning-burst"],
+      iceBomb: ["stat-freeze-brittle", "combo-frozen-shatter"],
+      thunderRicochet: ["stat-ricochet-spark"],
+      scatterRicochet: ["combo-split-ricochet"],
+      pierceRicochet: ["combo-pierce-ricochet"],
+      bloomRicochet: ["stat-ricochet-bloom"],
+      frostBlades: ["weapon-blade", "weapon-blade-count", "combo-blade-freeze"],
+      boomBlades: ["weapon-blade", "weapon-blade-count", "combo-blade-boom"],
+      cannonBloom: ["combo-cannon-shards"],
+    };
+    const stackPower = buffLinks[comboKey].reduce((total, id) => total + (this.ownedBuffs.get(id) ?? 0) * 0.18, 0);
+    return 1 + stackPower + Math.min(0.45, new Set(this.spellChain).size * 0.06);
+  }
+
+  private triggerVoiceCombo(comboKey: VoiceComboKey): void {
+    const combo = VOICE_COMBO_CONFIG[comboKey];
+    const power = this.voiceComboPower(comboKey);
+    this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 2.8 + power);
+
+    switch (comboKey) {
+      case "stormBloom": {
+        this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.5 * power);
+        this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.5 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.5 * power);
+        this.chainLightning(this.player.position, (18 + this.level * 1.2) * power);
+        for (const enemy of this.nearbyEnemies(this.player.position, this.ricochetRange + 220, 4)) {
+          this.explode(enemy.position, this.explosionRadius * 0.9, (14 + this.attackDamage) * power, false);
+        }
+        this.addVoiceComboBurst("#e5ff66", "#ff9b4a", 58);
+        this.say(`组合咒语：${combo.name}！雷链引爆，跳弹扩散。`);
+        break;
+      }
+      case "iceBomb": {
+        const radius = this.freezePulseRadius + 52;
+        this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 3.8 * power);
+        this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.2 * power);
+        this.freezeAround(this.player.position, radius, this.freezeDuration * (1.1 + power * 0.18));
+        this.explode(this.player.position, this.explosionRadius + 46, (18 + this.attackDamage) * power, true);
+        this.addVoiceComboBurst("#9be7ff", "#ff9b4a", 54);
+        this.say(`组合咒语：${combo.name}！先冻住，再炸开。`);
+        break;
+      }
+      case "thunderRicochet": {
+        this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.2 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
+        this.chainLightning(this.player.position, (20 + this.lightningJumps * 2) * power);
+        this.fireComboFan(4 + Math.min(5, this.currentRicochetBounces()), 12 * power, {
+          lightning: true,
+          ricochet: true,
+          color: "#e5ff66",
+        });
+        this.addVoiceComboBurst("#e5ff66", "#fff06a", 46);
+        this.say(`组合咒语：${combo.name}！弹出去的每一下都带电。`);
+        break;
+      }
+      case "scatterRicochet": {
+        this.activeMods.splitTime = Math.max(this.activeMods.splitTime, 3.6 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.6 * power);
+        this.fireComboFan(8 + this.splitExtraPairs * 2, (9 + this.splitDamageBonus) * power, {
+          ricochet: true,
+          color: "#8ee8ff",
+        });
+        this.addVoiceComboBurst("#8ee8ff", "#fff06a", 48);
+        this.say(`组合咒语：${combo.name}！散开以后继续跳。`);
+        break;
+      }
+      case "pierceRicochet": {
+        this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 3.6 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
+        this.fireComboFan(6, (14 + this.attackDamage * 0.6) * power, {
+          pierce: 3 + this.ricochetPierceBonus,
+          ricochet: true,
+          color: "#ffffff",
+        });
+        this.addVoiceComboBurst("#ffffff", "#fff06a", 44);
+        this.say(`组合咒语：${combo.name}！穿过去，还会折回来。`);
+        break;
+      }
+      case "bloomRicochet": {
+        this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.4 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.4 * power);
+        for (const enemy of this.nearbyEnemies(this.player.position, this.ricochetRange + 180, 5)) {
+          this.explode(enemy.position, this.explosionRadius * 0.85, (13 + this.attackDamage * 0.7) * power, false);
+          this.addParticle(this.player.position, enemy.position, "#ffcf5a");
+        }
+        this.addVoiceComboBurst("#ff9b4a", "#fff06a", 50);
+        this.say(`组合咒语：${combo.name}！跳到哪，花开到哪。`);
+        break;
+      }
+      case "frostBlades": {
+        const hasBlades = this.bladeCount > 0;
+        this.freezeAround(this.player.position, this.bladeRadius + (hasBlades ? 92 : 54), this.freezeDuration * power);
+        if (hasBlades) {
+          this.fireComboFan(this.bladeCount + 2, (8 + this.bladeDamage) * power, {
+            freeze: true,
+            pierce: 1,
+            color: "#9be7ff",
+          });
+        }
+        this.addVoiceComboBurst("#9be7ff", "#ffffff", hasBlades ? 44 : 28);
+        this.say(hasBlades ? `组合咒语：${combo.name}！刀圈挂霜。` : "冰刀护身接上了；抽到旋转刀刃后会更离谱。");
+        break;
+      }
+      case "boomBlades": {
+        const hasBlades = this.bladeCount > 0;
+        this.explode(this.player.position, this.bladeRadius + (hasBlades ? 104 : 58), (12 + this.bladeDamage) * power, false);
+        if (hasBlades) {
+          this.fireComboFan(this.bladeCount + 3, (10 + this.bladeDamage) * power, {
+            explosion: true,
+            ricochet: this.activeMods.ricochetTime > 0,
+            color: "#ff9b4a",
+          });
+        }
+        this.addVoiceComboBurst("#ff9b4a", "#ffffff", hasBlades ? 46 : 30);
+        this.say(hasBlades ? `组合咒语：${combo.name}！刀盘也会爆。` : "爆裂刀盘接上了；抽到旋转刀刃后反馈会更强。");
+        break;
+      }
+      case "cannonBloom": {
+        const charge = Math.max(1, this.cannonLaunchCharge);
+        this.cannonBouncesLeft += 1 + Math.floor(power);
+        this.cannonDamage += 18 * power;
+        this.fireComboFan(6 + charge * 3, (12 + charge * 7) * power, {
+          explosion: this.activeMods.explosionTime > 0,
+          freeze: this.activeMods.freezeTime > 0,
+          lightning: this.activeMods.lightningTime > 0,
+          ricochet: true,
+          color: "#ffe27a",
+        });
+        this.addVoiceComboBurst("#ffe27a", "#ff9b4a", 62);
+        this.say(`组合咒语：${combo.name}！人先飞，弹片再开花。`);
+        break;
+      }
+      default:
+        break;
+    }
+    this.renderCommandDock();
+  }
+
+  private nearbyEnemies(position: Vec2, radius: number, count: number): Enemy[] {
+    return [...this.enemies]
+      .filter((enemy) => enemy.hp > 0 && distance(enemy.position, position) <= radius)
+      .sort((a, b) => distance(a.position, position) - distance(b.position, position))
+      .slice(0, count);
+  }
+
+  private fireComboFan(
+    count: number,
+    damage: number,
+    options: { explosion?: boolean; freeze?: boolean; lightning?: boolean; ricochet?: boolean; pierce?: number; color: string },
+  ): void {
+    const target = this.nearestEnemy(this.player.position, Infinity)?.position ?? {
+      x: this.player.position.x + Math.cos(this.elapsed) * 120,
+      y: this.player.position.y + Math.sin(this.elapsed) * 120,
+    };
+    const baseAngle = Math.atan2(target.y - this.player.position.y, target.x - this.player.position.x);
+    const spread = Math.min(Math.PI * 1.45, 0.22 * Math.max(1, count - 1));
+    for (let i = 0; i < count; i += 1) {
+      const ratio = count <= 1 ? 0.5 : i / (count - 1);
+      const angle = baseAngle - spread / 2 + spread * ratio;
+      this.projectiles.push({
+        id: this.nextProjectileId,
+        position: { ...this.player.position },
+        velocity: { x: Math.cos(angle) * (this.projectileSpeed + 70), y: Math.sin(angle) * (this.projectileSpeed + 70) },
+        radius: 5.2,
+        damage,
+        life: 1.05,
+        pierce: options.pierce ?? 0,
+        ricochet: options.ricochet ? Math.max(1, this.currentRicochetBounces()) : 0,
+        hitIds: [],
+        explosion: Boolean(options.explosion),
+        freeze: Boolean(options.freeze),
+        lightning: Boolean(options.lightning),
+      });
+      this.nextProjectileId += 1;
+      this.addParticle(this.player.position, {
+        x: this.player.position.x + Math.cos(angle) * 120,
+        y: this.player.position.y + Math.sin(angle) * 120,
+      }, options.color);
+    }
+  }
+
+  private addVoiceComboBurst(colorA: string, colorB: string, count: number): void {
+    this.addBurst(this.player.position, colorA, Math.ceil(count * 0.55));
+    this.addBurst(this.player.position, colorB, Math.ceil(count * 0.45));
+    for (const enemy of this.nearbyEnemies(this.player.position, 520, 6)) {
+      this.addParticle(this.player.position, enemy.position, colorA);
+    }
+  }
+
+  private castSpell(spell: SpellKey): boolean {
+    if (!this.running || this.selectingBuff || this.gameOver) return false;
     if (this.isHiddenComboSpell(spell)) {
-      this.castHiddenCombo(spell);
-      return;
+      return this.castHiddenCombo(spell);
     }
     if (!this.unlockedSpells.has(spell) && !["cannonPrep", "cannonFire", "cannon"].includes(spell)) {
       this.say(`${SPELL_NAMES[spell]}还没抽到，先升级找它。`);
-      return;
+      return false;
     }
 
     if (spell === "cannonPrep") {
-      this.prepareCannon();
-      return;
+      return this.prepareCannon();
     }
     if (spell === "cannon") {
-      this.lockCannonTarget();
-      return;
+      return this.lockCannonTarget();
     }
     if (spell === "cannonFire") {
-      this.fireCannon();
-      return;
+      return this.fireCannon();
     }
 
     const fatigue = this.spellFatigueMultiplier(spell);
@@ -1662,7 +2009,7 @@ export class VoiceSurvivorGame {
     const cost = isFreeCast ? 0 : Math.round(SPELL_COSTS[spell] * (1 + (1 - fatigue) * 1.1) * silenceCost);
     if (this.energy < cost) {
       this.say(`${SPELL_NAMES[spell]}声能不够，还差 ${cost - Math.floor(this.energy)}。`);
-      return;
+      return false;
     }
     this.energy -= cost;
     if (isFreeCast) this.nextSpellFree = false;
@@ -1674,7 +2021,7 @@ export class VoiceSurvivorGame {
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, (8.5 + this.explosionDurationBonus) * power);
         if (this.recentChainIncludes("freeze")) this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 4.5 * power);
         this.explode(this.player.position, this.explosionRadius * 0.55, this.attackDamage * this.explosionDamageScale * power, false);
-        this.addBurst(this.player.position, "#ff9b4a", 18);
+        this.addBurst(this.player.position, "#ff9b4a", 30);
         this.say(`爆炸 Buff 开启 ${Math.ceil(this.activeMods.explosionTime)} 秒，记得续。`);
         break;
       case "freeze":
@@ -1685,25 +2032,25 @@ export class VoiceSurvivorGame {
       case "lightning":
         this.chainLightning(this.player.position, 10 * power);
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 7 * power);
-        this.addBurst(this.player.position, "#d8ff5a", 18);
+        this.addBurst(this.player.position, "#e5ff66", 26);
         this.say(`雷电 Buff 开启 ${Math.ceil(this.activeMods.lightningTime)} 秒。`);
         break;
       case "split":
         this.activeMods.splitTime = Math.max(this.activeMods.splitTime, (8.5 + this.splitDurationBonus) * power);
-        this.addBurst(this.player.position, "#8ee8ff", 16);
+        this.addBurst(this.player.position, "#8ee8ff", 24);
         this.addSpellFan(this.aimAngleToPrimaryTarget(), this.splitAngle + this.splitExtraPairs * 0.18, 3 + this.splitExtraPairs * 2, 190, "#8ee8ff", "多路弹幕");
         this.say(`分裂 Buff 开启 ${Math.ceil(this.activeMods.splitTime)} 秒，接下来自动攻击会变多路。`);
         break;
       case "pierce":
         this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 8 * power);
-        this.addBurst(this.player.position, "#e9fbff", 16);
+        this.addBurst(this.player.position, "#ffffff", 20);
         this.addSpellRing(this.player.position, 150, "#e9fbff", "穿透弹");
         this.say(`穿透 Buff 开启 ${Math.ceil(this.activeMods.pierceTime)} 秒，接下来子弹会穿怪。`);
         break;
       case "ricochet":
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 8 * power);
         if (this.recentChainIncludes("lightning")) this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.5 * power);
-        this.addBurst(this.player.position, "#ffcf5a", 16);
+        this.addBurst(this.player.position, "#fff06a", 24);
         this.addSpellRing(this.player.position, this.ricochetRange * 0.62, "#ffcf5a", "跳弹范围");
         this.say(`弹射 Buff 开启 ${Math.ceil(this.activeMods.ricochetTime)} 秒，子弹会跳向附近敌人。`);
         break;
@@ -1823,6 +2170,7 @@ export class VoiceSurvivorGame {
         break;
     }
     this.renderCommandDock();
+    return true;
   }
 
   private isHiddenComboSpell(spell: SpellKey): boolean {
@@ -1833,17 +2181,17 @@ export class VoiceSurvivorGame {
     return ((SPELL_CONFIG[spell] as SpellConfig).fragments ?? []) as SpellKey[];
   }
 
-  private castHiddenCombo(spell: SpellKey): void {
+  private castHiddenCombo(spell: SpellKey): boolean {
     const fragments = this.comboFragments(spell);
     const missing = fragments.filter((fragment) => !this.unlockedSpells.has(fragment));
     if (missing.length > 0) {
       this.say(`隐藏 Combo「${SPELL_NAMES[spell]}」还差碎片：${missing.map((fragment) => SPELL_NAMES[fragment]).join("、")}。`);
-      return;
+      return false;
     }
     const cost = this.currentSpellCost(spell);
     if (this.energy < cost) {
       this.say(`隐藏 Combo「${SPELL_NAMES[spell]}」声能不够，还差 ${cost - Math.floor(this.energy)}。`);
-      return;
+      return false;
     }
 
     const fatigue = this.spellFatigueMultiplier(spell);
@@ -1898,6 +2246,7 @@ export class VoiceSurvivorGame {
         break;
     }
     this.renderCommandDock();
+    return true;
   }
 
   private fireRadialProjectiles(
@@ -2317,32 +2666,33 @@ export class VoiceSurvivorGame {
     }
   }
 
-  private prepareCannon(): void {
+  private prepareCannon(): boolean {
     if (this.cannonCharge >= 3) {
-      this.say("人间大炮已满层。下一次按键会瞄准，再按一次发射。");
-      return;
+      this.say("一级准备已经三层，够离谱了。喊人间大炮锁定，再喊发射。");
+      return false;
     }
     const cost = this.nextCannonPrepCost();
     if (this.energy < cost) {
       this.say(`第 ${this.cannonCharge + 1} 层一级准备需要 ${cost} 声能，还差 ${Math.ceil(cost - this.energy)}。`);
-      return;
+      return false;
     }
     this.energy -= cost;
     this.cannonCharge += 1;
     this.cannonMeter = clamp(this.cannonMeter + 32, 0, 100);
     this.recordSpell("cannonPrep");
     this.addBurst(this.player.position, "#ffe27a", 16 + this.cannonCharge * 4);
-    this.say(`人间大炮装填 x${this.cannonCharge}。下一次按键会瞄准，再按一次发射。`);
+    this.say(`一级准备 x${this.cannonCharge}。充能越高，弹射越多、伤害越高。`);
+    return true;
   }
 
   private nextCannonPrepCost(): number {
     return CANNON_PREP_COSTS[Math.min(this.cannonCharge, CANNON_PREP_COSTS.length - 1)];
   }
 
-  private lockCannonTarget(): void {
+  private lockCannonTarget(): boolean {
     if (this.cannonCharge <= 0) {
-      this.say("人间大炮还没装填。再按一次会先装填。");
-      return;
+      this.say("人间大炮还没装填。再喊一级准备先充能。");
+      return false;
     }
     const target = this.densestEnemyPoint();
     this.cannonAiming = true;
@@ -2352,28 +2702,29 @@ export class VoiceSurvivorGame {
       this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
       this.addBurst(this.cannonTarget, "#ffe27a", 12);
       this.say("人间大炮：进入瞄准。移动鼠标调整方向，再按一次发射。");
-      return;
+      return true;
     }
     this.cannonTarget = { ...target };
     this.recordSpell("cannon");
     this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
     this.addBurst(this.cannonTarget, "#ffe27a", 16);
     this.say("人间大炮：已对准敌群。可以移动鼠标微调，再按一次发射。");
+    return true;
   }
 
-  private fireCannon(): void {
+  private fireCannon(): boolean {
     if (this.cannonCharge <= 0) {
-      this.say("人间大炮还没装填。先装填再发射。");
-      return;
+      this.say("还没一级准备，先充能再发射。");
+      return false;
     }
     if (!this.cannonTarget) {
       this.say("人间大炮还没瞄准。先锁定方向，再发射。");
-      return;
+      return false;
     }
     const meterCost = this.cannonFireMeterCost();
     if (this.cannonMeter < meterCost) {
       this.say(`大炮槽还差 ${Math.ceil(meterCost - this.cannonMeter)}，再等一下或打靶心怪。`);
-      return;
+      return false;
     }
     const direction = normalize({ x: this.cannonTarget.x - this.player.position.x, y: this.cannonTarget.y - this.player.position.y });
     const charge = this.cannonCharge;
@@ -2392,7 +2743,8 @@ export class VoiceSurvivorGame {
     this.recordSpell("cannonFire");
     this.addBurst(this.player.position, "#ffe27a", 40);
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
-    this.say(`发射！你就是炮弹：撞怪造成高伤害，落地还会冲击清场。`);
+    this.say(`发射！${charge} 层充能，${charge} 次弹射。`);
+    return true;
   }
 
   private castCannonStage(): void {
@@ -2404,8 +2756,7 @@ export class VoiceSurvivorGame {
       this.lockCannonTarget();
       return;
     }
-    this.fireCannon();
-  }
+    this.fireCannon();  }
 
   private finishCannonLaunch(): void {
     const charge = Math.max(1, this.cannonLaunchCharge);
@@ -2674,20 +3025,34 @@ export class VoiceSurvivorGame {
     }
     if (spell) enemy.lastSpellHit = spell;
     enemy.hp -= amount;
-    if (enemy.hp > 0) return;
+    if (enemy.hp > 0) {
+      if (spell || amount >= this.attackDamage * 0.85) {
+        this.addImpactBurst(enemy.position, spell === "freeze" ? "#9be7ff" : spell === "lightning" ? "#e5ff66" : spell === "explode" ? "#ff9b4a" : "#8ee8ff", 5);
+      }
+      return;
+    }
     this.kills += 1;
     this.score += Math.round(ENEMY_CONFIG[enemy.type].xp * 10 + this.elapsed);
     this.cannonMeter = clamp(this.cannonMeter + (enemy.type === "target" ? 14 : 3), 0, 100);
+    const xpValue = ENEMY_CONFIG[enemy.type].xp * this.currentXpDropMultiplier();
     this.drops.push({
       position: { ...enemy.position },
-      value: ENEMY_CONFIG[enemy.type].xp,
+      value: xpValue,
       radius: 7,
       magnet: 0,
     });
-    this.addBurst(enemy.position, ENEMY_CONFIG[enemy.type].color, enemy.type === "target" ? 28 : 10);
+    this.addBurst(enemy.position, ENEMY_CONFIG[enemy.type].color, enemy.type === "target" ? 42 : 18);
+    this.addBurst(enemy.position, "#7cff9b", enemy.type === "target" ? 24 : 8);
+    this.addParticle(enemy.position, this.player.position, "#7cff9b");
     if (shatters) {
       this.explode(enemy.position, this.freezeShatterRadius, 8 + this.freezeDuration * 4, true);
     }
+  }
+
+  private currentXpDropMultiplier(): number {
+    if (this.elapsed < 45) return 1.38;
+    if (this.elapsed < 100) return 1.18;
+    return 1;
   }
 
   private hurtPlayer(amount: number, ignoreInvuln = false): void {
@@ -2735,8 +3100,12 @@ export class VoiceSurvivorGame {
     if (this.xp < this.xpGoal) return;
     this.xp -= this.xpGoal;
     this.level += 1;
-    this.xpGoal = this.level <= 6 ? Math.round(this.xpGoal * 1.12 + 6) : Math.round(this.xpGoal * 1.18 + 12);
+    this.xpGoal = this.level <= 6 ? Math.round(this.xpGoal * 1.08 + 5) : Math.round(this.xpGoal * 1.16 + 11);
     this.applyBaselineLevelReward();
+    this.energy = clamp(this.energy + 10, 0, this.maxEnergy);
+    this.cannonMeter = clamp(this.cannonMeter + 8, 0, 100);
+    this.addBurst(this.player.position, "#7cff9b", 48);
+    this.addBurst(this.player.position, "#8ee8ff", 28);
     this.selectingBuff = true;
     this.showBuffChoices();
   }
@@ -3164,6 +3533,21 @@ export class VoiceSurvivorGame {
     }
   }
 
+  private addImpactBurst(position: Vec2, color: string, count: number): void {
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 120 + Math.random() * 260;
+      this.particles.push({
+        position: { ...position },
+        velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+        radius: 1.5 + Math.random() * 2.5,
+        color,
+        life: 0.18 + Math.random() * 0.18,
+        maxLife: 0.36,
+      });
+    }
+  }
+
   private addParticle(from: Vec2, to: Vec2, color: string): void {
     this.particles.push({
       position: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
@@ -3489,9 +3873,12 @@ export class VoiceSurvivorGame {
     for (const particle of this.particles) {
       ctx.globalAlpha = clamp(particle.life / particle.maxLife, 0, 1);
       ctx.fillStyle = particle.color;
+      ctx.shadowColor = particle.color;
+      ctx.shadowBlur = particle.radius > 6 ? 16 : 8;
       ctx.beginPath();
       ctx.arc(particle.position.x, particle.position.y, particle.radius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
     }
   }
