@@ -374,3 +374,25 @@ Notes:
 - The renderer now tries v6 transparent PNG sprites first and falls back to the procedural Canvas enemy tokens while images are loading or missing.
 - Runtime draw scale is intentionally larger than the collision radius. The v6 source PNGs are 192 px with generous transparent/glow margins, so a direct `2x radius` draw made enemies read like tiny symbols.
 - First enlarged runtime check has no missing requests or console/page errors. Runner and target reads are stronger in the early wave, but later mixed-wave validation is still needed before locking all family scales.
+
+## Runtime Readability Cue Pass v6.1
+
+Validation screenshot:
+
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/lineglow-v6-runtime-midwave-cues.png`
+
+Adjustment:
+
+- Kept the v6 PNG sprites as the primary enemy bodies.
+- Added small Canvas-drawn functional cues on top of the sprites:
+  - runner: trailing tail tick so the fast enemy reads as a speed token instead of a generic orange dot.
+  - brute: partial heavy arcs to separate mass from the other orange families.
+  - pouncer: forward wedge aligned to movement, with stronger stroke during windup.
+  - ranged: cyan lens and firing line aimed toward the player.
+  - repeater: three rotating green pulse dots.
+  - silencer: violet arc rings on the body, separate from the larger area aura.
+
+Reason:
+
+- In the first v6 runtime screenshot, orange-family enemies could collapse together under motion and projectile noise.
+- The cue layer preserves the clean sprite shapes while adding gameplay-role read at actual camera scale.

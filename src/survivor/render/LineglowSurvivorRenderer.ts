@@ -365,6 +365,7 @@ export class LineglowSurvivorRenderer {
     const art = LINEGLOW_ENEMY_ART[enemy.type];
     const radius = enemy.radius;
     if (this.renderOrbitRuinsEnemySprite(ctx, enemy)) {
+      this.renderEnemyReadabilityCue(ctx, enemy);
       if (enemy.type === "target") {
         ctx.strokeStyle = art.outline;
         ctx.lineWidth = 2;
@@ -561,6 +562,97 @@ export class LineglowSurvivorRenderer {
       this.enemySprites.set(key, image);
     }
     return image;
+  }
+
+  private renderEnemyReadabilityCue(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
+    const art = LINEGLOW_ENEMY_ART[enemy.type];
+    const radius = enemy.radius;
+    const toPlayer = normalize({
+      x: this.player.position.x - enemy.position.x,
+      y: this.player.position.y - enemy.position.y,
+    });
+    const move = normalize(enemy.velocity);
+    const facing = Math.hypot(move.x, move.y) > 0.05 ? Math.atan2(move.y, move.x) : Math.atan2(toPlayer.y, toPlayer.x);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = art.glow;
+    ctx.shadowBlur = 8;
+
+    switch (enemy.type) {
+      case "runner":
+        ctx.rotate(facing);
+        ctx.strokeStyle = "rgba(255, 194, 71, 0.78)";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(-radius * 1.1, -radius * 0.28);
+        ctx.lineTo(-radius * 1.42, 0);
+        ctx.lineTo(-radius * 1.1, radius * 0.28);
+        ctx.stroke();
+        break;
+      case "brute":
+        ctx.strokeStyle = "rgba(255, 154, 61, 0.72)";
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.18, Math.PI * 0.12, Math.PI * 1.42);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.64, Math.PI * 1.2, Math.PI * 1.88);
+        ctx.stroke();
+        break;
+      case "pouncer":
+        ctx.rotate(facing);
+        ctx.strokeStyle = enemy.windup > 0 ? "rgba(255, 232, 114, 0.94)" : "rgba(255, 194, 71, 0.78)";
+        ctx.lineWidth = enemy.windup > 0 ? 3 : 2.2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 1.35, 0);
+        ctx.lineTo(-radius * 0.45, -radius * 0.82);
+        ctx.lineTo(-radius * 0.12, 0);
+        ctx.lineTo(-radius * 0.45, radius * 0.82);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case "ranged": {
+        const angle = Math.atan2(toPlayer.y, toPlayer.x);
+        ctx.rotate(angle);
+        ctx.strokeStyle = "rgba(117, 238, 226, 0.84)";
+        ctx.lineWidth = 2.3;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.52, 0);
+        ctx.lineTo(radius * 1.48, 0);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(radius * 0.14, 0, radius * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      }
+      case "repeater":
+        ctx.strokeStyle = "rgba(156, 255, 138, 0.7)";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i += 1) {
+          const angle = this.elapsed * 1.7 + i * ((Math.PI * 2) / 3);
+          ctx.beginPath();
+          ctx.arc(Math.cos(angle) * radius * 0.88, Math.sin(angle) * radius * 0.88, radius * 0.16, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        break;
+      case "silencer":
+        ctx.strokeStyle = "rgba(177, 108, 255, 0.72)";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.24 + Math.sin(this.elapsed * 4) * 1.8, Math.PI * 0.12, Math.PI * 1.86);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.58 + Math.sin(this.elapsed * 3) * 2.4, Math.PI * 0.64, Math.PI * 1.36);
+        ctx.stroke();
+        break;
+      case "target":
+        break;
+    }
+
+    ctx.restore();
   }
 
   private drawLeafFin(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, fill: string): void {

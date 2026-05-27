@@ -92,3 +92,4 @@ Before accepting a style pass for this mode:
 - Avoid open internal strokes on tiny enemies. Prefer closed eyes, cores, capsules, dots, or attached plates so small-scale previews do not show strange loose lineheads.
 - When wiring extracted enemy PNGs into Canvas, measure the alpha bounding box before choosing draw scale. A 192 px token with a 120-155 px visible box and wide glow margins may need a 4-5x collision-radius draw size to read correctly in the root survivor camera.
 - Runtime sprite integration must keep a procedural fallback until image loading, asset paths, and scale rules are proven in a no-overlay gameplay screenshot.
+- If a sprite family still collapses under combat density, prefer a tiny runtime cue layer over regenerating the whole sheet immediately. Cues should describe gameplay role: direction, mass, firing lens, repeat pulse, silence aura, or priority ring.
