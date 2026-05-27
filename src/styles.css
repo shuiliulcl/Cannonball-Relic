@@ -1081,7 +1081,7 @@ button:focus-visible {
 .survivor-active-row {
   min-width: 0;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) 42px;
+  grid-template-columns: 58px minmax(0, 1fr) 72px;
   align-items: center;
   gap: 8px;
   color: #dff9ff;
@@ -1119,7 +1119,16 @@ button:focus-visible {
   color: #7892a8;
 }
 
-.survivor-active-row[data-state="off"] i::before {
+.survivor-active-row[data-state="ready"] {
+  color: #b8d9e8;
+}
+
+.survivor-active-row[data-state="empty"] {
+  color: #7892a8;
+}
+
+.survivor-active-row[data-state="ready"] i::before,
+.survivor-active-row[data-state="empty"] i::before {
   background: transparent;
   box-shadow: none;
 }
@@ -1128,7 +1137,7 @@ button:focus-visible {
   position: absolute;
   left: 14px;
   bottom: 154px;
-  width: min(320px, calc(100vw - 28px));
+  width: min(280px, calc(100vw - 28px));
   min-height: 54px;
   display: grid;
   align-items: start;
@@ -1154,7 +1163,7 @@ button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 5px 7px;
+  padding: 5px 8px;
   border: 1px solid rgba(142, 232, 255, 0.16);
   border-radius: 6px;
   background: rgba(3, 16, 32, 0.36);
@@ -1188,7 +1197,7 @@ button:focus-visible {
 .survivor-resource-panel {
   position: absolute;
   left: 50%;
-  bottom: 74px;
+  bottom: 96px;
   z-index: 3;
   width: min(720px, calc(100vw - 28px));
   transform: translateX(-50%);
@@ -1257,20 +1266,65 @@ button:focus-visible {
   left: 50%;
   bottom: 14px;
   z-index: 3;
-  width: min(980px, calc(100vw - 28px));
+  width: min(1040px, calc(100vw - 28px));
   transform: translateX(-50%);
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
   pointer-events: auto;
 }
 
+.survivor-command-header {
+  display: grid;
+  gap: 2px;
+  padding-right: 10px;
+  border-right: 1px solid rgba(142, 232, 255, 0.16);
+  color: #dff9ff;
+  text-shadow: none;
+}
+
+.survivor-command-header strong {
+  color: #fff8d6;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.survivor-command-header span {
+  color: #9eb4c7;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.survivor-command-list {
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 3px 2px 5px;
+}
+
 .survivor-command-dock button {
-  flex: 0 0 auto;
+  flex: 0 0 150px;
+  min-width: 150px;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
   background: linear-gradient(180deg, #fff8d6, #ffcf5a);
   box-shadow: 0 3px 0 rgba(112, 72, 11, 0.85);
+  text-align: left;
+}
+
+.survivor-command-dock button.is-pressed {
+  outline: 2px solid rgba(255, 248, 214, 0.8);
+  outline-offset: 2px;
+  filter: brightness(1.08);
 }
 
 .survivor-command-dock button[data-state="empty"],
@@ -1290,12 +1344,75 @@ button:focus-visible {
   background: linear-gradient(180deg, #2b2e38, #171b24);
 }
 
-.survivor-command-dock button[data-state="empty"]::after {
-  content: "声能不足";
-  margin-left: 6px;
-  color: #ffcf5a;
+.survivor-command-key {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(7, 16, 29, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.46);
+  color: #172136;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.survivor-command-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.survivor-command-copy strong,
+.survivor-command-copy em,
+.survivor-command-state {
+  min-width: 0;
+  font: inherit;
+  font-style: normal;
+  line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.survivor-command-copy strong {
+  color: #151722;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.survivor-command-copy em {
+  color: rgba(21, 23, 34, 0.72);
   font-size: 10px;
   font-weight: 900;
+}
+
+.survivor-command-state {
+  justify-self: end;
+  max-width: 48px;
+  padding: 4px 5px;
+  border-radius: 999px;
+  background: rgba(7, 16, 29, 0.12);
+  color: #293348;
+  font-size: 10px;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.survivor-command-dock button[data-state="empty"] .survivor-command-key,
+.survivor-command-dock button[data-state="blocked"] .survivor-command-key {
+  border-color: rgba(170, 190, 204, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #7f93a6;
+}
+
+.survivor-command-dock button[data-state="empty"] .survivor-command-state {
+  color: #ffcf5a;
+}
+
+.survivor-command-dock button[data-state="blocked"] .survivor-command-state {
+  color: #9eb4c7;
 }
 
 .survivor-overlay {
@@ -1399,12 +1516,19 @@ button:focus-visible {
   background: linear-gradient(180deg, #f5fdff, #8ee8ff 56%, #8d8aff);
 }
 
-.survivor-upgrade-choices span {
+.survivor-card-tags {
   width: fit-content;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.survivor-card-tags i {
   padding: 3px 8px;
   border-radius: 999px;
   background: rgba(7, 16, 29, 0.12);
   font-size: 12px;
+  font-style: normal;
   font-weight: 900;
 }
 
@@ -1452,7 +1576,7 @@ button:focus-visible {
 
   .survivor-resource-panel {
     grid-template-columns: 1fr;
-    bottom: 70px;
+    bottom: 94px;
     width: calc(100vw - 24px);
   }
 }

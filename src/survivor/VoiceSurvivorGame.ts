@@ -260,6 +260,14 @@ type Buff = {
   apply: () => void;
 };
 
+type CommandButtonState = {
+  label: string;
+  meta: string;
+  title: string;
+  badge: string;
+  state: "ready" | "empty" | "blocked";
+};
+
 const SPELL_NAMES = Object.fromEntries(
   Object.entries(SPELL_CONFIG).map(([key, config]) => [key, config.name]),
 ) as Record<SpellKey, string>;
@@ -495,10 +503,10 @@ export class VoiceSurvivorGame {
             <span id="survivorChain"></span>
           </div>
           <div class="survivor-voice">
-            <button id="survivorVoiceButton" type="button">开启语音</button>
-            <span id="survivorStatus">WASD 移动，自动攻击会成长；咒语负责救场和爆发。</span>
+            <button id="survivorVoiceButton" type="button">语音施法</button>
+            <span id="survivorStatus">手动施法就绪；语音可选。</span>
           </div>
-          <div id="survivorActiveSpells" class="survivor-active-spells" aria-label="持续咒语倒计时"></div>
+          <div id="survivorActiveSpells" class="survivor-active-spells" aria-label="持续效果状态"></div>
           <div class="survivor-detail-panel" aria-label="角色数值">
             <span id="survivorStats"></span>
           </div>
@@ -520,11 +528,11 @@ export class VoiceSurvivorGame {
             <strong id="survivorXpText">差 14</strong>
           </div>
         </section>
-        <section id="survivorCommandDock" class="survivor-command-dock" aria-label="可用咒语"></section>
+        <section id="survivorCommandDock" class="survivor-command-dock" aria-label="手动施法栏"></section>
         <div id="survivorStart" class="survivor-overlay">
           <span class="survivor-kicker">语音幸存者肉鸽</span>
           <h1>人间大炮一级准备</h1>
-          <p>自动攻击怪潮，升级既能强化武器和生存，也能抽取咒语 Buff。喊“爆炸”“冻结”“梆梆不梆梆”“人间大炮 一级准备 发射”，把自己也变成弹药。</p>
+          <p>自动攻击怪潮，升级抽取咒语 Buff。底部“人间大炮”按钮会按装填、瞄准、发射顺序推进；不开麦也能完整游玩。</p>
           <button type="button" data-action="start">开始整活</button>
         </div>
         <div id="survivorUpgrade" class="survivor-overlay survivor-upgrade" hidden>
@@ -569,6 +577,10 @@ export class VoiceSurvivorGame {
   private installEvents(): void {
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("keydown", (event) => {
+      if (this.castManualShortcut(event)) {
+        event.preventDefault();
+        return;
+      }
       this.keys.add(event.key.toLowerCase());
       if (event.code === "Space") {
         event.preventDefault();
@@ -591,6 +603,27 @@ export class VoiceSurvivorGame {
       if (this.voiceActive) this.stopVoice();
       else this.startVoice();
     });
+  }
+
+  private castManualShortcut(event: KeyboardEvent): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || !/^[1-9]$/.test(event.key)) {
+      return false;
+    }
+    if (!this.running || this.selectingBuff || this.gameOver) {
+      return false;
+    }
+    const button = this.commandDock.querySelector<HTMLButtonElement>(`button[data-shortcut="${event.key}"]`);
+    if (button?.dataset.command === "cannon") {
+      this.pulseCommandButton(button);
+      this.castCannonStage();
+      return true;
+    }
+    const spell = button?.dataset.spell as SpellKey | undefined;
+    if (!spell) {
+      return false;
+    }
+    this.castSpell(spell);
+    return true;
   }
 
   private resize(): void {
@@ -619,6 +652,7 @@ export class VoiceSurvivorGame {
     if (!this.voiceInput.isSupported()) {
       this.voiceButton.disabled = true;
       this.voiceButton.textContent = "语音不可用";
+      this.say("语音不可用，手动施法栏仍可完整游玩。");
       return;
     }
 
@@ -627,17 +661,18 @@ export class VoiceSurvivorGame {
         this.voiceButton.disabled = true;
         this.voiceButton.textContent = "语音不可用";
         this.voiceActive = false;
+        this.say("语音不可用，手动施法栏仍可完整游玩。");
         return;
       }
       if (status === "error") {
         this.voiceActive = false;
-        this.voiceButton.textContent = "开启语音";
+        this.voiceButton.textContent = "语音施法";
         this.say(`语音出错：${error ?? "unknown"}`);
         return;
       }
       if (status === "idle") {
         this.voiceActive = false;
-        this.voiceButton.textContent = "开启语音";
+        this.voiceButton.textContent = "语音施法";
         return;
       }
 
@@ -662,8 +697,9 @@ export class VoiceSurvivorGame {
   private stopVoice(): void {
     if (!this.voiceActive) return;
     this.voiceActive = false;
-    this.voiceButton.textContent = "开启语音";
+    this.voiceButton.textContent = "语音施法";
     this.voiceInput.stop();
+    this.say("已切回手动施法栏。");
   }
 
   private start(): void {
@@ -775,7 +811,7 @@ export class VoiceSurvivorGame {
     this.bangLevel = 1;
     this.skillGoLevel = 1;
     this.renderCommandDock();
-    this.say("开局：先活下来，升级后抽咒语。");
+    this.say("开局：按 1 使用人间大炮，按钮会自动推进装填、瞄准、发射。");
   }
 
   private loop(time: number): void {
@@ -830,6 +866,9 @@ export class VoiceSurvivorGame {
     if (this.player.cannonTime > 0) {
       this.player.cannonTime -= dt;
       this.player.invuln = Math.max(this.player.invuln, 0.12);
+      if (Math.random() < 0.55) {
+        this.addBurst(this.player.position, "#ffe27a", 2);
+      }
       this.player.position.x += this.player.cannonVelocity.x * dt;
       this.player.position.y += this.player.cannonVelocity.y * dt;
       if (this.player.position.x < this.player.radius || this.player.position.x > this.width - this.player.radius) {
@@ -1328,6 +1367,8 @@ export class VoiceSurvivorGame {
       case "explode":
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, (8.5 + this.explosionDurationBonus) * power);
         if (this.recentChainIncludes("freeze")) this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 4.5 * power);
+        this.explode(this.player.position, this.explosionRadius * 0.55, this.attackDamage * this.explosionDamageScale * power, false);
+        this.addBurst(this.player.position, "#ff9b4a", 18);
         this.say(`爆炸 Buff 开启 ${Math.ceil(this.activeMods.explosionTime)} 秒，记得续。`);
         break;
       case "freeze":
@@ -1338,19 +1379,23 @@ export class VoiceSurvivorGame {
       case "lightning":
         this.chainLightning(this.player.position, 10 * power);
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 7 * power);
+        this.addBurst(this.player.position, "#d8ff5a", 18);
         this.say(`雷电 Buff 开启 ${Math.ceil(this.activeMods.lightningTime)} 秒。`);
         break;
       case "split":
         this.activeMods.splitTime = Math.max(this.activeMods.splitTime, (8.5 + this.splitDurationBonus) * power);
-        this.say(`分裂 Buff 开启 ${Math.ceil(this.activeMods.splitTime)} 秒。`);
+        this.addBurst(this.player.position, "#8ee8ff", 16);
+        this.say(`分裂 Buff 开启 ${Math.ceil(this.activeMods.splitTime)} 秒，接下来自动攻击会变多路。`);
         break;
       case "pierce":
         this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 8 * power);
-        this.say(`穿透 Buff 开启 ${Math.ceil(this.activeMods.pierceTime)} 秒。`);
+        this.addBurst(this.player.position, "#e9fbff", 16);
+        this.say(`穿透 Buff 开启 ${Math.ceil(this.activeMods.pierceTime)} 秒，接下来子弹会穿怪。`);
         break;
       case "ricochet":
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 8 * power);
         if (this.recentChainIncludes("lightning")) this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.5 * power);
+        this.addBurst(this.player.position, "#ffcf5a", 16);
         this.say(`弹射 Buff 开启 ${Math.ceil(this.activeMods.ricochetTime)} 秒，子弹会跳向附近敌人。`);
         break;
       case "evade":
@@ -1366,10 +1411,12 @@ export class VoiceSurvivorGame {
       case "gather":
       case "wealth":
         this.gatherDrops(spell === "wealth" ? 520 : 300);
+        this.addBurst(this.player.position, "#7cff9b", spell === "wealth" ? 24 : 16);
         this.say(spell === "wealth" ? "来财，掉落物自己懂事。" : "聚拢资源。");
         break;
       case "focus":
         this.activeMods.focusTime = Math.max(this.activeMods.focusTime, 6 * power);
+        this.addBurst(this.player.position, "#8ee8ff", 14);
         this.say("自动攻击开始盯重点目标。");
         break;
       case "bang":
@@ -1384,6 +1431,7 @@ export class VoiceSurvivorGame {
       case "serious":
         this.activeMods.seriousTime = Math.max(this.activeMods.seriousTime, 5.5 * power);
         this.activeMods.focusTime = Math.max(this.activeMods.focusTime, 5.5 * power);
+        this.addBurst(this.player.position, "#fff1a6", 18);
         this.say("当个事儿办：辅助瞄准上线。");
         break;
       default:
@@ -1394,7 +1442,7 @@ export class VoiceSurvivorGame {
 
   private prepareCannon(): void {
     if (this.cannonCharge >= 3) {
-      this.say("一级准备已经三层，够离谱了。喊人间大炮锁定，再喊发射。");
+      this.say("人间大炮已满层。下一次按键会瞄准，再按一次发射。");
       return;
     }
     const cost = this.nextCannonPrepCost();
@@ -1404,9 +1452,10 @@ export class VoiceSurvivorGame {
     }
     this.energy -= cost;
     this.cannonCharge += 1;
-    this.cannonMeter = clamp(this.cannonMeter + 18, 0, 100);
+    this.cannonMeter = clamp(this.cannonMeter + 32, 0, 100);
     this.recordSpell("cannonPrep");
-    this.say(`一级准备 x${this.cannonCharge}。充能越高，弹射越多、伤害越高。`);
+    this.addBurst(this.player.position, "#ffe27a", 16 + this.cannonCharge * 4);
+    this.say(`人间大炮装填 x${this.cannonCharge}。下一次按键会瞄准，再按一次发射。`);
   }
 
   private nextCannonPrepCost(): number {
@@ -1414,28 +1463,35 @@ export class VoiceSurvivorGame {
   }
 
   private lockCannonTarget(): void {
+    if (this.cannonCharge <= 0) {
+      this.say("人间大炮还没装填。再按一次会先装填。");
+      return;
+    }
     const target = this.densestEnemyPoint();
     this.cannonAiming = true;
     if (!target) {
       this.cannonTarget = { ...this.pointer };
-      this.say("人间大炮：进入瞄准，移动鼠标调整方向。");
+      this.recordSpell("cannon");
+      this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
+      this.addBurst(this.cannonTarget, "#ffe27a", 12);
+      this.say("人间大炮：进入瞄准。移动鼠标调整方向，再按一次发射。");
       return;
     }
     this.cannonTarget = { ...target };
     this.recordSpell("cannon");
-    this.say("人间大炮：已对准敌群，也可以移动鼠标改方向。");
+    this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
+    this.addBurst(this.cannonTarget, "#ffe27a", 16);
+    this.say("人间大炮：已对准敌群。可以移动鼠标微调，再按一次发射。");
   }
 
   private fireCannon(): void {
     if (this.cannonCharge <= 0) {
-      this.say("还没一级准备，先充能再发射。");
+      this.say("人间大炮还没装填。先装填再发射。");
       return;
     }
     if (!this.cannonTarget) {
-      this.lockCannonTarget();
-      if (!this.cannonTarget) {
-        return;
-      }
+      this.say("人间大炮还没瞄准。先锁定方向，再发射。");
+      return;
     }
     const meterCost = this.cannonFireMeterCost();
     if (this.cannonMeter < meterCost) {
@@ -1459,7 +1515,19 @@ export class VoiceSurvivorGame {
     this.recordSpell("cannonFire");
     this.addBurst(this.player.position, "#ffe27a", 40);
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
-    this.say(`发射！${charge} 层充能，${charge} 次弹射。`);
+    this.say(`发射！你就是炮弹：撞怪造成高伤害，落地还会冲击清场。`);
+  }
+
+  private castCannonStage(): void {
+    if (this.cannonCharge <= 0) {
+      this.prepareCannon();
+      return;
+    }
+    if (!this.cannonTarget) {
+      this.lockCannonTarget();
+      return;
+    }
+    this.fireCannon();
   }
 
   private finishCannonLaunch(): void {
@@ -1763,12 +1831,17 @@ export class VoiceSurvivorGame {
   private showBuffChoices(): void {
     const choices = this.draftBuffs(3);
     this.upgradeChoices.replaceChildren();
+    this.upgradeOverlay.querySelector("h1")!.textContent = "选择强化";
     for (const buff of choices) {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.rarity = buff.rarity;
+      button.dataset.kind = this.buffKind(buff);
       button.innerHTML = `
-        <span>${buff.rarity === "diamond" ? "钻石" : buff.rarity === "gold" ? "黄金" : "青铜"}</span>
+        <span class="survivor-card-tags">
+          <i>${buff.rarity === "diamond" ? "钻石" : buff.rarity === "gold" ? "黄金" : "青铜"}</i>
+          <i>${this.buffKindLabel(buff)}</i>
+        </span>
         <strong>${buff.title}</strong>
         <em>${buff.description}</em>
       `;
@@ -1779,11 +1852,31 @@ export class VoiceSurvivorGame {
         this.selectingBuff = false;
         this.upgradeOverlay.hidden = true;
         this.renderCommandDock();
-        this.say(`获得：${buff.title}`);
+        this.addBuffFeedback(buff);
+        this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏。` : `获得被动强化：${buff.title}，效果已立即生效。`);
       });
       this.upgradeChoices.append(button);
     }
     this.upgradeOverlay.hidden = false;
+  }
+
+  private buffKind(buff: Buff): "spell" | "combo" | "passive" {
+    if (buff.spell) return "spell";
+    if (buff.id.startsWith("combo-") || buff.id === "stat-chain") return "combo";
+    return "passive";
+  }
+
+  private buffKindLabel(buff: Buff): string {
+    const kind = this.buffKind(buff);
+    if (kind === "spell") return "解锁咒语";
+    if (kind === "combo") return "组合强化";
+    return "被动生效";
+  }
+
+  private addBuffFeedback(buff: Buff): void {
+    const kind = this.buffKind(buff);
+    const color = kind === "spell" ? "#8ee8ff" : kind === "combo" ? "#ffe27a" : "#7cff9b";
+    this.addBurst(this.player.position, color, kind === "passive" ? 18 : 26);
   }
 
   private draftBuffs(count: number): Buff[] {
@@ -2334,32 +2427,18 @@ export class VoiceSurvivorGame {
     this.energyText.textContent = `${Math.round(this.energy)}/${this.maxEnergy}`;
     this.xpText.textContent = `差 ${xpMissing}`;
     const statEntries: Array<{ label: string; value: string; wide?: boolean }> = [
-      { label: "火力", value: String(Math.round(this.attackDamage)) },
-      { label: "回能", value: `${this.energyRegen.toFixed(1)}/秒` },
-      { label: "拾能", value: `${Math.round(this.dropEnergyRatio * 100)}%` },
-      { label: "弹射", value: `${this.ricochetBounces}次/${this.ricochetRange}/${Math.round(this.ricochetDamageMultiplier * 100)}%` },
-      { label: "减伤", value: String(this.armor) },
-      { label: "护盾", value: String(Math.round(this.player.shield)) },
-      { label: "大炮", value: `${Math.round(this.cannonMeter)}%` },
-      { label: "准备", value: `${this.cannonCharge}/3` },
-      { label: "下次准备", value: this.cannonCharge >= 3 ? "已满" : `${this.nextCannonPrepCost()} 声能` },
       { label: "等级", value: `Lv.${this.level}` },
       { label: "分数", value: String(this.score) },
+      { label: "击杀", value: String(this.kills) },
+      { label: "大炮", value: `${Math.floor(this.cannonMeter)}%` },
+      { label: "准备", value: `${this.cannonCharge}/3` },
+      { label: "火力", value: String(Math.round(this.attackDamage)) },
     ];
     if (this.cannonAiming) {
-      statEntries.splice(5, 0, { label: "瞄准", value: "锁定中", wide: true });
+      statEntries.splice(3, 0, { label: "瞄准", value: "锁定中", wide: true });
     }
-    if (this.unlockedSpells.has("split") || this.splitExtraPairs > 0) {
-      statEntries.splice(5, 0, { label: "分裂", value: `${2 + this.splitExtraPairs * 2}发/${Math.round(this.splitAngle * 100)}` });
-    }
-    if (this.guardTurretCount > 0) {
-      statEntries.splice(5, 0, { label: "炮塔", value: `${this.guardTurretCount}` });
-    }
-    if (this.bladeCount > 0) {
-      statEntries.splice(5, 0, { label: "刀刃", value: `${this.bladeCount}` });
-    }
-    if (this.chainEnergyBonus > 0) {
-      statEntries.splice(6, 0, { label: "链返", value: `+${3 + this.chainEnergyBonus}` });
+    if (this.player.shield > 0) {
+      statEntries.splice(5, 0, { label: "护盾", value: String(Math.round(this.player.shield)) });
     }
     const statSignature = statEntries.map((entry) => `${entry.label}:${entry.value}:${entry.wide ? "1" : "0"}`).join("|");
     if (statSignature !== this.lastStatSignature) {
@@ -2380,10 +2459,17 @@ export class VoiceSurvivorGame {
         }),
       );
     }
-    const chain = this.spellChain.map((spell) => SPELL_NAMES[spell]).join(" -> ");
+    const chain = this.spellChain.map((spell) => this.spellChainLabel(spell)).join(" -> ");
     this.chainLine.textContent = chain ? `咒语链：${chain}` : "咒语链：先喊点不一样的。";
     this.updateCommandDockState();
     this.renderActiveSpellPanel();
+  }
+
+  private spellChainLabel(spell: SpellKey): string {
+    if (spell === "cannonPrep") return "人间大炮·装填";
+    if (spell === "cannon") return "人间大炮·瞄准";
+    if (spell === "cannonFire") return "人间大炮·发射";
+    return SPELL_NAMES[spell];
   }
 
   private renderActiveSpellPanel(): void {
@@ -2401,21 +2487,24 @@ export class VoiceSurvivorGame {
     this.activeSpellPanel.replaceChildren();
 
     const title = document.createElement("strong");
-    title.textContent = "持续咒语";
+    title.textContent = "持续效果";
     this.activeSpellPanel.append(title);
 
     if (tracked.length === 0) {
       const empty = document.createElement("span");
       empty.className = "survivor-active-empty";
-      empty.textContent = "升级后解锁爆炸、冻结、分裂等 Buff。";
+      empty.textContent = "抽到爆炸、冻结、分裂等咒语后显示状态。";
       this.activeSpellPanel.append(empty);
       return;
     }
 
     for (const item of tracked) {
+      const cost = this.currentSpellCost(item.spell);
+      const enough = this.energy >= cost;
       const row = document.createElement("div");
       row.className = "survivor-active-row";
-      row.dataset.state = item.time > 0 ? "on" : "off";
+      row.dataset.state = item.time > 0 ? "on" : enough ? "ready" : "empty";
+      row.title = item.time > 0 ? `${SPELL_NAMES[item.spell]}正在生效。` : enough ? `${SPELL_NAMES[item.spell]}可施放。` : `${SPELL_NAMES[item.spell]}需要 ${cost} 声能。`;
 
       const name = document.createElement("span");
       name.textContent = SPELL_NAMES[item.spell];
@@ -2424,7 +2513,7 @@ export class VoiceSurvivorGame {
       track.style.setProperty("--spell-fill", `${Math.round(clamp(item.time / item.duration, 0, 1) * 100)}%`);
 
       const time = document.createElement("em");
-      time.textContent = item.time > 0 ? `${item.time.toFixed(1)}s` : "待补";
+      time.textContent = item.time > 0 ? `生效 ${item.time.toFixed(1)}s` : enough ? "可施放" : "声能不足";
 
       row.append(name, track, time);
       this.activeSpellPanel.append(row);
@@ -2433,79 +2522,215 @@ export class VoiceSurvivorGame {
 
   private renderCommandDock(): void {
     this.commandDock.replaceChildren();
-    const visible = [...this.unlockedSpells].filter((spell) => !["cannonPrep", "cannonFire"].includes(spell));
-    for (const spell of visible) {
+    const header = document.createElement("div");
+    header.className = "survivor-command-header";
+    const title = document.createElement("strong");
+    title.textContent = "手动施法";
+    const subtitle = document.createElement("span");
+    subtitle.textContent = "语音可选";
+    header.append(title, subtitle);
+
+    const list = document.createElement("div");
+    list.className = "survivor-command-list";
+
+    const cannonButton = document.createElement("button");
+    cannonButton.type = "button";
+    cannonButton.dataset.command = "cannon";
+    cannonButton.dataset.shortcut = "1";
+    cannonButton.addEventListener("click", () => {
+      this.pulseCommandButton(cannonButton);
+      this.castCannonStage();
+    });
+    list.append(cannonButton);
+
+    const visible = this.commandSpells();
+    visible.forEach((spell, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.spell = spell;
-      button.textContent = SPELL_NAMES[spell];
-      button.title = `点击模拟语音：${SPELL_NAMES[spell]}`;
-      button.addEventListener("click", () => this.castSpell(spell));
-      this.commandDock.append(button);
-    }
-    const prep = document.createElement("button");
-    prep.type = "button";
-    prep.dataset.spell = "cannonPrep";
-    prep.textContent = "一级准备";
-    prep.addEventListener("click", () => this.castSpell("cannonPrep"));
-    this.commandDock.append(prep);
-    const fire = document.createElement("button");
-    fire.type = "button";
-    fire.dataset.spell = "cannonFire";
-    fire.textContent = "发射";
-    fire.addEventListener("click", () => this.castSpell("cannonFire"));
-    this.commandDock.append(fire);
+      if (index < 8) {
+        button.dataset.shortcut = String(index + 2);
+      }
+      button.addEventListener("click", () => {
+        this.pulseCommandButton(button);
+        this.castSpell(spell);
+      });
+      list.append(button);
+    });
+
+    this.commandDock.append(header, list);
     this.updateCommandDockState();
   }
 
+  private pulseCommandButton(button: HTMLButtonElement): void {
+    button.classList.remove("is-pressed");
+    void button.offsetWidth;
+    button.classList.add("is-pressed");
+    window.setTimeout(() => button.classList.remove("is-pressed"), 180);
+  }
+
+  private commandSpells(): SpellKey[] {
+    const unlocked = [...this.unlockedSpells].filter((spell) => !["cannon", "cannonPrep", "cannonFire"].includes(spell));
+    return unlocked;
+  }
+
   private updateCommandDockState(): void {
+    const cannonButton = this.commandDock.querySelector<HTMLButtonElement>("button[data-command='cannon']");
+    if (cannonButton) {
+      const state = this.cannonCommandState();
+      cannonButton.title = state.title;
+      cannonButton.dataset.state = state.state;
+      cannonButton.setAttribute("aria-disabled", state.state === "ready" ? "false" : "true");
+      this.renderCommandButton(cannonButton, state);
+    }
+
     const buttons = this.commandDock.querySelectorAll<HTMLButtonElement>("button[data-spell]");
     for (const button of buttons) {
       const spell = button.dataset.spell as SpellKey | undefined;
       if (!spell) continue;
       const state = this.commandState(spell);
-      button.textContent = state.label;
       button.title = state.title;
       button.dataset.state = state.state;
       button.setAttribute("aria-disabled", state.state === "ready" ? "false" : "true");
+      this.renderCommandButton(button, state);
     }
   }
 
-  private commandState(spell: SpellKey): { label: string; title: string; state: "ready" | "empty" | "blocked" } {
+  private renderCommandButton(button: HTMLButtonElement, state: CommandButtonState): void {
+    const shortcut = button.dataset.shortcut ?? "";
+    const key = document.createElement("span");
+    key.className = "survivor-command-key";
+    key.textContent = shortcut || "-";
+
+    const copy = document.createElement("span");
+    copy.className = "survivor-command-copy";
+    const label = document.createElement("strong");
+    label.textContent = state.label;
+    const meta = document.createElement("em");
+    meta.textContent = state.meta;
+    copy.append(label, meta);
+
+    const badge = document.createElement("span");
+    badge.className = "survivor-command-state";
+    badge.textContent = state.badge;
+
+    button.setAttribute("aria-label", `${shortcut ? `${shortcut}，` : ""}${state.label}，${state.meta}，${state.badge}`);
+    button.replaceChildren(key, copy, badge);
+  }
+
+  private cannonCommandState(): CommandButtonState {
+    if (this.cannonCharge <= 0) {
+      const cost = this.nextCannonPrepCost();
+      const enough = this.energy >= cost;
+      return {
+        label: "人间大炮",
+        meta: `装填 ${cost} 声能`,
+        title: enough ? "消耗声能装填人间大炮。再次使用会瞄准，第三次发射。" : `声能不足：装填需要 ${cost}，当前 ${Math.floor(this.energy)}。`,
+        badge: enough ? "装填" : "声能不足",
+        state: enough ? "ready" : "empty",
+      };
+    }
+    if (!this.cannonTarget) {
+      return {
+        label: "人间大炮",
+        meta: `${this.cannonCharge}/3 层`,
+        title: "锁定敌群或进入瞄准，移动鼠标可微调方向。再次使用会发射。",
+        badge: "瞄准",
+        state: "ready",
+      };
+    }
+    const meterCost = this.cannonFireMeterCost();
+    const enough = this.cannonMeter >= meterCost;
+    return {
+      label: "人间大炮",
+      meta: `${meterCost}% 大炮`,
+      title: enough ? "发射玩家本人，撞怪造成高伤害，落地冲击清场。" : `大炮槽不足：需要 ${meterCost}%，当前 ${Math.floor(this.cannonMeter)}%。`,
+      badge: enough ? "发射" : "槽不足",
+      state: enough ? "ready" : "empty",
+    };
+  }
+
+  private commandState(spell: SpellKey): CommandButtonState {
     if (spell === "cannonPrep") {
       if (this.cannonCharge >= 3) {
-        return { label: "一级准备 已满", title: "一级准备已经三层，喊人间大炮锁定，再喊发射。", state: "blocked" };
+        return { label: "一级准备", meta: "3/3 层", title: "一级准备已经三层，喊人间大炮锁定，再喊发射。", badge: "已满", state: "blocked" };
       }
       const cost = this.nextCannonPrepCost();
       const enough = this.energy >= cost;
       return {
-        label: `一级准备 ${cost}`,
+        label: "一级准备",
+        meta: `${cost} 声能`,
         title: enough ? `消耗 ${cost} 声能，增加 1 层大炮充能。` : `声能不足：第 ${this.cannonCharge + 1} 层一级准备需要 ${cost}，当前 ${Math.floor(this.energy)}。`,
+        badge: enough ? "充能" : "声能不足",
         state: enough ? "ready" : "empty",
       };
     }
     if (spell === "cannonFire") {
       if (this.cannonCharge <= 0) {
-        return { label: "发射", title: "需要先喊一级准备获得至少 1 层充能。", state: "blocked" };
+        return { label: "发射", meta: "先准备", title: "需要先喊一级准备获得至少 1 层充能。", badge: "未装填", state: "blocked" };
+      }
+      if (!this.cannonTarget) {
+        return { label: "发射", meta: "先瞄准", title: "需要先用人间大炮锁定方向。", badge: "待瞄准", state: "blocked" };
       }
       const meterCost = this.cannonFireMeterCost();
       const enough = this.cannonMeter >= meterCost;
       return {
-        label: `发射 ${meterCost}%`,
+        label: "发射",
+        meta: `${meterCost}% 大炮`,
         title: enough ? `消耗 ${meterCost}% 大炮槽，按 ${this.cannonCharge} 层充能发射。` : `大炮槽不足：需要 ${meterCost}%，当前 ${Math.floor(this.cannonMeter)}%。`,
+        badge: enough ? "发射" : "槽不足",
         state: enough ? "ready" : "empty",
       };
     }
     if (spell === "cannon") {
-      return { label: SPELL_NAMES[spell], title: "锁定敌群或进入瞄准，移动鼠标调整方向。", state: "ready" };
+      if (this.cannonCharge <= 0) {
+        return {
+          label: SPELL_NAMES[spell],
+          meta: "先准备",
+          title: "需要先使用一级准备获得充能，再用人间大炮瞄准。",
+          badge: "待装填",
+          state: "blocked",
+        };
+      }
+      return {
+        label: SPELL_NAMES[spell],
+        meta: this.cannonAiming ? "微调方向" : `${this.cannonCharge}/3 准备`,
+        title: "锁定敌群或进入瞄准，移动鼠标调整方向。",
+        badge: this.cannonAiming ? "已瞄准" : "瞄准",
+        state: "ready",
+      };
     }
     const cost = this.currentSpellCost(spell);
     const enough = this.energy >= cost;
+    const activeTime = this.activeSpellTime(spell);
     return {
-      label: `${SPELL_NAMES[spell]} ${cost}`,
+      label: SPELL_NAMES[spell],
+      meta: `${cost} 声能`,
       title: enough ? `消耗 ${cost} 声能。` : `声能不足：${SPELL_NAMES[spell]}需要 ${cost}，当前 ${Math.floor(this.energy)}。`,
+      badge: enough ? (activeTime > 0 ? "续唱" : "施放") : "声能不足",
       state: enough ? "ready" : "empty",
     };
+  }
+
+  private activeSpellTime(spell: SpellKey): number {
+    switch (spell) {
+      case "explode":
+        return this.activeMods.explosionTime;
+      case "freeze":
+        return this.activeMods.freezeTime;
+      case "lightning":
+        return this.activeMods.lightningTime;
+      case "split":
+        return this.activeMods.splitTime;
+      case "pierce":
+        return this.activeMods.pierceTime;
+      case "ricochet":
+        return this.activeMods.ricochetTime;
+      case "focus":
+        return this.activeMods.focusTime;
+      default:
+        return 0;
+    }
   }
 
   private currentSpellCost(spell: SpellKey): number {
