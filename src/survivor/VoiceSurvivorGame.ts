@@ -1,5 +1,6 @@
 import { VoiceInput } from "../game/voice";
 import { LineglowSurvivorRenderer, type SurvivorRenderState } from "./render/LineglowSurvivorRenderer";
+import { getLineglowSpellArt } from "./render/lineglowTheme";
 
 export type Vec2 = {
   x: number;
@@ -4054,8 +4055,14 @@ export class VoiceSurvivorGame {
       row.className = "survivor-active-row";
       row.dataset.state = item.time > 0 ? "on" : enough ? "ready" : "empty";
       row.title = item.time > 0 ? `${SPELL_NAMES[item.spell]}正在生效。` : enough ? `${SPELL_NAMES[item.spell]}可施放。` : `${SPELL_NAMES[item.spell]}需要 ${cost} 声能。`;
+      row.dataset.tone = getLineglowSpellArt(item.spell).tone;
+
+      const glyph = document.createElement("span");
+      glyph.className = "survivor-active-glyph";
+      glyph.textContent = getLineglowSpellArt(item.spell).glyph;
 
       const name = document.createElement("span");
+      name.className = "survivor-active-name";
       name.textContent = SPELL_NAMES[item.spell];
 
       const track = document.createElement("i");
@@ -4064,7 +4071,7 @@ export class VoiceSurvivorGame {
       const time = document.createElement("em");
       time.textContent = item.time > 0 ? `生效 ${item.time.toFixed(1)}s` : enough ? "可施放" : "声能不足";
 
-      row.append(name, track, time);
+      row.append(glyph, name, track, time);
       this.activeSpellPanel.append(row);
     }
   }
@@ -4147,6 +4154,14 @@ export class VoiceSurvivorGame {
 
   private renderCommandButton(button: HTMLButtonElement, state: CommandButtonState): void {
     const shortcut = button.dataset.shortcut ?? "";
+    const spell = button.dataset.spell as SpellKey | undefined;
+    const art = getLineglowSpellArt(spell ?? "cannon");
+    button.dataset.tone = art.tone;
+
+    const icon = document.createElement("span");
+    icon.className = "survivor-command-icon";
+    icon.textContent = art.glyph;
+
     const key = document.createElement("span");
     key.className = "survivor-command-key";
     key.textContent = shortcut || "-";
@@ -4164,7 +4179,7 @@ export class VoiceSurvivorGame {
     badge.textContent = state.badge;
 
     button.setAttribute("aria-label", `${shortcut ? `${shortcut}，` : ""}${state.label}，${state.meta}，${state.badge}`);
-    button.replaceChildren(key, copy, badge);
+    button.replaceChildren(icon, key, copy, badge);
   }
 
   private cannonCommandState(): CommandButtonState {

@@ -98,6 +98,7 @@ export interface SkinTheme {
 
 export function resolveSkinTheme(): SkinTheme {
   const id = new URLSearchParams(window.location.search).get("theme") ?? "dark";
+  const skinId = sanitizeSkinId(new URLSearchParams(window.location.search).get("skin"));
   if (id === "hozy") {
     return {
       id: "hozy",
@@ -111,6 +112,21 @@ export function resolveSkinTheme(): SkinTheme {
       marbleEmissive: 0xff8020,
       marbleEmissiveIntensity: 2.5,
       cssClass: "theme-hozy",
+    };
+  }
+  if (skinId === "toem") {
+    return {
+      id: "dark",
+      clearColor: 0x09090b,
+      ambientColor: 0xffffff,
+      ambientIntensity: 3.4,
+      floorTint: 0xffffff,
+      wallColor: 0x111111,
+      wallLipColor: 0x111111,
+      marbleColor: 0xf5f5f5,
+      marbleEmissive: 0x111111,
+      marbleEmissiveIntensity: 0.35,
+      cssClass: "theme-dark",
     };
   }
   // Default: dark space / relic-ruins

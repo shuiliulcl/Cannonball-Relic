@@ -1,4 +1,17 @@
 import type { Drop, Enemy, EnemyShot, EnemyType, Particle, Projectile, Turret, Vec2 } from "../VoiceSurvivorGame";
+import { LINEGLOW_ENEMY_ART } from "./lineglowTheme";
+
+const LINEGLOW_ENEMY_SPRITE_BASE = "/assets/skins/orbit-ruins/survivor/enemies";
+const LINEGLOW_ENEMY_VARIANTS = 4;
+const LINEGLOW_ENEMY_DRAW_SCALE: Record<EnemyType, number> = {
+  runner: 5,
+  brute: 3.85,
+  pouncer: 4.85,
+  ranged: 4.75,
+  repeater: 4.55,
+  silencer: 4.25,
+  target: 4.35,
+};
 
 export type SurvivorRenderPlayer = {
   position: Vec2;
@@ -42,19 +55,6 @@ export type SurvivorRenderState = {
   playerSilenced: boolean;
 };
 
-const ORBIT_RUINS_ENEMY_ART: Record<
-  EnemyType,
-  { base: string; plate: string; accent: string; outline: string; glow: string }
-> = {
-  runner: { base: "#171216", plate: "#ff8a2f", accent: "#ffd16a", outline: "#ff8a2f", glow: "rgba(255, 138, 47, 0.48)" },
-  brute: { base: "#1d1412", plate: "#ff6b2a", accent: "#ffd16a", outline: "#ff9a3d", glow: "rgba(255, 107, 42, 0.52)" },
-  pouncer: { base: "#19161a", plate: "#ffc247", accent: "#ff7f36", outline: "#ffc247", glow: "rgba(255, 194, 71, 0.48)" },
-  ranged: { base: "#10191d", plate: "#75eee2", accent: "#d8ffff", outline: "#75eee2", glow: "rgba(117, 238, 226, 0.5)" },
-  repeater: { base: "#111a15", plate: "#9cff8a", accent: "#e2ffd8", outline: "#9cff8a", glow: "rgba(156, 255, 138, 0.42)" },
-  silencer: { base: "#151225", plate: "#b16cff", accent: "#f0d9ff", outline: "#b16cff", glow: "rgba(177, 108, 255, 0.48)" },
-  target: { base: "#1c1114", plate: "#ff4a5f", accent: "#ffd3d8", outline: "#ff4a5f", glow: "rgba(255, 74, 95, 0.55)" },
-};
-
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -71,6 +71,7 @@ function normalize(v: Vec2): Vec2 {
 
 export class LineglowSurvivorRenderer {
   private state!: SurvivorRenderState;
+  private readonly enemySprites = new Map<string, HTMLImageElement>();
 
   render(ctx: CanvasRenderingContext2D, state: SurvivorRenderState): void {
     this.state = state;
@@ -361,8 +362,32 @@ export class LineglowSurvivorRenderer {
   }
 
   private renderOrbitRuinsEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
-    const art = ORBIT_RUINS_ENEMY_ART[enemy.type];
+    const art = LINEGLOW_ENEMY_ART[enemy.type];
     const radius = enemy.radius;
+    if (this.renderOrbitRuinsEnemySprite(ctx, enemy)) {
+      if (enemy.type === "target") {
+        ctx.strokeStyle = art.outline;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = art.glow;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.36 + Math.sin(this.elapsed * 5) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      if (enemy.frozen > 0) {
+        ctx.strokeStyle = "rgba(168, 236, 255, 0.82)";
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = "rgba(168, 236, 255, 0.58)";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.08, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      return;
+    }
+
     const rim = enemy.frozen > 0 ? "#a8ecff" : art.outline;
     const core = enemy.frozen > 0 ? "#e8fbff" : art.accent;
     ctx.shadowColor = enemy.frozen > 0 ? "rgba(168, 236, 255, 0.58)" : art.glow;
@@ -505,6 +530,37 @@ export class LineglowSurvivorRenderer {
     ctx.arc(0, 0, Math.max(3.2, radius * 0.2), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+  }
+
+  private renderOrbitRuinsEnemySprite(ctx: CanvasRenderingContext2D, enemy: Enemy): boolean {
+    const image = this.enemySprite(enemy);
+    if (!image.complete || image.naturalWidth <= 0) return false;
+
+    const art = LINEGLOW_ENEMY_ART[enemy.type];
+    const size = enemy.radius * LINEGLOW_ENEMY_DRAW_SCALE[enemy.type];
+    const pulse = enemy.type === "target" ? 1 + Math.sin(this.elapsed * 5) * 0.035 : 1;
+    const squash = enemy.type === "runner" ? 1.08 : 1;
+
+    ctx.save();
+    ctx.scale(pulse, pulse * squash);
+    ctx.shadowColor = enemy.frozen > 0 ? "rgba(168, 236, 255, 0.58)" : art.glow;
+    ctx.shadowBlur = enemy.type === "target" ? 18 : enemy.type === "silencer" ? 16 : 11;
+    ctx.drawImage(image, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    return true;
+  }
+
+  private enemySprite(enemy: Enemy): HTMLImageElement {
+    const variant = (enemy.id % LINEGLOW_ENEMY_VARIANTS) + 1;
+    const key = `${enemy.type}_${String(variant).padStart(2, "0")}`;
+    let image = this.enemySprites.get(key);
+    if (!image) {
+      image = new Image();
+      image.decoding = "async";
+      image.src = `${LINEGLOW_ENEMY_SPRITE_BASE}/${key}.png`;
+      this.enemySprites.set(key, image);
+    }
+    return image;
   }
 
   private drawLeafFin(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, fill: string): void {

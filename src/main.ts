@@ -174,6 +174,10 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
 }
 
   stageShell.classList.add(resolveSkinTheme().cssClass);
+  const skinId = new URLSearchParams(window.location.search).get("skin");
+  if (skinId && /^[a-z0-9-]+$/i.test(skinId)) {
+    stageShell.classList.add(`skin-${skinId.toLowerCase()}`);
+  }
   const runtimeLevel = await loadRequestedLevel();
   const convertedLevel = runtimeLevel ? levelToRuntime(runtimeLevel) : undefined;
   const campaignLevels = runtimeLevel ? [] : (await loadCampaignLevels()).map(levelToRuntime);
