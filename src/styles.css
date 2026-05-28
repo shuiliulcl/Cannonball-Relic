@@ -1197,6 +1197,57 @@ button:focus-visible {
   line-height: 1.35;
 }
 
+.survivor-upgrade-prompt-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(124, 255, 155, 0.34);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(124, 255, 155, 0.16), rgba(142, 232, 255, 0.08)),
+    rgba(7, 18, 18, 0.7);
+  color: #dff9ff;
+  text-align: left;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 18px rgba(124, 255, 155, 0.12);
+  cursor: pointer;
+}
+
+.survivor-upgrade-prompt-row span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 30px;
+  border: 1px solid rgba(124, 255, 155, 0.48);
+  border-radius: 7px;
+  background: rgba(6, 18, 18, 0.9);
+  color: #7cff9b;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.survivor-upgrade-prompt-row strong {
+  color: #fff8d6;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.survivor-upgrade-prompt-row em {
+  min-width: 0;
+  overflow: hidden;
+  color: #8ee8ff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .survivor-active-row {
   min-width: 0;
   display: grid;
@@ -1497,7 +1548,8 @@ button:focus-visible {
 .survivor-detail-panel.is-player-behind,
 .survivor-resource-panel.is-player-behind,
 .survivor-gm-panel.is-player-behind,
-.survivor-command-dock.is-player-behind {
+.survivor-command-dock.is-player-behind,
+.survivor-wild-spellbook-toggle.is-player-behind {
   opacity: 0.32;
   border-color: rgba(142, 232, 255, 0.08);
   background:
@@ -1511,6 +1563,172 @@ button:focus-visible {
 
 .survivor-command-dock[hidden] {
   display: none;
+}
+
+.survivor-wild-spellbook-toggle {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 5;
+  display: grid;
+  gap: 2px;
+  min-width: 118px;
+  padding: 10px 13px;
+  border: 1px solid rgba(255, 207, 90, 0.4);
+  border-radius: 8px;
+  color: #fff8d6;
+  background:
+    linear-gradient(180deg, rgba(35, 22, 16, 0.82), rgba(10, 12, 20, 0.72)),
+    rgba(12, 14, 24, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 28px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(6px) saturate(1.14);
+  cursor: pointer;
+}
+
+.survivor-wild-spellbook-toggle[hidden] {
+  display: none;
+}
+
+.survivor-wild-spellbook-toggle strong {
+  font-size: 14px;
+  line-height: 1.05;
+}
+
+.survivor-wild-spellbook-toggle span {
+  color: #8ee8ff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.survivor-wild-spellbook {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 7;
+  width: min(620px, calc(100vw - 36px));
+  max-height: min(78vh, 660px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(142, 232, 255, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(9, 17, 30, 0.96), rgba(5, 8, 16, 0.94)),
+    rgba(7, 12, 24, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(226, 255, 255, 0.08),
+    0 28px 70px rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(10px) saturate(1.16);
+}
+
+.survivor-wild-spellbook[hidden] {
+  display: none;
+}
+
+.survivor-wild-spellbook header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(142, 232, 255, 0.16);
+}
+
+.survivor-wild-spellbook header div {
+  display: grid;
+  gap: 3px;
+}
+
+.survivor-wild-spellbook header span {
+  color: #ffcf5a;
+  font-size: 11px;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+}
+
+.survivor-wild-spellbook header strong {
+  color: #fff8d6;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.survivor-wild-spellbook header em {
+  color: #9eb4c7;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.survivor-wild-spellbook header button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid rgba(142, 232, 255, 0.34);
+  border-radius: 7px;
+  color: #dff9ff;
+  background: rgba(15, 26, 42, 0.86);
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.survivor-wild-spellbook-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.survivor-wild-spellbook-card {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(142, 232, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 18, 31, 0.7);
+}
+
+.survivor-wild-spellbook-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.survivor-wild-spellbook-card-top strong {
+  color: #fff8d6;
+  font-size: 15px;
+  line-height: 1.12;
+}
+
+.survivor-wild-spellbook-card-top span {
+  flex: 0 0 auto;
+  color: #7cff9b;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.survivor-wild-spellbook-card p {
+  margin: 0;
+  color: #dceeff;
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.38;
+}
+
+.survivor-wild-spellbook-card p:first-of-type {
+  color: #8ee8ff;
+  font-size: 11px;
+}
+
+.survivor-wild-spellbook-card small {
+  color: #9eb4c7;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.36;
 }
 
 .survivor-command-header {
@@ -2138,6 +2356,74 @@ button:focus-visible {
   line-height: 1.28;
 }
 
+.survivor-start-settings {
+  width: min(820px, calc(100vw - 32px));
+  display: grid;
+}
+
+.survivor-start-settings[hidden] {
+  display: none;
+}
+
+.survivor-start-setting {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(142, 232, 255, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(8, 18, 32, 0.76), rgba(7, 12, 24, 0.62)),
+    rgba(7, 12, 24, 0.62);
+  text-align: left;
+}
+
+.survivor-start-setting > strong {
+  color: #fff8d6;
+  font-size: 12px;
+}
+
+.survivor-start-segments {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.survivor-start-segments button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px;
+  border: 1px solid rgba(142, 232, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(6, 12, 22, 0.72);
+  color: #dff9ff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.survivor-start-segments button.is-selected {
+  border-color: rgba(124, 255, 155, 0.66);
+  background:
+    linear-gradient(180deg, rgba(124, 255, 155, 0.18), rgba(142, 232, 255, 0.09)),
+    rgba(6, 18, 18, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(124, 255, 155, 0.2);
+}
+
+.survivor-start-segments i {
+  color: #fff8d6;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 1000;
+  line-height: 1.1;
+}
+
+.survivor-start-segments small {
+  color: rgba(223, 249, 255, 0.78);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.28;
+}
+
 .survivor-start-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2147,6 +2433,18 @@ button:focus-visible {
 
 .survivor-start-actions button[hidden] {
   display: none;
+}
+
+.survivor-start-actions [data-action="start"] {
+  order: 1;
+}
+
+.survivor-start-actions [data-action="wild"] {
+  order: 2;
+}
+
+.survivor-start-actions [data-action="expert"] {
+  order: 3;
 }
 
 .survivor-start-actions [data-action="expert"] {
@@ -2159,6 +2457,18 @@ button:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.62),
     0 4px 0 #13506a,
     0 16px 34px rgba(0, 0, 0, 0.36);
+}
+
+.survivor-start-actions [data-action="wild"] {
+  border-color: rgba(255, 129, 72, 0.56);
+  background:
+    linear-gradient(180deg, rgba(255, 237, 190, 0.98), rgba(255, 129, 72, 0.9)),
+    #ff8148;
+  color: #1d0c05;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.66),
+    0 4px 0 #8f2e16,
+    0 16px 34px rgba(0, 0, 0, 0.38);
 }
 
 .survivor-overlay.is-result {
@@ -2708,6 +3018,39 @@ button:focus-visible {
     0 16px 34px rgba(0, 0, 0, 0.38);
 }
 
+.survivor-overlay .survivor-start-segments button {
+  min-height: 48px;
+  padding: 7px 8px;
+  border: 1px solid rgba(142, 232, 255, 0.26);
+  background:
+    linear-gradient(180deg, rgba(11, 22, 38, 0.94), rgba(5, 10, 18, 0.9)),
+    #07101c;
+  color: #dff9ff;
+  box-shadow:
+    inset 0 1px 0 rgba(226, 255, 255, 0.08),
+    0 3px 0 rgba(0, 0, 0, 0.38);
+  text-shadow: none;
+}
+
+.survivor-overlay .survivor-start-segments button.is-selected {
+  border-color: rgba(124, 255, 155, 0.72);
+  background:
+    linear-gradient(180deg, rgba(18, 55, 42, 0.98), rgba(7, 18, 20, 0.94)),
+    #071413;
+  box-shadow:
+    inset 0 0 0 1px rgba(124, 255, 155, 0.22),
+    0 3px 0 rgba(22, 86, 50, 0.62),
+    0 0 18px rgba(124, 255, 155, 0.18);
+}
+
+.survivor-overlay .survivor-start-segments i {
+  color: #fff8d6;
+}
+
+.survivor-overlay .survivor-start-segments small {
+  color: rgba(223, 249, 255, 0.82);
+}
+
 .survivor-overlay.is-result > button {
   min-width: 180px;
   border-color: rgba(142, 232, 255, 0.58);
@@ -3151,6 +3494,28 @@ button:focus-visible {
     background: transparent;
     font-size: 9px;
     text-align: left;
+  }
+
+  .survivor-start-segments {
+    grid-template-columns: 1fr;
+  }
+
+  .survivor-wild-spellbook-toggle {
+    right: 10px;
+    bottom: 10px;
+    min-width: 104px;
+    padding: 9px 11px;
+  }
+
+  .survivor-wild-spellbook {
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+    max-height: 76vh;
+  }
+
+  .survivor-wild-spellbook-list {
+    grid-template-columns: 1fr;
   }
 
   .survivor-upgrade-choices {

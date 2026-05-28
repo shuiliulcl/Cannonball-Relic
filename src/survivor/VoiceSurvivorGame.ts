@@ -397,6 +397,8 @@ const SPELL_CONFIG = {
 } as const satisfies Record<string, SpellConfig>;
 
 export type SpellKey = keyof typeof SPELL_CONFIG;
+type RunMode = "normal" | "wild";
+type UpgradePickMode = "manual" | "safe" | "instant";
 
 const SPELL_KEYS = Object.keys(SPELL_CONFIG) as SpellKey[];
 const CORE_VOICE_SPELLS = ["cannon", "cannonPrep", "cannonFire"] as const satisfies readonly SpellKey[];
@@ -1250,7 +1252,9 @@ export class VoiceSurvivorGame {
   private voiceButton!: HTMLButtonElement;
   private startOverlay!: HTMLElement;
   private startGuide!: HTMLElement;
+  private startSettingsPanel!: HTMLElement;
   private startButton!: HTMLButtonElement;
+  private startWildButton!: HTMLButtonElement;
   private startExpertButton!: HTMLButtonElement;
   private resultPanel!: HTMLElement;
   private pauseOverlay!: HTMLElement;
@@ -1259,6 +1263,8 @@ export class VoiceSurvivorGame {
   private commandDock!: HTMLElement;
   private commandDockObserver?: ResizeObserver;
   private commandDockHeight = 0;
+  private wildSpellbookToggle!: HTMLButtonElement;
+  private wildSpellbookPanel!: HTMLElement;
   private guidePanel!: HTMLElement;
   private activeSpellPanel!: HTMLElement;
   private upgradeGuide!: HTMLElement;
@@ -1285,7 +1291,12 @@ export class VoiceSurvivorGame {
   private running = false;
   private paused = false;
   private selectingBuff = false;
+  private runMode: RunMode = "normal";
+  private upgradePickMode: UpgradePickMode = "manual";
+  private wildSpellbookOpen = false;
+  private wildSpellbookWasPaused = false;
   private pendingUpgradeChoices = 0;
+  private manualUpgradeSequenceOpen = false;
   private pauseSelectionIndex = 0;
   private upgradeSelectionIndex = 0;
   private gameOver = false;
@@ -1460,7 +1471,7 @@ export class VoiceSurvivorGame {
   private skillGoLevel = 1;
   private screenShake = 0;
   private screenShakePower = 0;
-  private startOverlayMode: "intro" | "training" = "intro";
+  private startOverlayMode: "intro" | "training" | "wild" = "intro";
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -1504,6 +1515,11 @@ export class VoiceSurvivorGame {
           </div>
         </section>
         <section id="survivorCommandDock" class="survivor-command-dock" aria-label="手动施法栏"></section>
+        <button id="survivorWildSpellbookToggle" class="survivor-wild-spellbook-toggle" type="button" hidden>
+          <strong>咒语表</strong>
+          <span>Tab 查看细则</span>
+        </button>
+        <section id="survivorWildSpellbook" class="survivor-wild-spellbook" aria-label="狂野模式咒语细则" hidden></section>
         <section id="survivorGmPanel" class="survivor-gm-panel" aria-label="GM debug tools" hidden></section>
         <div id="survivorStart" class="survivor-overlay">
           <span class="survivor-kicker">语音幸存者肉鸽</span>
@@ -1517,9 +1533,11 @@ export class VoiceSurvivorGame {
           </div>
           <div id="survivorResult" class="survivor-result" hidden></div>
           <div class="survivor-start-actions">
-            <button type="button" data-action="start">确定</button>
+            <button type="button" data-action="wild">狂野模式</button>
+            <button type="button" data-action="start">正常模式</button>
             <button type="button" data-action="expert" hidden>我是高手高手高手高高手</button>
           </div>
+          <div id="survivorStartSettings" class="survivor-start-settings" hidden></div>
         </div>
         <div id="survivorPause" class="survivor-overlay survivor-pause" hidden>
           <span class="survivor-kicker">PAUSED</span>
@@ -1550,13 +1568,17 @@ export class VoiceSurvivorGame {
     this.voiceButton = this.root.querySelector<HTMLButtonElement>("#survivorVoiceButton") ?? this.fail("Missing survivor voice button.");
     this.startOverlay = this.root.querySelector<HTMLElement>("#survivorStart") ?? this.fail("Missing survivor start overlay.");
     this.startGuide = this.startOverlay.querySelector<HTMLElement>(".survivor-start-guide") ?? this.fail("Missing survivor start guide.");
+    this.startSettingsPanel = this.root.querySelector<HTMLElement>("#survivorStartSettings") ?? this.fail("Missing survivor start settings.");
     this.startButton = this.root.querySelector<HTMLButtonElement>("[data-action='start']") ?? this.fail("Missing survivor start button.");
+    this.startWildButton = this.root.querySelector<HTMLButtonElement>("[data-action='wild']") ?? this.fail("Missing survivor wild mode button.");
     this.startExpertButton = this.root.querySelector<HTMLButtonElement>("[data-action='expert']") ?? this.fail("Missing survivor expert button.");
     this.resultPanel = this.root.querySelector<HTMLElement>("#survivorResult") ?? this.fail("Missing survivor result panel.");
     this.pauseOverlay = this.root.querySelector<HTMLElement>("#survivorPause") ?? this.fail("Missing survivor pause overlay.");
     this.upgradeOverlay = this.root.querySelector<HTMLElement>("#survivorUpgrade") ?? this.fail("Missing survivor upgrade overlay.");
     this.upgradeChoices = this.root.querySelector<HTMLElement>("#survivorUpgradeChoices") ?? this.fail("Missing survivor upgrade choices.");
     this.commandDock = this.root.querySelector<HTMLElement>("#survivorCommandDock") ?? this.fail("Missing survivor command dock.");
+    this.wildSpellbookToggle = this.root.querySelector<HTMLButtonElement>("#survivorWildSpellbookToggle") ?? this.fail("Missing survivor wild spellbook toggle.");
+    this.wildSpellbookPanel = this.root.querySelector<HTMLElement>("#survivorWildSpellbook") ?? this.fail("Missing survivor wild spellbook.");
     this.guidePanel = this.root.querySelector<HTMLElement>("#survivorGuide") ?? this.fail("Missing survivor guide panel.");
     this.activeSpellPanel = this.root.querySelector<HTMLElement>("#survivorActiveSpells") ?? this.fail("Missing survivor active spell panel.");
     this.upgradeGuide = this.root.querySelector<HTMLElement>("#survivorUpgradeGuide") ?? this.fail("Missing survivor upgrade guide.");
@@ -2040,6 +2062,14 @@ export class VoiceSurvivorGame {
         event.preventDefault();
         return;
       }
+      if (this.handlePendingUpgradeKeyboard(event)) {
+        event.preventDefault();
+        return;
+      }
+      if (this.handleWildSpellbookKeyboard(event)) {
+        event.preventDefault();
+        return;
+      }
       if (this.handlePauseMenuKeyboard(event)) {
         event.preventDefault();
         return;
@@ -2060,7 +2090,9 @@ export class VoiceSurvivorGame {
       this.noteTutorialMovement(event.key);
       if (event.code === "Space") {
         event.preventDefault();
-        this.castSpell("evade");
+        if (this.runMode !== "wild") {
+          this.castSpell("evade");
+        }
       }
     });
     window.addEventListener("keyup", (event) => this.keys.delete(event.key.toLowerCase()));
@@ -2075,18 +2107,20 @@ export class VoiceSurvivorGame {
       }
     });
     this.startButton.addEventListener("click", () => this.advanceStartOverlay());
+    this.startWildButton.addEventListener("click", () => this.renderStartWildOverlay());
     this.startExpertButton.addEventListener("click", () => this.start({ skipGuide: true }));
     this.pauseActionButtons().forEach((button, index) => {
       button.addEventListener("focus", () => this.selectPauseAction(index, { focus: false }));
       button.addEventListener("pointerenter", () => this.selectPauseAction(index, { focus: false }));
     });
     this.root.querySelector<HTMLButtonElement>("[data-action='resume']")?.addEventListener("click", () => this.resume());
-    this.root.querySelector<HTMLButtonElement>("[data-action='restart']")?.addEventListener("click", () => this.start());
+    this.root.querySelector<HTMLButtonElement>("[data-action='restart']")?.addEventListener("click", () => this.start({ mode: this.runMode, skipGuide: this.runMode === "wild" }));
     this.root.querySelector<HTMLButtonElement>("[data-action='finish']")?.addEventListener("click", () => this.finishRunFromPause());
     this.voiceButton.addEventListener("click", () => {
       if (this.voiceActive) this.stopVoice();
       else this.startVoice();
     });
+    this.wildSpellbookToggle.addEventListener("click", () => this.openWildSpellbook());
   }
 
   private handleStartKeyboard(event: KeyboardEvent): boolean {
@@ -2104,14 +2138,54 @@ export class VoiceSurvivorGame {
 
   private advanceStartOverlay(): void {
     if (this.startOverlay.classList.contains("is-result")) {
-      this.start();
+      this.start({ mode: this.runMode, skipGuide: this.runMode === "wild" });
       return;
     }
     if (this.startOverlayMode === "intro") {
       this.renderStartTrainingOverlay();
       return;
     }
+    if (this.startOverlayMode === "wild") {
+      this.start({ mode: "wild", skipGuide: true });
+      return;
+    }
     this.start();
+  }
+
+  private handlePendingUpgradeKeyboard(event: KeyboardEvent): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || event.key !== "Tab") {
+      return false;
+    }
+    if (
+      this.runMode !== "normal" ||
+      !this.running ||
+      this.paused ||
+      this.selectingBuff ||
+      this.gameOver ||
+      this.pendingUpgradeChoices <= 0 ||
+      !this.upgradeOverlay.hidden
+    ) {
+      return false;
+    }
+    this.openPendingUpgradeChoices();
+    return true;
+  }
+
+  private handleWildSpellbookKeyboard(event: KeyboardEvent): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) {
+      return false;
+    }
+    if (this.wildSpellbookOpen) {
+      if (event.key === "Escape" || event.key === "Tab") {
+        this.closeWildSpellbook();
+      }
+      return true;
+    }
+    if (event.key !== "Tab" || this.runMode !== "wild" || !this.running || this.selectingBuff || this.gameOver) {
+      return false;
+    }
+    this.openWildSpellbook();
+    return true;
   }
 
   private renderStartIntroOverlay(): void {
@@ -2121,7 +2195,11 @@ export class VoiceSurvivorGame {
     this.startOverlay.querySelector("h1")!.textContent = "人间大炮一级准备";
     this.startOverlay.querySelector("p")!.textContent = "开局默认听咒语，大声喊出一级准备、人间大炮、发射等咒语施法；键盘 Q/E/R 仍可备用。";
     this.startGuide.hidden = true;
-    this.startButton.textContent = "确定";
+    this.startGuide.replaceChildren();
+    this.startSettingsPanel.hidden = true;
+    this.startSettingsPanel.replaceChildren();
+    this.startButton.textContent = "正常模式";
+    this.startWildButton.hidden = false;
     this.startExpertButton.hidden = true;
   }
 
@@ -2131,9 +2209,85 @@ export class VoiceSurvivorGame {
     this.startOverlay.querySelector(".survivor-kicker")!.textContent = "首次进入游戏";
     this.startOverlay.querySelector("h1")!.textContent = "新人培训";
     this.startOverlay.querySelector("p")!.textContent = "先学会活下来，再学会喊咒语。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。";
+    this.renderStartGuide([
+      ["W", "移动保命", "WASD / 方向键：拉开距离"],
+      ["Q", "一级准备", "Q / 语音：一级准备"],
+      ["E", "人间大炮", "E / 语音：人间大炮"],
+      ["R", "发射收割", "R / 语音：发射、开火"],
+    ]);
+    this.renderUpgradePickModeControl();
     this.startGuide.hidden = false;
+    this.startSettingsPanel.hidden = false;
     this.startButton.textContent = "我是小白";
+    this.startWildButton.hidden = true;
     this.startExpertButton.hidden = false;
+  }
+
+  private renderStartWildOverlay(): void {
+    this.startOverlayMode = "wild";
+    this.startOverlay.classList.remove("is-result");
+    this.resultPanel.hidden = true;
+    this.resultPanel.replaceChildren();
+    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "狂野模式";
+    this.startOverlay.querySelector("h1")!.textContent = "只靠嗓子开炮";
+    this.startOverlay.querySelector("p")!.textContent = "狂野模式会默认解锁所有咒语，不再抽卡；咒语只能用语音触发，怪物密度和数值都会更高。";
+    this.renderStartGuide([
+      ["声", "只能语音施法", "键盘和点击不释放咒语，WASD 仍用于走位"],
+      ["全", "全咒语开局", "开局获得全部基础咒语、乐子咒语和隐藏 Combo"],
+      ["Tab", "暂停查表", "右下角咒语表可按 Tab 呼出，查看细则时游戏暂停"],
+      ["压", "高压怪潮", "怪物更多更硬，声能和基础属性也更高"],
+    ]);
+    this.startGuide.hidden = false;
+    this.startSettingsPanel.hidden = true;
+    this.startSettingsPanel.replaceChildren();
+    this.startButton.textContent = "确认开始狂野模式";
+    this.startWildButton.hidden = true;
+    this.startExpertButton.hidden = true;
+  }
+
+  private renderStartGuide(items: Array<[string, string, string]>): void {
+    this.startGuide.replaceChildren();
+    for (const [key, title, detail] of items) {
+      const row = document.createElement("span");
+      const badge = document.createElement("b");
+      badge.textContent = key;
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const copy = document.createElement("em");
+      copy.textContent = detail;
+      row.append(badge, heading, copy);
+      this.startGuide.append(row);
+    }
+  }
+
+  private renderUpgradePickModeControl(): void {
+    const panel = document.createElement("div");
+    panel.className = "survivor-start-setting";
+    const title = document.createElement("strong");
+    title.textContent = "升级选卡方式选择";
+    const options = document.createElement("div");
+    options.className = "survivor-start-segments";
+
+    ([
+      ["manual", "手动 Tab", "升级先暂存，按 Tab 一次性选完"],
+      ["safe", "安全自动", "压力低时自动弹，也可按 Tab"],
+      ["instant", "立即弹出", "升级后立刻暂停选卡"],
+    ] as const).forEach(([mode, label, description]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.mode = mode;
+      button.className = mode === this.upgradePickMode ? "is-selected" : "";
+      button.setAttribute("aria-pressed", mode === this.upgradePickMode ? "true" : "false");
+      button.innerHTML = `<i>${label}</i><small>${description}</small>`;
+      button.addEventListener("click", () => {
+        this.upgradePickMode = mode;
+        this.renderStartTrainingOverlay();
+      });
+      options.append(button);
+    });
+
+    panel.append(title, options);
+    this.startSettingsPanel.replaceChildren(panel);
   }
 
   private handlePauseMenuKeyboard(event: KeyboardEvent): boolean {
@@ -2206,6 +2360,9 @@ export class VoiceSurvivorGame {
       return false;
     }
     if (this.isMovementKey(event)) {
+      return false;
+    }
+    if (this.runMode === "wild") {
       return false;
     }
     const shortcuts = this.manualShortcutCandidates(event);
@@ -2667,7 +2824,28 @@ export class VoiceSurvivorGame {
     this.say("大声念出咒语：一级准备、人间大炮、发射都能喊出来。");
   }
 
-  private start(options: { skipGuide?: boolean } = {}): void {
+  private showWildStartPrompt(): void {
+    const center = {
+      x: this.width * 0.5,
+      y: clamp(this.height * 0.34, 150, 250),
+    };
+    const headlineSize = clamp(this.width * 0.086, 58, 84);
+    const hintSize = clamp(this.width * 0.03, 24, 34);
+    const promptLife = 2.6;
+
+    this.flashScreen("#ff6f3c", 0.24, 0.2);
+    this.shakeScreen(9, 0.38);
+    this.playZoomPunch(0.065, 0.42);
+    this.addImpactLines(center, "#ff6f3c", 24, 280, 0.46);
+    this.addSpellRing(center, 280, "#ff6f3c", undefined, 1.95);
+    this.addSlamSpellGlyph(center, "狂野模式", "#ffcf5a", headlineSize, 0, promptLife, 2.25, 1);
+    this.addSpellGlyph({ x: center.x, y: center.y + headlineSize * 0.98 }, "全咒语解锁 / 不抽卡 / 只能语音施法", "#8ee8ff", hintSize, promptLife);
+    this.addVoiceDanmakuPin("狂野开局", "喊什么就炸什么", "#ffcf5a", "#8ee8ff");
+    this.say("狂野模式：已解锁所有咒语，不再抽卡；咒语只能靠语音喊出来。");
+  }
+
+  private start(options: { skipGuide?: boolean; mode?: RunMode } = {}): void {
+    this.runMode = options.mode ?? "normal";
     this.running = true;
     this.paused = false;
     this.selectingBuff = false;
@@ -2675,6 +2853,7 @@ export class VoiceSurvivorGame {
     this.voicePausedForUpgrade = false;
     this.voiceCommandsEnabled = true;
     this.gameOver = false;
+    this.closeWildSpellbook({ restorePause: false });
     this.restoreStartOverlay();
     this.startOverlay.hidden = true;
     this.pauseOverlay.hidden = true;
@@ -2686,8 +2865,14 @@ export class VoiceSurvivorGame {
     }
     if (this.voiceInput.isSupported()) {
       this.startVoice();
+    } else if (this.runMode === "wild") {
+      this.say("狂野模式需要语音识别；当前浏览器不可用时只能返回普通模式游玩。");
     }
-    this.showVoiceStartPrompt();
+    if (this.runMode === "wild") {
+      this.showWildStartPrompt();
+    } else {
+      this.showVoiceStartPrompt();
+    }
     this.lastFrame = performance.now();
     cancelAnimationFrame(this.rafId);
     this.rafId = requestAnimationFrame((time) => this.loop(time));
@@ -2697,6 +2882,94 @@ export class VoiceSurvivorGame {
     this.renderStartIntroOverlay();
     this.resultPanel.hidden = true;
     this.resultPanel.replaceChildren();
+  }
+
+  private openWildSpellbook(): void {
+    if (this.runMode !== "wild" || !this.running || this.selectingBuff || this.gameOver || !this.pauseOverlay.hidden) {
+      return;
+    }
+    this.wildSpellbookWasPaused = this.paused;
+    this.wildSpellbookOpen = true;
+    this.paused = true;
+    this.keys.clear();
+    this.renderWildSpellbook();
+    this.updateWildSpellbookVisibility();
+    this.say("狂野咒语表已展开，战斗暂停；按 Tab 或 Esc 收起。");
+  }
+
+  private closeWildSpellbook(options: { restorePause?: boolean } = {}): void {
+    const restorePause = options.restorePause ?? true;
+    if (this.wildSpellbookOpen && restorePause && this.running && !this.gameOver) {
+      this.paused = this.wildSpellbookWasPaused;
+      this.lastFrame = performance.now();
+    }
+    this.wildSpellbookOpen = false;
+    this.wildSpellbookWasPaused = false;
+    this.updateWildSpellbookVisibility();
+    this.syncCommandDockVisibility();
+  }
+
+  private updateWildSpellbookVisibility(): void {
+    const shouldShowToggle = this.runMode === "wild" && this.running && !this.paused && !this.selectingBuff && !this.gameOver && !this.wildSpellbookOpen;
+    this.wildSpellbookToggle.hidden = !shouldShowToggle;
+    this.wildSpellbookPanel.hidden = !this.wildSpellbookOpen;
+    this.wildSpellbookPanel.setAttribute("aria-hidden", this.wildSpellbookOpen ? "false" : "true");
+  }
+
+  private renderWildSpellbook(): void {
+    this.wildSpellbookPanel.replaceChildren();
+
+    const header = document.createElement("header");
+    const titleWrap = document.createElement("div");
+    const eyebrow = document.createElement("span");
+    eyebrow.textContent = "狂野模式";
+    const title = document.createElement("strong");
+    title.textContent = "全咒语细则";
+    const note = document.createElement("em");
+    note.textContent = "战斗已暂停，按 Tab / Esc 收起";
+    titleWrap.append(eyebrow, title, note);
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "收起";
+    close.addEventListener("click", () => this.closeWildSpellbook());
+    header.append(titleWrap, close);
+
+    const list = document.createElement("div");
+    list.className = "survivor-wild-spellbook-list";
+    SPELL_KEYS.forEach((spell) => {
+      const config = SPELL_CONFIG[spell] as SpellConfig;
+      const item = document.createElement("article");
+      item.className = "survivor-wild-spellbook-card";
+
+      const top = document.createElement("div");
+      top.className = "survivor-wild-spellbook-card-top";
+      const name = document.createElement("strong");
+      name.textContent = config.name;
+      const cost = document.createElement("span");
+      cost.textContent = spell === "cannon" || spell === "cannonPrep" || spell === "cannonFire" ? "核心链" : `${config.cost} 声能`;
+      top.append(name, cost);
+
+      const meta = document.createElement("p");
+      meta.textContent = `${config.category} · ${config.stage}`;
+      const effect = document.createElement("p");
+      effect.textContent = config.effect;
+      item.append(top, meta, effect);
+
+      const details: string[] = [];
+      if (config.fragments?.length) details.push(`碎片：${config.fragments.map((fragment) => SPELL_NAMES[fragment as SpellKey] ?? fragment).join(" + ")}`);
+      if (config.links?.length) details.push(`联动：${config.links.join(" / ")}`);
+      if (config.aliases?.length) details.push(`喊法：${config.aliases.slice(0, 4).join("、")}`);
+      if (details.length > 0) {
+        const extra = document.createElement("small");
+        extra.textContent = details.join("；");
+        item.append(extra);
+      }
+
+      list.append(item);
+    });
+
+    this.wildSpellbookPanel.append(header, list);
   }
 
   private pause(): void {
@@ -2709,6 +2982,7 @@ export class VoiceSurvivorGame {
     this.selectPauseAction(0);
     this.syncCommandDockVisibility();
     this.renderGuidePanel();
+    this.updateWildSpellbookVisibility();
   }
 
   private resume(): void {
@@ -2721,6 +2995,7 @@ export class VoiceSurvivorGame {
     this.lastFrame = performance.now();
     this.syncCommandDockVisibility();
     this.renderGuidePanel();
+    this.updateWildSpellbookVisibility();
   }
 
   private togglePause(): void {
@@ -2862,6 +3137,7 @@ export class VoiceSurvivorGame {
     this.xp = 0;
     this.xpGoal = INITIAL_XP_GOAL;
     this.pendingUpgradeChoices = 0;
+    this.manualUpgradeSequenceOpen = false;
     this.elapsed = 0;
     this.spawnTimer = 0.72;
     this.spawnBudget = 1.15;
@@ -2917,7 +3193,9 @@ export class VoiceSurvivorGame {
     this.lightningDamageScale = 0.55;
     this.bangLevel = 1;
     this.skillGoLevel = 1;
-    if (this.testEnvironment) {
+    if (this.runMode === "wild") {
+      this.enableWildMode();
+    } else if (this.testEnvironment) {
       this.enableTestEnvironment();
     }
     this.screenShake = 0;
@@ -2925,6 +3203,34 @@ export class VoiceSurvivorGame {
     this.renderCommandDock();
     this.renderGuidePanel();
     this.say("开局：按 Q 一级准备，按 E 人间大炮瞄准，按 R 发射；普通咒语从 1 开始。");
+  }
+
+  private enableWildMode(): void {
+    this.unlockedSpells = new Set<SpellKey>(SPELL_KEYS);
+    this.refreshVoiceSpellRecognition();
+    this.player.maxHp = 140;
+    this.player.hp = this.player.maxHp;
+    this.player.shield = 28;
+    this.maxEnergy = 220;
+    this.energy = this.maxEnergy;
+    this.energyRegen = BASE_ENERGY_REGEN * 3.2;
+    this.dropEnergyRatio = 0.26;
+    this.cannonMeter = 90;
+    this.spawnBudget = 7.4;
+    this.surgeTimer = 15;
+    this.attackDamage += 4;
+    this.attackRate *= 0.82;
+    this.projectileSpeed += 70;
+    this.moveSpeed += 22;
+    this.magnetRadius += 54;
+    this.cannonShardCount += 4;
+    this.guardTurretCount = Math.max(this.guardTurretCount, 1);
+    this.guardTurretCooldown = 0.2;
+    this.bladeCount = Math.max(this.bladeCount, 1);
+    this.tutorial.guideDismissed = true;
+    this.tutorial.upgradeSeen = true;
+    this.tutorial.upgradeChosen = true;
+    this.recordVoiceBarrage("狂野模式：全咒语解锁，升级跳过抽卡，怪潮加压。", "control");
   }
 
   private enableTestEnvironment(): void {
@@ -2994,8 +3300,8 @@ export class VoiceSurvivorGame {
     this.recordPlayerSnapshot();
     const pressure = this.enemyPressure();
     const ramp = this.elapsed < 20 ? 1.45 : this.elapsed < 70 ? 1 : 0.72;
-    const spawnGain = this.testEnvironment ? 0.34 : 0.085;
-    const pressureDrag = this.testEnvironment ? 0.24 : 0.62;
+    const spawnGain = this.testEnvironment ? 0.34 : this.runMode === "wild" ? 0.22 : 0.085;
+    const pressureDrag = this.testEnvironment ? 0.24 : this.runMode === "wild" ? 0.36 : 0.62;
     this.spawnBudget += dt * spawnGain * ramp * (1 - pressure * pressureDrag);
     const inSilence = this.isPlayerSilenced();
     this.energy = clamp(this.energy + dt * this.energyRegen * (inSilence && !this.testEnvironment ? 0.35 : 1), 0, this.maxEnergy);
@@ -3062,7 +3368,7 @@ export class VoiceSurvivorGame {
     this.updateSurges(dt);
     this.spawnEnemies(dt);
     this.checkLevelUp();
-    this.tryShowPendingUpgradeChoice();
+    this.maybeAutoOpenPendingUpgradeChoices();
     this.updateHudPassThroughState();
   }
 
@@ -3363,6 +3669,7 @@ export class VoiceSurvivorGame {
       ".survivor-resource-panel",
       ".survivor-gm-panel",
       ".survivor-command-dock",
+      ".survivor-wild-spellbook-toggle",
     ].join(", "));
     for (const panel of panels) {
       const bounds = this.hudPanelBoundsInCanvas(panel);
@@ -3835,13 +4142,13 @@ export class VoiceSurvivorGame {
       return;
     }
     this.spawnSurge();
-    this.surgeTimer = Math.max(24, 40 - this.threatTier() * 3);
+    this.surgeTimer = this.runMode === "wild" ? Math.max(16, 28 - this.threatTier() * 2.5) : Math.max(24, 40 - this.threatTier() * 3);
   }
 
   private spawnSurge(): void {
     const tier = this.threatTier();
     const roomLeft = Math.max(0, this.targetEnemyCount() + 6 - this.enemies.length);
-    const count = Math.min(roomLeft, 4 + Math.floor(tier * 1.45));
+    const count = Math.min(roomLeft, (this.runMode === "wild" ? 7 : 4) + Math.floor(tier * (this.runMode === "wild" ? 2.1 : 1.45)));
     for (let i = 0; i < count; i += 1) {
       const type: EnemyType =
         i === 0 && tier >= 3 ? "target" :
@@ -3862,20 +4169,27 @@ export class VoiceSurvivorGame {
     const pressure = this.enemyPressure();
     const targetCount = this.targetEnemyCount();
     const tier = this.threatTier();
-    const pressureLimit = this.testEnvironment ? 1.22 : tier >= 4 ? 1.06 : tier >= 3 ? 1.08 : 1;
+    const pressureLimit = this.testEnvironment ? 1.22 : this.runMode === "wild" ? 1.16 : tier >= 4 ? 1.06 : tier >= 3 ? 1.08 : 1;
     if (pressure >= pressureLimit) {
-      this.spawnTimer = tier >= 4 ? 0.78 : tier >= 3 ? 0.72 : 0.9;
-      this.spawnBudget = Math.min(this.spawnBudget, tier >= 4 ? 1.45 : tier >= 3 ? 1.6 : 1.2);
+      this.spawnTimer = this.runMode === "wild" ? 0.48 : tier >= 4 ? 0.78 : tier >= 3 ? 0.72 : 0.9;
+      this.spawnBudget = Math.min(this.spawnBudget, this.runMode === "wild" ? 2.25 : tier >= 4 ? 1.45 : tier >= 3 ? 1.6 : 1.2);
       return;
     }
     const earlyRush = this.elapsed < 20;
-    const maxBatch = this.testEnvironment ? (earlyRush ? 10 : 14 + tier * 2) : earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 4 + tier;
+    const maxBatch = this.testEnvironment
+      ? (earlyRush ? 10 : 14 + tier * 2)
+      : this.runMode === "wild"
+        ? (earlyRush ? 7 : 10 + tier * 2)
+        : earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 4 + tier;
     const roomLeft = Math.max(0, targetCount - this.enemies.length);
     const count = Math.min(maxBatch, roomLeft, (earlyRush ? 2 : 1) + Math.floor(this.spawnBudget));
     for (let i = 0; i < count; i += 1) {
       this.spawnEnemy(this.pickEnemyType(wave));
     }
-    this.spawnBudget = Math.max(this.testEnvironment ? 3.4 : earlyRush ? 1.05 : 0.7, this.spawnBudget - count * (this.testEnvironment ? 0.38 : 0.62));
+    this.spawnBudget = Math.max(
+      this.testEnvironment ? 3.4 : this.runMode === "wild" ? 2.4 : earlyRush ? 1.05 : 0.7,
+      this.spawnBudget - count * (this.testEnvironment ? 0.38 : this.runMode === "wild" ? 0.46 : 0.62),
+    );
     this.spawnTimer = this.nextSpawnInterval(pressure);
   }
 
@@ -3886,6 +4200,12 @@ export class VoiceSurvivorGame {
       if (this.elapsed < 55) return 74 + tier * 5;
       if (this.elapsed < 100) return 88 + tier * 7;
       return 102 + tier * 8;
+    }
+    if (this.runMode === "wild") {
+      if (this.elapsed < 20) return 42;
+      if (this.elapsed < 55) return 54 + tier * 4;
+      if (this.elapsed < 100) return 66 + tier * 5;
+      return 76 + tier * 6;
     }
     if (this.elapsed < 20) return 20;
     if (this.elapsed < 55) return 24 + tier * 2;
@@ -3902,6 +4222,9 @@ export class VoiceSurvivorGame {
     if (this.testEnvironment) {
       return clamp(0.28 + pressure * 0.18 - tier * 0.025, 0.18, 0.52);
     }
+    if (this.runMode === "wild") {
+      return clamp(0.48 + pressure * 0.28 - tier * 0.045, 0.3, 0.78);
+    }
     const base = this.elapsed < 20 ? 0.86 : this.elapsed < 70 ? 1.08 : 1.36;
     const pressureDelay = pressure * (0.78 - tier * 0.06);
     return clamp(base + pressureDelay - tier * 0.065, 0.5, 2.05);
@@ -3913,6 +4236,7 @@ export class VoiceSurvivorGame {
     const byLevel = this.level >= 10 ? 4 : this.level >= 7 ? 3 : this.level >= 4 ? 2 : this.level >= 2 ? 1 : 0;
     const byTime = this.elapsed >= 175 ? 4 : this.elapsed >= 115 ? 3 : this.elapsed >= 60 ? 2 : this.elapsed >= 28 ? 1 : 0;
     if (this.testEnvironment) return Math.max(2, byBuffs, byLevel, byTime);
+    if (this.runMode === "wild") return Math.max(1, byBuffs, byLevel, byTime);
     return Math.max(byBuffs, byLevel, byTime);
   }
 
@@ -3959,11 +4283,14 @@ export class VoiceSurvivorGame {
   private enemyScaling(): { tier: number; hpMultiplier: number; speedMultiplier: number; damageMultiplier: number } {
     const tier = this.threatTier();
     const minutes = this.elapsed / 60;
+    const wildHpBonus = this.runMode === "wild" ? 0.22 + minutes * 0.05 : 0;
+    const wildSpeedBonus = this.runMode === "wild" ? 0.08 + minutes * 0.015 : 0;
+    const wildDamageBonus = this.runMode === "wild" ? 0.18 + minutes * 0.035 : 0;
     return {
       tier,
-      hpMultiplier: 1 + tier * 0.23 + Math.max(0, minutes - 1) * 0.13,
-      speedMultiplier: 1 + tier * 0.04 + Math.max(0, minutes - 1.3) * 0.02,
-      damageMultiplier: 1 + tier * 0.13 + Math.max(0, minutes - 1) * 0.06,
+      hpMultiplier: 1 + tier * 0.23 + Math.max(0, minutes - 1) * 0.13 + wildHpBonus,
+      speedMultiplier: 1 + tier * 0.04 + Math.max(0, minutes - 1.3) * 0.02 + wildSpeedBonus,
+      damageMultiplier: 1 + tier * 0.13 + Math.max(0, minutes - 1) * 0.06 + wildDamageBonus,
     };
   }
 
@@ -6580,6 +6907,7 @@ export class VoiceSurvivorGame {
     this.gameOver = true;
     this.running = false;
     this.paused = false;
+    this.closeWildSpellbook({ restorePause: false });
     this.pauseOverlay.hidden = true;
     const rating = this.calculateResultRating();
     this.startOverlay.hidden = false;
@@ -6587,8 +6915,11 @@ export class VoiceSurvivorGame {
     this.startOverlay.querySelector(".survivor-kicker")!.textContent = "本局结算";
     this.startOverlay.querySelector("h1")!.textContent = rating.label;
     this.startOverlay.querySelector("p")!.textContent = "声纹战报已生成，所有施法记录进入片尾归档。";
+    this.startSettingsPanel.hidden = true;
+    this.startSettingsPanel.replaceChildren();
     this.renderResultPanel(rating);
     this.startButton.textContent = "再次出击";
+    this.startWildButton.hidden = false;
     this.startExpertButton.hidden = true;
     this.syncCommandDockVisibility();
   }
@@ -6958,6 +7289,12 @@ export class VoiceSurvivorGame {
     this.cannonMeter = clamp(this.cannonMeter + 8 * lateTempo, 0, 100);
     this.addBurst(this.player.position, "#7cff9b", 48);
     this.addBurst(this.player.position, "#8ee8ff", 28);
+    if (this.runMode === "wild") {
+      this.energy = clamp(this.energy + 26 * lateTempo, 0, this.maxEnergy);
+      this.cannonMeter = clamp(this.cannonMeter + 18 * lateTempo, 0, 100);
+      this.say(`狂野模式：Lv.${this.level} 基础成长已生效，跳过抽卡。`);
+      return;
+    }
     if (this.testEnvironment) {
       this.energy = this.maxEnergy;
       this.cannonMeter = 100;
@@ -6965,18 +7302,47 @@ export class VoiceSurvivorGame {
       return;
     }
     this.pendingUpgradeChoices += 1;
-    if (this.shouldDeferUpgradeChoice()) {
-      this.addVoiceDanmakuPin("升级待选择", "大招结束后弹出", "#7cff9b", "#8ee8ff");
-      this.say(`升级到 Lv.${this.level}，强化选择将在当前释放结束后出现。`);
-      return;
-    }
-    this.tryShowPendingUpgradeChoice();
+    this.refreshPendingUpgradePrompt();
+    this.say(this.pendingUpgradeMessage());
+    this.maybeAutoOpenPendingUpgradeChoices();
   }
 
-  private shouldDeferUpgradeChoice(): boolean {
+  private refreshPendingUpgradePrompt(): void {
+    if (this.pendingUpgradeChoices <= 0 || this.runMode !== "normal" || this.gameOver) return;
+    this.addVoiceDanmakuPin("升级待选择", this.pendingUpgradePromptText(), "#7cff9b", "#8ee8ff");
+  }
+
+  private pendingUpgradeMessage(): string {
+    if (this.upgradePickMode === "instant") {
+      return `升级到 Lv.${this.level}，立即打开强化选择。`;
+    }
+    if (this.upgradePickMode === "safe") {
+      return `升级到 Lv.${this.level}，强化已暂存 x${this.pendingUpgradeChoices}；安全时自动弹出，也可按 Tab。`;
+    }
+    return `升级到 Lv.${this.level}，强化已暂存 x${this.pendingUpgradeChoices}。按 Tab 打开升级选择。`;
+  }
+
+  private pendingUpgradePromptText(): string {
+    if (this.upgradePickMode === "instant") return `即将弹出 x${this.pendingUpgradeChoices}`;
+    if (this.upgradePickMode === "safe") return `安全自动 / Tab x${this.pendingUpgradeChoices}`;
+    return `按 Tab 打开 x${this.pendingUpgradeChoices}`;
+  }
+
+  private maybeAutoOpenPendingUpgradeChoices(): void {
+    if (this.upgradePickMode === "manual" || this.pendingUpgradeChoices <= 0 || this.runMode !== "normal") return;
+    if (this.selectingBuff || !this.upgradeOverlay.hidden || this.gameOver || !this.running || this.paused) return;
+    if (this.upgradePickMode === "safe" && this.shouldDeferAutoUpgradeChoice()) {
+      this.refreshPendingUpgradePrompt();
+      return;
+    }
+    this.openPendingUpgradeChoices();
+  }
+
+  private shouldDeferAutoUpgradeChoice(): boolean {
     if (this.player.cannonTime > 0 || this.cannonAiming || this.cannonTarget) return true;
     if (this.comboFlash && this.comboFlash.life > 0) return true;
     if (this.hitStopTime > 0 || this.slowMoTime > 0.12 || this.zoomPunchTime > 0.12) return true;
+    if (this.enemyPressure() > 0.78) return true;
     return (
       this.pendingExternalizeBlasts.length > 0 ||
       this.pendingCardReveals.length > 0 ||
@@ -6990,9 +7356,17 @@ export class VoiceSurvivorGame {
     );
   }
 
-  private tryShowPendingUpgradeChoice(): void {
+  private openPendingUpgradeChoices(): void {
     if (this.pendingUpgradeChoices <= 0 || this.selectingBuff || !this.upgradeOverlay.hidden || this.gameOver || !this.running) return;
-    if (this.shouldDeferUpgradeChoice()) return;
+    this.manualUpgradeSequenceOpen = true;
+    this.showNextPendingUpgradeChoice();
+  }
+
+  private showNextPendingUpgradeChoice(): void {
+    if (!this.manualUpgradeSequenceOpen || this.pendingUpgradeChoices <= 0 || this.selectingBuff || !this.upgradeOverlay.hidden || this.gameOver || !this.running) {
+      this.manualUpgradeSequenceOpen = false;
+      return;
+    }
     this.pendingUpgradeChoices -= 1;
     this.selectingBuff = true;
     this.showBuffChoices();
@@ -7014,7 +7388,9 @@ export class VoiceSurvivorGame {
     this.tutorial.upgradeSeen = true;
     this.upgradeChoices.replaceChildren();
     this.upgradeChoices.setAttribute("role", "listbox");
-    this.upgradeOverlay.querySelector("h1")!.textContent = "选择强化";
+    this.upgradeOverlay.querySelector("h1")!.textContent = this.manualUpgradeSequenceOpen && this.pendingUpgradeChoices > 0
+      ? `选择强化（剩余 ${this.pendingUpgradeChoices}）`
+      : "选择强化";
     this.renderUpgradeGuide(choices);
     for (const [index, buff] of choices.entries()) {
       const button = document.createElement("button");
@@ -7066,7 +7442,13 @@ export class VoiceSurvivorGame {
     this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏和语音识别${this.voiceRecognitionUpdateText(extraVoiceUpdates)}。` : `获得被动强化：${buff.title}，效果已立即生效。`);
     this.resumeVoiceAfterUpgrade();
     this.renderGuidePanel();
-    this.tryShowPendingUpgradeChoice();
+    if (this.manualUpgradeSequenceOpen && this.pendingUpgradeChoices > 0) {
+      this.say(`还有 ${this.pendingUpgradeChoices} 次强化待选择，继续选完。`);
+      this.showNextPendingUpgradeChoice();
+      return;
+    }
+    this.manualUpgradeSequenceOpen = false;
+    this.syncCommandDockVisibility();
   }
 
   private renderUpgradeGuide(choices: readonly Buff[]): void {
@@ -7075,12 +7457,15 @@ export class VoiceSurvivorGame {
     const comboCount = choices.filter((buff) => this.buffKind(buff) === "combo").length;
     const passiveCount = choices.length - spellCount - comboCount;
     const summary = document.createElement("p");
-    summary.textContent = "高亮的是当前选择。缺什么，拿什么。";
+    summary.textContent = this.manualUpgradeSequenceOpen
+      ? "本次打开会把暂存升级一次性选完。高亮的是当前选择。"
+      : "高亮的是当前选择。缺什么，拿什么。";
     const types = document.createElement("div");
     types.className = "survivor-upgrade-guide-types";
     ([
       ["选择", "A/D", "方向键也可"],
       ["确认", "Enter", "拿高亮卡"],
+      ["待选", `${this.pendingUpgradeChoices}`, "本轮剩余"],
       ["牌型", `${spellCount}/${comboCount}/${passiveCount}`, "咒语/组合/被动"],
     ] as const).forEach(([label, count, copy]) => {
       const item = document.createElement("span");
@@ -9163,7 +9548,20 @@ export class VoiceSurvivorGame {
     title.textContent = "持续效果";
     this.activeSpellPanel.append(title);
 
-    if (tracked.length === 0) {
+    if (this.runMode === "normal" && this.pendingUpgradeChoices > 0) {
+      const prompt = document.createElement("button");
+      prompt.type = "button";
+      prompt.className = "survivor-upgrade-prompt-row";
+      prompt.addEventListener("click", () => this.openPendingUpgradeChoices());
+      prompt.innerHTML = `
+        <span>Tab</span>
+        <strong>升级待选择 x${this.pendingUpgradeChoices}</strong>
+        <em>${this.upgradePickMode === "safe" ? "安全时自动，也可手动打开" : this.upgradePickMode === "instant" ? "即将自动打开" : "打开后一次性选完"}</em>
+      `;
+      this.activeSpellPanel.append(prompt);
+    }
+
+    if (tracked.length === 0 && this.pendingUpgradeChoices <= 0) {
       const empty = document.createElement("span");
       empty.className = "survivor-active-empty";
       empty.textContent = "抽到爆炸、冻结、分裂等咒语后显示状态。";
@@ -9305,9 +9703,9 @@ export class VoiceSurvivorGame {
     const header = document.createElement("div");
     header.className = "survivor-command-header";
     const title = document.createElement("strong");
-    title.textContent = "手动施法";
+    title.textContent = this.runMode === "wild" ? "狂野语音咒语" : "手动施法";
     const subtitle = document.createElement("span");
-    subtitle.textContent = "语音默认开启";
+    subtitle.textContent = this.runMode === "wild" ? "只能语音触发，点击和热键不会施法" : "语音默认开启";
     header.append(title, subtitle);
 
     const list = document.createElement("div");
@@ -9337,10 +9735,14 @@ export class VoiceSurvivorGame {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.spell = spell;
-      button.dataset.shortcut = shortcut;
+      button.dataset.shortcut = this.runMode === "wild" ? "声" : shortcut;
       button.dataset.chainStep = step;
       button.addEventListener("click", () => {
         this.pulseCommandButton(button);
+        if (this.runMode === "wild") {
+          this.say("狂野模式：咒语只能靠语音喊出来。");
+          return;
+        }
         this.castSpell(spell);
       });
       cannonActions.append(button);
@@ -9352,7 +9754,9 @@ export class VoiceSurvivorGame {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.spell = spell;
-      if (index < 9) {
+      if (this.runMode === "wild") {
+        button.dataset.shortcut = "声";
+      } else if (index < 9) {
         button.dataset.shortcut = String(index + 1);
       } else {
         const extraShortcut = EXTRA_COMMAND_SHORTCUTS[index - 9];
@@ -9362,6 +9766,10 @@ export class VoiceSurvivorGame {
       }
       button.addEventListener("click", () => {
         this.pulseCommandButton(button);
+        if (this.runMode === "wild") {
+          this.say("狂野模式：咒语只能靠语音喊出来。");
+          return;
+        }
         this.castSpell(spell);
       });
       list.append(button);
@@ -9374,13 +9782,14 @@ export class VoiceSurvivorGame {
   }
 
   private syncCommandDockVisibility(): void {
-    const hidden = !this.running || this.paused || this.selectingBuff || this.gameOver;
+    const hidden = !this.running || this.paused || this.selectingBuff || this.gameOver || this.runMode === "wild";
     this.commandDock.hidden = hidden;
     this.commandDock.setAttribute("aria-hidden", hidden ? "true" : "false");
     if (hidden) this.clearHudPassThroughState();
     this.guidePanel.hidden = hidden || this.tutorial.guideDismissed;
     this.guidePanel.setAttribute("aria-hidden", hidden || this.tutorial.guideDismissed ? "true" : "false");
     if (hidden) this.applyTutorialTargetHighlight(null);
+    this.updateWildSpellbookVisibility();
     window.requestAnimationFrame(() => this.updateCommandDockMetrics());
   }
 
@@ -9408,6 +9817,9 @@ export class VoiceSurvivorGame {
   }
 
   private commandSpells(): SpellKey[] {
+    if (this.runMode === "wild") {
+      return SPELL_KEYS.filter((spell) => !["cannon", "cannonPrep", "cannonFire"].includes(spell));
+    }
     if (this.testEnvironment) {
       return TEST_COMMAND_SPELLS.filter((spell) => this.unlockedSpells.has(spell));
     }
