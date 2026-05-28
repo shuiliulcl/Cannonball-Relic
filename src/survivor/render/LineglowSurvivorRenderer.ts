@@ -120,6 +120,23 @@ export class LineglowSurvivorRenderer {
     };
   }
 
+  private guardTurretAimAngle(position: Vec2): number {
+    let target: Enemy | null = null;
+    let targetDistance = Infinity;
+    for (const enemy of this.enemies) {
+      if (enemy.hp <= 0) continue;
+      const dist = distance(position, enemy.position);
+      if (dist < targetDistance) {
+        target = enemy;
+        targetDistance = dist;
+      }
+    }
+    if (target) {
+      return Math.atan2(target.position.y - position.y, target.position.x - position.x);
+    }
+    return Math.atan2(position.y - this.player.position.y, position.x - this.player.position.x);
+  }
+
   private bladePosition(index: number): Vec2 {
     const count = Math.max(1, this.bladeCount);
     const angle = this.bladeAngle + (Math.PI * 2 * index) / count;
@@ -1056,23 +1073,52 @@ export class LineglowSurvivorRenderer {
     if (this.guardTurretCount > 0) {
       for (let i = 0; i < this.guardTurretCount; i += 1) {
         const position = this.guardTurretPosition(i);
+        const aimAngle = this.guardTurretAimAngle(position);
+        const pulse = 0.85 + Math.sin(this.elapsed * 5.2 + i) * 0.15;
         ctx.save();
         ctx.translate(position.x, position.y);
-        ctx.rotate(this.elapsed * 1.8 + i);
+        ctx.rotate(aimAngle);
         ctx.fillStyle = "#10191d";
-        ctx.strokeStyle = "rgba(117, 238, 226, 0.78)";
+        ctx.strokeStyle = "rgba(117, 238, 226, 0.84)";
         ctx.shadowColor = "rgba(117, 238, 226, 0.5)";
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 11;
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.ellipse(0, 0, 10, 8, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, 10.5, 8, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.strokeStyle = "rgba(156, 255, 138, 0.76)";
+
+        ctx.strokeStyle = "rgba(156, 255, 138, 0.72)";
+        ctx.shadowColor = "rgba(156, 255, 138, 0.42)";
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(5, 0);
-        ctx.lineTo(16, 0);
+        ctx.arc(-2, 0, 6.5 * pulse, Math.PI * 0.56, Math.PI * 1.44);
         ctx.stroke();
+
+        ctx.lineCap = "round";
+        ctx.lineWidth = 2.3;
+        ctx.strokeStyle = "rgba(156, 255, 138, 0.82)";
+        ctx.beginPath();
+        ctx.moveTo(7.5, 0);
+        ctx.lineTo(17.5, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = "#dff9ff";
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(18.5, 0, 2.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#9cff8a";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, 3.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(226, 255, 255, 0.86)";
+        ctx.beginPath();
+        ctx.arc(1.1, -1, 1.1, 0, Math.PI * 2);
+        ctx.fill();
         ctx.shadowBlur = 0;
         ctx.restore();
       }
