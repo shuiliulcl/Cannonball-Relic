@@ -16,7 +16,7 @@ type SpellConfig = {
   links?: readonly string[];
   hidden?: boolean;
   fragments?: readonly string[];
-  aliases: readonly string[];
+  aliases?: readonly string[];
 };
 
 const SPELL_CONFIG = {
@@ -398,6 +398,86 @@ const SPELL_CONFIG = {
 
 export type SpellKey = keyof typeof SPELL_CONFIG;
 
+const SPELL_KEYS = Object.keys(SPELL_CONFIG) as SpellKey[];
+const CORE_VOICE_SPELLS = ["cannon", "cannonPrep", "cannonFire"] as const satisfies readonly SpellKey[];
+const MAX_GENERATED_ALIASES_PER_SEED = 36;
+
+type SpellVoiceCommand = {
+  key: SpellKey;
+  aliases: readonly string[];
+  priority: number;
+};
+
+const SPELL_VOICE_CONFUSABLES: Record<string, readonly string[]> = {
+  爆: ["暴", "报", "抱"],
+  炸: ["诈", "榨", "乍"],
+  冻: ["动", "东"],
+  结: ["洁", "姐"],
+  冰: ["兵"],
+  雷: ["来"],
+  电: ["店", "点"],
+  分: ["纷"],
+  裂: ["烈", "列"],
+  穿: ["传", "串"],
+  透: ["偷"],
+  弹: ["蛋", "谈"],
+  射: ["社", "设", "摄"],
+  闪: ["善", "陕"],
+  避: ["币", "闭", "壁", "必"],
+  护: ["户", "互", "糊"],
+  盾: ["顿", "墩"],
+  聚: ["巨", "句"],
+  拢: ["龙", "笼"],
+  锁: ["索", "所"],
+  定: ["订"],
+  人: ["仁"],
+  间: ["尖", "肩"],
+  炮: ["跑", "泡", "抱", "爆"],
+  级: ["集", "击"],
+  准: ["准"],
+  备: ["背"],
+  发: ["法"],
+  开: ["凯", "铠", "楷", "恺"],
+  火: ["伙", "活", "霍"],
+  梆: ["邦", "棒", "帮", "磅"],
+  技: ["计"],
+  五: ["午", "无"],
+  子: ["指", "止"],
+  棋: ["其", "期"],
+  邪: ["斜", "协", "写"],
+  修: ["休"],
+  当: ["挡"],
+  事: ["是"],
+  办: ["伴"],
+  来: ["莱"],
+  财: ["才"],
+  从: ["葱", "聪", "纵"],
+  容: ["荣", "蓉", "融"],
+  验: ["眼", "盐"],
+  牌: ["排", "盘"],
+  去: ["趣"],
+  早: ["找"],
+  讲: ["奖"],
+  收: ["手", "守"],
+  到: ["道"],
+  知: ["之"],
+  道: ["到"],
+  身: ["伸", "生"],
+  材: ["才", "彩"],
+  曼: ["慢", "蛮"],
+  妙: ["庙"],
+  内: ["那"],
+  耗: ["好", "号"],
+  外: ["歪"],
+  老: ["佬"],
+  己: ["几", "纪", "姬"],
+  明: ["鸣"],
+  天: ["添"],
+  见: ["建"],
+  急: ["集"],
+  哭: ["酷"],
+};
+
 const VOICE_COMBO_CONFIG = {
   stormBloom: {
     name: "雷爆跳弹",
@@ -533,7 +613,7 @@ export type Particle = {
 };
 
 type SpellCue = {
-  kind: "ring" | "fan";
+  kind: "ring" | "fan" | "glyph";
   position: Vec2;
   radius: number;
   color: string;
@@ -595,6 +675,7 @@ type VoiceSurvivorGmApi = {
     guardTurretCount: number;
     placedTurretCount: number;
     unlockedSpells: SpellKey[];
+    voiceSpells: SpellKey[];
   };
 };
 
@@ -612,11 +693,70 @@ const SPELL_COSTS = Object.fromEntries(
   Object.entries(SPELL_CONFIG).map(([key, config]) => [key, config.cost]),
 ) as Record<SpellKey, number>;
 
-const SPELL_COMMAND_ALIASES = Object.entries(SPELL_CONFIG).map(([key, config]) => ({
-  key: key as SpellKey,
-  aliases: config.aliases,
-  priority: (config as SpellConfig).hidden ? 10 : 0,
-}));
+const getCoreVoiceSpells = (): Set<SpellKey> => new Set<SpellKey>(CORE_VOICE_SPELLS);
+
+function addVoiceAlias(aliases: Set<string>, value: string | undefined): void {
+  const normalized = normalizeVoiceText(value ?? "");
+  if (normalized) aliases.add(normalized);
+}
+
+function buildVoiceShorthands(name: string): string[] {
+  const normalized = normalizeVoiceText(name);
+  const chars = [...normalized];
+  if (chars.length < 3) return [];
+  return [chars.slice(0, 2).join(""), chars.slice(-2).join(""), `${chars[0]}${chars[chars.length - 1]}`];
+}
+
+function buildConfusableVoiceAliases(seed: string): string[] {
+  const normalized = normalizeVoiceText(seed);
+  if (!normalized) return [];
+
+  const aliases = new Set<string>([normalized]);
+  const chars = [...normalized];
+  for (let index = 0; index < chars.length; index += 1) {
+    for (const replacement of SPELL_VOICE_CONFUSABLES[chars[index]] ?? []) {
+      const variant = [...chars];
+      variant[index] = replacement;
+      aliases.add(variant.join(""));
+      if (aliases.size >= MAX_GENERATED_ALIASES_PER_SEED) {
+        return [...aliases];
+      }
+    }
+  }
+  return [...aliases];
+}
+
+function buildSpellVoiceAliases(config: SpellConfig): string[] {
+  const seeds = new Set<string>();
+  addVoiceAlias(seeds, config.name);
+  for (const alias of config.aliases ?? []) {
+    addVoiceAlias(seeds, alias);
+  }
+  for (const shorthand of buildVoiceShorthands(config.name)) {
+    addVoiceAlias(seeds, shorthand);
+  }
+
+  const aliases = new Set<string>();
+  for (const seed of seeds) {
+    for (const alias of buildConfusableVoiceAliases(seed)) {
+      addVoiceAlias(aliases, alias);
+    }
+  }
+  return [...aliases].sort((a, b) => b.length - a.length || a.localeCompare(b, "zh-Hans-CN"));
+}
+
+function buildSpellVoiceCommands(spells: Iterable<SpellKey>): SpellVoiceCommand[] {
+  return [...spells].map((key) => {
+    const config = SPELL_CONFIG[key] as SpellConfig;
+    return {
+      key,
+      aliases: buildSpellVoiceAliases(config),
+      priority: config.hidden ? 10 : 0,
+    };
+  });
+}
+
+const SPELL_COMMAND_ALIASES = buildSpellVoiceCommands(SPELL_KEYS);
 
 const VOICE_CONTROL_ALIASES: Array<{ command: VoiceControlAction["command"]; aliases: readonly string[] }> = [
   {
@@ -671,11 +811,11 @@ function normalizeVoiceText(text: string): string {
   return text.toLowerCase().replace(/[\s,.;:!?，。；：！？、'"`~()[\]{}<>《》【】]/g, "");
 }
 
-function matchSpells(text: string): SpellKey[] {
+function matchSpells(text: string, commands: readonly SpellVoiceCommand[] = SPELL_COMMAND_ALIASES): SpellKey[] {
   const normalized = normalizeVoiceText(text);
   if (!normalized) return [];
   const matches: Array<{ key: SpellKey; position: number; length: number; priority: number }> = [];
-  for (const command of SPELL_COMMAND_ALIASES) {
+  for (const command of commands) {
     let bestMatch: { key: SpellKey; position: number; length: number; priority: number } | undefined;
     for (const alias of command.aliases) {
       const aliasForm = normalizeVoiceText(alias);
@@ -755,8 +895,8 @@ function matchVoiceCombo(text: string, spells: readonly SpellKey[]): VoiceComboK
   return sequenceMatch?.[0] ?? null;
 }
 
-function matchSurvivorVoiceActions(text: string): SurvivorVoiceAction[] {
-  const spells = matchSpells(text);
+function matchSurvivorVoiceActions(text: string, spellCommands: readonly SpellVoiceCommand[] = SPELL_COMMAND_ALIASES): SurvivorVoiceAction[] {
+  const spells = matchSpells(text, spellCommands);
   const combo = matchVoiceCombo(text, spells);
   if (!combo) {
     return spells.map((spell) => ({ type: "spell", spell }));
@@ -836,8 +976,18 @@ export class VoiceSurvivorGame {
   private particles: Particle[] = [];
   private spellCues: SpellCue[] = [];
   private comboFlash: ComboFlash | null = null;
+  private screenShakeTime = 0;
+  private screenShakeDuration = 0;
+  private screenShakeStrength = 0;
+  private screenFlashTime = 0;
+  private screenFlashDuration = 0;
+  private screenFlashRgb = "255,255,255";
+  private screenFlashAlpha = 0;
+  private hitStopTime = 0;
   private turrets: Turret[] = [];
   private unlockedSpells = new Set<SpellKey>(["cannon", "cannonPrep", "cannonFire"]);
+  private voiceRecognizedSpells = getCoreVoiceSpells();
+  private voiceSpellCommands = buildSpellVoiceCommands(this.voiceRecognizedSpells);
   private ownedBuffs = new Map<string, number>();
   private spellChain: SpellKey[] = [];
   private repeatableSpellChain: SpellKey[] = [];
@@ -1037,6 +1187,7 @@ export class VoiceSurvivorGame {
         guardTurretCount: this.guardTurretCount,
         placedTurretCount: this.turrets.length,
         unlockedSpells: [...this.unlockedSpells],
+        voiceSpells: [...this.voiceRecognizedSpells],
       }),
     };
   }
@@ -1109,6 +1260,7 @@ export class VoiceSurvivorGame {
   private gmUnlockSpell(spell: SpellKey): boolean {
     this.gmStart();
     this.unlockedSpells.add(spell);
+    this.refreshVoiceSpellRecognition();
     this.energy = this.maxEnergy;
     this.renderCommandDock();
     this.say(`GM: unlock ${spell}`);
@@ -1126,6 +1278,7 @@ export class VoiceSurvivorGame {
   private gmSpawnPlacedTurrets(count = 5): void {
     this.gmStart();
     this.unlockedSpells.add("skillGo");
+    this.refreshVoiceSpellRecognition();
     this.skillGoLevel = Math.max(this.skillGoLevel, 3);
     const turretCount = clamp(Math.round(count), 1, 12);
     for (let i = 0; i < turretCount; i += 1) {
@@ -1160,6 +1313,7 @@ export class VoiceSurvivorGame {
       "gather",
       "skillGo",
     ] as SpellKey[]).forEach((spell) => this.unlockedSpells.add(spell));
+    this.refreshVoiceSpellRecognition();
     this.activeMods.explosionTime = 18;
     this.activeMods.freezeTime = 18;
     this.activeMods.lightningTime = 18;
@@ -1216,20 +1370,89 @@ export class VoiceSurvivorGame {
   }
 
   private castManualShortcut(event: KeyboardEvent): boolean {
-    const shortcut = event.key.toLowerCase();
-    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || !/^[1-9qer]$/.test(shortcut)) {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) {
       return false;
     }
+    const shortcuts = this.manualShortcutCandidates(event);
+    if (shortcuts.length === 0) return false;
     if (!this.running || this.selectingBuff || this.gameOver) {
       return false;
     }
-    const button = this.commandDock.querySelector<HTMLButtonElement>(`button[data-shortcut="${shortcut}"]`);
+    const button = this.commandButtonForShortcuts(shortcuts);
     const spell = button?.dataset.spell as SpellKey | undefined;
-    if (!spell) {
+    if (!button || !spell) {
       return false;
     }
+    this.pulseCommandButton(button);
     this.castSpell(spell);
     return true;
+  }
+
+  private manualShortcutCandidates(event: KeyboardEvent): string[] {
+    const candidates = new Set<string>();
+    const add = (value: string | undefined) => {
+      const normalized = this.normalizeManualShortcut(value ?? "");
+      if (normalized) candidates.add(normalized);
+    };
+
+    add(event.key);
+
+    if (!event.shiftKey && /^Digit[1-9]$/.test(event.code)) {
+      add(event.code.slice(5));
+    }
+
+    const codeAliases: Record<string, string> = {
+      NumpadMultiply: "*",
+      NumpadAdd: "+",
+      NumpadSubtract: "-",
+      NumpadDivide: "/",
+      NumpadDecimal: ".",
+    };
+    add(codeAliases[event.code]);
+
+    return [...candidates];
+  }
+
+  private normalizeManualShortcut(value: string): string {
+    const normalized = value.trim().toLowerCase();
+    const aliases: Record<string, string> = {
+      "＊": "*",
+      "×": "*",
+      "＋": "+",
+      "－": "-",
+      "／": "/",
+      "！": "!",
+      "＃": "#",
+      "＄": "$",
+      "＞": ">",
+      "？": "?",
+      "～": "~",
+      "．": ".",
+      "。": ".",
+    };
+    return aliases[normalized] ?? normalized;
+  }
+
+  private commandButtonForShortcuts(shortcuts: readonly string[]): HTMLButtonElement | null {
+    const shortcutSet = new Set(shortcuts);
+    const buttons = [...this.commandDock.querySelectorAll<HTMLButtonElement>("button[data-spell]")];
+
+    for (const button of buttons) {
+      if (shortcutSet.has(this.normalizeManualShortcut(button.dataset.shortcut ?? ""))) {
+        return button;
+      }
+    }
+
+    for (const button of buttons) {
+      const spell = button.dataset.spell as SpellKey | undefined;
+      if (!spell || (CORE_VOICE_SPELLS as readonly SpellKey[]).includes(spell)) continue;
+      const glyph = getLineglowSpellArt(spell).glyph;
+      if (shortcutSet.has(this.normalizeManualShortcut(glyph))) {
+        return button;
+      }
+    }
+
+    return null;
   }
 
   private resize(): void {
@@ -1296,7 +1519,32 @@ export class VoiceSurvivorGame {
     if (!this.voiceCommandsEnabled) {
       return controls.filter((action) => action.command === "start");
     }
-    return controls.length > 0 ? controls : matchSurvivorVoiceActions(text);
+    return controls.length > 0 ? controls : matchSurvivorVoiceActions(text, this.voiceSpellCommands);
+  }
+
+  private refreshVoiceSpellRecognition(): SpellKey[] {
+    const next = getCoreVoiceSpells();
+    for (const spell of this.unlockedSpells) {
+      next.add(spell);
+    }
+
+    for (const spell of SPELL_KEYS) {
+      const config = SPELL_CONFIG[spell] as SpellConfig;
+      const fragments = (config.fragments ?? []) as readonly SpellKey[];
+      if (config.hidden && fragments.length > 0 && fragments.every((fragment) => next.has(fragment))) {
+        next.add(spell);
+      }
+    }
+
+    const added = [...next].filter((spell) => !this.voiceRecognizedSpells.has(spell));
+    this.voiceRecognizedSpells = next;
+    this.voiceSpellCommands = buildSpellVoiceCommands(this.voiceRecognizedSpells);
+    return added;
+  }
+
+  private voiceRecognitionUpdateText(spells: readonly SpellKey[]): string {
+    if (spells.length === 0) return "";
+    return `；语音识别已同步：${spells.map((spell) => SPELL_NAMES[spell]).join("、")}`;
   }
 
   private handleVoiceControl(action: VoiceControlAction): void {
@@ -1393,8 +1641,16 @@ export class VoiceSurvivorGame {
     this.particles = [];
     this.spellCues = [];
     this.comboFlash = null;
+    this.screenShakeTime = 0;
+    this.screenShakeDuration = 0;
+    this.screenShakeStrength = 0;
+    this.screenFlashTime = 0;
+    this.screenFlashDuration = 0;
+    this.screenFlashAlpha = 0;
+    this.hitStopTime = 0;
     this.turrets = [];
     this.unlockedSpells = new Set(["cannon", "cannonPrep", "cannonFire"]);
+    this.refreshVoiceSpellRecognition();
     this.ownedBuffs.clear();
     this.spellChain = [];
     this.repeatableSpellChain = [];
@@ -1492,11 +1748,24 @@ export class VoiceSurvivorGame {
   private loop(time: number): void {
     const dt = Math.min(0.033, (time - this.lastFrame) / 1000);
     this.lastFrame = time;
+    const impactPaused = this.hitStopTime > 0;
+    this.updateScreenEffects(dt);
     if (this.running && !this.selectingBuff && !this.gameOver) {
-      this.update(dt);
+      if (impactPaused) {
+        this.updateParticles(dt * 0.18);
+        this.updateSpellCues(dt * 0.18);
+      } else {
+        this.update(dt);
+      }
     }
     this.render();
     this.rafId = requestAnimationFrame((next) => this.loop(next));
+  }
+
+  private updateScreenEffects(dt: number): void {
+    this.screenShakeTime = Math.max(0, this.screenShakeTime - dt);
+    this.screenFlashTime = Math.max(0, this.screenFlashTime - dt);
+    this.hitStopTime = Math.max(0, this.hitStopTime - dt);
   }
 
   private update(dt: number): void {
@@ -2132,6 +2401,7 @@ export class VoiceSurvivorGame {
 
     switch (comboKey) {
       case "stormBloom": {
+        this.playSpellImpact({ glyph: "爆", glyphCount: 6, glyphSize: 58, color: "#e5ff66", shake: 10, flash: 0.22, hitStop: 0.055, radius: 158, particles: 24 });
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.5 * power);
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.5 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.5 * power);
@@ -2144,6 +2414,7 @@ export class VoiceSurvivorGame {
         break;
       }
       case "iceBomb": {
+        this.playSpellImpact({ glyph: "冰", glyphCount: 6, glyphSize: 54, color: "#9be7ff", shake: 9, flash: 0.2, hitStop: 0.05, radius: 150, particles: 22 });
         const radius = this.freezePulseRadius + 52;
         this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 3.8 * power);
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.2 * power);
@@ -2154,6 +2425,7 @@ export class VoiceSurvivorGame {
         break;
       }
       case "thunderRicochet": {
+        this.playSpellImpact({ glyph: "电", glyphCount: 4, glyphSize: 60, color: "#e5ff66", shake: 7, flash: 0.16, hitStop: 0.035, radius: 126, particles: 18 });
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.2 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
         this.chainLightning(this.player.position, (20 + this.lightningJumps * 2) * power);
@@ -2167,6 +2439,7 @@ export class VoiceSurvivorGame {
         break;
       }
       case "scatterRicochet": {
+        this.playSpellImpact({ glyph: "散", glyphCount: 3, glyphSize: 50, color: "#8ee8ff", shake: 4, flash: 0.08, radius: 108, particles: 12 });
         this.activeMods.splitTime = Math.max(this.activeMods.splitTime, 3.6 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.6 * power);
         this.fireComboFan(8 + this.splitExtraPairs * 2, (9 + this.splitDamageBonus) * power, {
@@ -2178,6 +2451,7 @@ export class VoiceSurvivorGame {
         break;
       }
       case "pierceRicochet": {
+        this.playSpellImpact({ glyph: "穿", glyphSize: 122, color: "#ffffff", shake: 6, flash: 0.12, hitStop: 0.035, radius: 118, particles: 14 });
         this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 3.6 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
         this.fireComboFan(6, (14 + this.attackDamage * 0.6) * power, {
@@ -2190,6 +2464,7 @@ export class VoiceSurvivorGame {
         break;
       }
       case "bloomRicochet": {
+        this.playSpellImpact({ glyph: "爆", glyphCount: 5, glyphSize: 58, color: "#ff9b4a", shake: 9, flash: 0.2, hitStop: 0.045, radius: 144, particles: 22 });
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.4 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.4 * power);
         for (const enemy of this.nearbyEnemies(this.player.position, this.ricochetRange + 180, 5)) {
@@ -2202,6 +2477,9 @@ export class VoiceSurvivorGame {
       }
       case "frostBlades": {
         const hasBlades = this.bladeCount > 0;
+        if (hasBlades) {
+          this.playSpellImpact({ glyph: "冰", glyphCount: Math.min(5, this.bladeCount + 1), glyphSize: 48, color: "#9be7ff", shake: 5, flash: 0.1, radius: 116, particles: 12 });
+        }
         this.freezeAround(this.player.position, this.bladeRadius + (hasBlades ? 92 : 54), this.freezeDuration * power);
         if (hasBlades) {
           this.fireComboFan(this.bladeCount + 2, (8 + this.bladeDamage) * power, {
@@ -2216,6 +2494,9 @@ export class VoiceSurvivorGame {
       }
       case "boomBlades": {
         const hasBlades = this.bladeCount > 0;
+        if (hasBlades) {
+          this.playSpellImpact({ glyph: "爆", glyphCount: Math.min(5, this.bladeCount + 1), glyphSize: 54, color: "#ff9b4a", shake: 8, flash: 0.16, hitStop: 0.04, radius: 132, particles: 18 });
+        }
         this.explode(this.player.position, this.bladeRadius + (hasBlades ? 104 : 58), (12 + this.bladeDamage) * power, false);
         if (hasBlades) {
           this.fireComboFan(this.bladeCount + 3, (10 + this.bladeDamage) * power, {
@@ -2229,6 +2510,7 @@ export class VoiceSurvivorGame {
         break;
       }
       case "cannonBloom": {
+        this.playSpellImpact({ glyph: "炮", glyphCount: 6, glyphSize: 64, color: "#ffe27a", shake: 12, flash: 0.24, hitStop: 0.06, radius: 166, particles: 26 });
         const charge = Math.max(1, this.cannonLaunchCharge);
         this.cannonBouncesLeft += 1 + Math.floor(power);
         this.cannonDamage += 18 * power;
@@ -2339,17 +2621,20 @@ export class VoiceSurvivorGame {
         if (this.recentChainIncludes("freeze")) this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 4.5 * power);
         this.explode(this.player.position, this.explosionRadius * 0.55, this.attackDamage * this.explosionDamageScale * power, false);
         this.addBurst(this.player.position, "#ff9b4a", 30);
+        this.playSpellImpact({ glyph: "爆", glyphCount: 5, glyphSize: 58, color: "#ff9b4a", shake: 7, flash: 0.18, hitStop: 0.035, radius: 116, particles: 18 });
         this.say(`爆炸 Buff 开启 ${Math.ceil(this.activeMods.explosionTime)} 秒，记得续。`);
         break;
       case "freeze":
         this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 8 * power);
         this.freezeAround(this.player.position, this.freezePulseRadius, this.freezeDuration * power);
+        this.playSpellImpact({ glyph: "冻", glyphCount: 4, glyphSize: 48, color: "#9be7ff", shake: 2.5, flash: 0.08, radius: 112, particles: 8 });
         this.say(`冻结 Buff 开启 ${Math.ceil(this.activeMods.freezeTime)} 秒。`);
         break;
       case "lightning":
         this.chainLightning(this.player.position, 10 * power);
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 7 * power);
         this.addBurst(this.player.position, "#e5ff66", 26);
+        this.playSpellImpact({ glyph: "雷", glyphCount: 3, glyphSize: 62, color: "#e5ff66", shake: 5, flash: 0.15, hitStop: 0.028, radius: 108, particles: 14 });
         this.say(`雷电 Buff 开启 ${Math.ceil(this.activeMods.lightningTime)} 秒。`);
         break;
       case "split":
@@ -2523,18 +2808,22 @@ export class VoiceSurvivorGame {
 
     switch (spell) {
       case "comboBangFull":
+        this.playHiddenComboImpact(SPELL_NAMES[spell], "#ffcf5a", { glyph: "梆", glyphCount: 5, glyphSize: 58, radius: 138, particles: 30 });
         this.castBangFullCombo(power);
         break;
       case "comboBangTwoFists":
+        this.playHiddenComboImpact(SPELL_NAMES[spell], "#ffe27a", { glyph: "拳", glyphSize: 148, shake: 12, flash: 0.24, radius: 118, particles: 26 });
         this.castBangTwoFists(power);
         break;
       case "comboCardCheck":
+        this.playHiddenComboImpact(SPELL_NAMES[spell], "#f8f1d1", { glyph: "验", glyphCount: 4, glyphSize: 58, shake: 8, flash: 0.16, radius: 128, particles: 22 });
         this.castCardCheckCombo(power);
         break;
       case "comboTooLate":
         this.castTooLateCombo(power);
         break;
       case "comboNoTalk":
+        this.playHiddenComboImpact(SPELL_NAMES[spell], "#e9fbff", { glyph: "禁", glyphCount: 6, glyphSize: 54, shake: 8, flash: 0.18, radius: 154, particles: 24 });
         this.activeMods.refusalTime = Math.max(this.activeMods.refusalTime, 5.5 * power);
         this.clearEnemyShotsNear(this.player.position, 720);
         this.interruptEnemies(999, 520);
@@ -2542,6 +2831,7 @@ export class VoiceSurvivorGame {
         this.say("隐藏 Combo：不讲不讲，拒绝沟通领域展开。");
         break;
       case "comboReceived":
+        this.playHiddenComboImpact(SPELL_NAMES[spell], "#7cff9b", { glyph: "收", glyphCount: 3, glyphSize: 60, shake: 6, flash: 0.12, radius: 116, particles: 18 });
         this.castReceivedCombo(power);
         break;
       case "comboGracefulBody":
@@ -2554,6 +2844,7 @@ export class VoiceSurvivorGame {
         this.say("隐藏 Combo：不知道，我的身材很曼妙。擦弹会攒自信光环。");
         break;
       case "comboExternalize":
+        this.playHiddenComboImpact(SPELL_NAMES[spell], "#c491ff", { glyph: "耗", glyphCount: 4, glyphSize: 62, shake: 9, flash: 0.18, radius: 142, particles: 24 });
         this.castExternalizeCombo(power);
         break;
       case "comboSeeTomorrow":
@@ -2815,6 +3106,9 @@ export class VoiceSurvivorGame {
     this.clearEnemyShotsNear(this.player.position, radius + 60);
     this.player.invuln = Math.max(this.player.invuln, 0.38);
     this.addSpellRing(this.player.position, radius * 0.55, "#ff4f6d", "你已急哭");
+    if (affected > 0) {
+      this.playSpellImpact({ glyph: "急", glyphCount: Math.min(5, Math.max(2, Math.ceil(affected / 2))), glyphSize: 56, color: "#ff4f6d", shake: 7, flash: 0.16, hitStop: 0.04, radius: 138, particles: 18 });
+    }
     this.say(affected > 0 ? `你已急哭：${affected} 个敌人红温破防。` : "你已急哭：先稳住，红温留给下一波。");
   }
 
@@ -3149,6 +3443,7 @@ export class VoiceSurvivorGame {
     this.recordSpell("cannonFire");
     this.addBurst(this.player.position, "#ffe27a", 40);
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
+    this.playSpellImpact({ glyph: "发射", glyphSize: 128 + charge * 16, color: "#ffe27a", shake: 12 + charge * 2, flash: 0.26, hitStop: 0.08, radius: 118 + charge * 18, particles: 28 + charge * 8 });
     this.say(`发射！${charge} 层充能，${charge} 次弹射。`);
     return true;
   }
@@ -3177,6 +3472,7 @@ export class VoiceSurvivorGame {
     this.clearEnemyShotsNear(this.player.position, radius + 70);
     this.cannonDamage = 0;
     this.cannonLaunchCharge = 0;
+    this.playSpellImpact({ glyph: "轰", glyphSize: 168 + charge * 18, color: "#ff9b4a", shake: 14 + charge * 2, flash: 0.24, hitStop: 0.065, radius: 145 + charge * 24, particles: 38 + charge * 10 });
     this.say(`落地冲击！清场半径 ${Math.round(radius)}，短暂无敌。`);
   }
 
@@ -3291,6 +3587,7 @@ export class VoiceSurvivorGame {
       this.energy = clamp(this.energy + hits * 5, 0, this.maxEnergy);
       this.cannonMeter = clamp(this.cannonMeter + hits * 4, 0, 100);
       this.addSpellRing(this.player.position, 120, "#ffcf5a", `梆 x${hits}`);
+      this.playSpellImpact({ glyph: "梆", glyphCount: hits > 1 ? Math.min(3, hits) : 1, glyphSize: hits > 1 ? 76 : 128, color: "#ffcf5a", shake: 5 + hits, flash: 0.1, hitStop: 0.035, radius: 92 + hits * 12, particles: 8 + hits * 4 });
       this.say(hits >= 2 ? "很梆，梆梆两下。" : "梆了一下。");
     }
   }
@@ -3551,15 +3848,17 @@ export class VoiceSurvivorGame {
     buff.apply();
     this.ownedBuffs.set(buff.id, (this.ownedBuffs.get(buff.id) ?? 0) + 1);
     if (buff.spell) this.unlockedSpells.add(buff.spell);
+    const voiceUpdates = this.refreshVoiceSpellRecognition();
     this.selectingBuff = false;
     this.upgradeOverlay.hidden = true;
     this.renderCommandDock();
     this.addBuffFeedback(buff);
+    const extraVoiceUpdates = buff.spell ? voiceUpdates.filter((spell) => spell !== buff.spell) : voiceUpdates;
     if (options.gm) {
       this.say(buff.spell ? `GM: unlocked ${buff.spell}` : `GM: buff ${buff.id}`);
       return;
     }
-    this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏。` : `获得被动强化：${buff.title}，效果已立即生效。`);
+    this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏和语音识别${this.voiceRecognitionUpdateText(extraVoiceUpdates)}。` : `获得被动强化：${buff.title}，效果已立即生效。`);
     this.resumeVoiceAfterUpgrade();
   }
 
@@ -3580,6 +3879,107 @@ export class VoiceSurvivorGame {
     const kind = this.buffKind(buff);
     const color = kind === "spell" ? "#8ee8ff" : kind === "combo" ? "#ffe27a" : "#7cff9b";
     this.addBurst(this.player.position, color, kind === "passive" ? 18 : 26);
+  }
+
+  private playSpellImpact(options: {
+    position?: Vec2;
+    glyph?: string;
+    glyphCount?: number;
+    glyphSize?: number;
+    glyphSpread?: number;
+    color: string;
+    shake?: number;
+    flash?: number;
+    hitStop?: number;
+    radius?: number;
+    particles?: number;
+  }): void {
+    const position = options.position ?? this.player.position;
+    if (options.shake) {
+      this.shakeScreen(options.shake, 0.22 + options.shake * 0.012);
+    }
+    if (options.flash) {
+      this.flashScreen(options.color, 0.16, options.flash);
+    }
+    if (options.hitStop) {
+      this.hitStopTime = Math.max(this.hitStopTime, options.hitStop);
+    }
+    if (options.glyph) {
+      const glyphCount = Math.max(1, Math.floor(options.glyphCount ?? 1));
+      const glyphSize = options.glyphSize ?? options.radius ?? 86;
+      const glyphSpread = options.glyphSpread ?? options.radius ?? 88;
+      for (let i = 0; i < glyphCount; i += 1) {
+        const angle = this.elapsed * 1.7 + (Math.PI * 2 * i) / glyphCount;
+        const distanceRatio = glyphCount <= 1 ? 0 : 0.24 + (i % 3) * 0.16;
+        const glyphPosition = glyphCount <= 1
+          ? position
+          : {
+              x: clamp(position.x + Math.cos(angle) * glyphSpread * distanceRatio, 24, this.width - 24),
+              y: clamp(position.y + Math.sin(angle) * glyphSpread * distanceRatio, 24, this.height - 24),
+            };
+        this.addSpellGlyph(glyphPosition, options.glyph, options.color, glyphCount <= 1 ? glyphSize : glyphSize * (0.86 + (i % 2) * 0.08));
+      }
+    }
+    if (options.radius) {
+      this.addSpellRing(position, options.radius * 1.32, options.color, undefined, 0.62);
+    }
+    if (options.particles) {
+      this.addBurst(position, options.color, options.particles);
+    }
+  }
+
+  private playHiddenComboImpact(
+    name: string,
+    color = "#ffe27a",
+    options: {
+      glyph?: string;
+      glyphCount?: number;
+      glyphSize?: number;
+      glyphSpread?: number;
+      shake?: number;
+      flash?: number;
+      hitStop?: number;
+      radius?: number;
+      particles?: number;
+    } = {},
+  ): void {
+    const glyph = options.glyph ?? (options.glyphCount && options.glyphCount > 1 ? [...name][0] : name.length > 6 ? name.slice(0, 6) : name);
+    this.playSpellImpact({
+      glyph,
+      color,
+      shake: options.shake ?? 11,
+      flash: options.flash ?? 0.26,
+      hitStop: options.hitStop ?? 0.075,
+      radius: options.radius ?? 132,
+      particles: options.particles ?? 34,
+      glyphCount: options.glyphCount,
+      glyphSize: options.glyphSize,
+      glyphSpread: options.glyphSpread,
+    });
+  }
+
+  private shakeScreen(strength: number, duration: number): void {
+    const active = this.screenShakeTime > 0;
+    this.screenShakeStrength = active ? Math.max(this.screenShakeStrength, strength) : strength;
+    this.screenShakeDuration = active ? Math.max(this.screenShakeDuration, duration) : duration;
+    this.screenShakeTime = Math.max(this.screenShakeTime, duration);
+  }
+
+  private flashScreen(color: string, duration: number, alpha: number): void {
+    const active = this.screenFlashTime > 0;
+    this.screenFlashRgb = this.colorToRgb(color);
+    this.screenFlashDuration = active ? Math.max(this.screenFlashDuration, duration) : duration;
+    this.screenFlashTime = Math.max(this.screenFlashTime, duration);
+    this.screenFlashAlpha = active ? Math.max(this.screenFlashAlpha, alpha) : alpha;
+  }
+
+  private colorToRgb(color: string): string {
+    if (!color.startsWith("#")) return "255,255,255";
+    const raw = color.slice(1);
+    const full = raw.length === 3 ? [...raw].map((part) => `${part}${part}`).join("") : raw;
+    const value = Number.parseInt(full, 16);
+    if (!Number.isFinite(value)) return "255,255,255";
+    return `${(value >> 16) & 255},${(value >> 8) & 255},${value & 255}`;
   }
 
   private draftBuffs(count: number): Buff[] {
@@ -4020,6 +4420,18 @@ export class VoiceSurvivorGame {
     });
   }
 
+  private addSpellGlyph(position: Vec2, label: string, color: string, size: number, life = 0.58): void {
+    this.spellCues.push({
+      kind: "glyph",
+      position: { ...position },
+      radius: size,
+      color,
+      label,
+      life,
+      maxLife: life,
+    });
+  }
+
   private say(message: string): void {
     this.statusLine.textContent = message;
   }
@@ -4027,16 +4439,40 @@ export class VoiceSurvivorGame {
   private render(): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
+    const shake = this.currentShakeOffset();
     ctx.save();
-    if (this.screenShake > 0) {
-      const strength = this.screenShakePower * clamp(this.screenShake / 0.44, 0, 1);
-      ctx.translate((Math.random() - 0.5) * strength, (Math.random() - 0.5) * strength);
-    }
+    ctx.translate(shake.x, shake.y);
     this.renderer.render(ctx, this.getRenderState());
     this.renderSpellCues(ctx);
     ctx.restore();
     this.renderComboFlash(ctx);
+    this.renderScreenFlash(ctx);
     this.renderHudText();
+  }
+
+  private currentShakeOffset(): Vec2 {
+    const comboShake = this.screenShake > 0 ? this.screenShakePower * clamp(this.screenShake / 0.44, 0, 1) : 0;
+    if ((this.screenShakeTime <= 0 || this.screenShakeDuration <= 0) && comboShake <= 0) {
+      return { x: 0, y: 0 };
+    }
+    const fade = this.screenShakeDuration > 0 ? this.screenShakeTime / this.screenShakeDuration : 0;
+    const strength = comboShake + this.screenShakeStrength * fade * fade;
+    return {
+      x: (Math.random() * 2 - 1) * strength,
+      y: (Math.random() * 2 - 1) * strength,
+    };
+  }
+
+  private renderScreenFlash(ctx: CanvasRenderingContext2D): void {
+    if (this.screenFlashTime <= 0 || this.screenFlashDuration <= 0 || this.screenFlashAlpha <= 0) {
+      return;
+    }
+    const fade = this.screenFlashTime / this.screenFlashDuration;
+    ctx.save();
+    ctx.globalAlpha = this.screenFlashAlpha * fade * fade;
+    ctx.fillStyle = `rgb(${this.screenFlashRgb})`;
+    ctx.fillRect(0, 0, this.width, this.height);
+    ctx.restore();
   }
 
   private getRenderState(): SurvivorRenderState {
@@ -4353,6 +4789,24 @@ export class VoiceSurvivorGame {
       ctx.shadowColor = cue.color;
       ctx.shadowBlur = 16;
 
+      if (cue.kind === "glyph") {
+        const scale = 0.72 + progress * 0.72;
+        const lift = progress * 34;
+        ctx.translate(cue.position.x, cue.position.y - lift);
+        ctx.scale(scale, scale);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${Math.max(30, cue.radius)}px Microsoft YaHei, sans-serif`;
+        ctx.lineWidth = Math.max(3, cue.radius * 0.055);
+        ctx.shadowBlur = 28;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
+        ctx.strokeText(cue.label ?? "", 0, 0);
+        ctx.fillStyle = cue.color;
+        ctx.fillText(cue.label ?? "", 0, 0);
+        ctx.restore();
+        continue;
+      }
+
       if (cue.kind === "ring") {
         const radius = cue.radius * (0.38 + progress * 0.82);
         ctx.lineWidth = 2.5;
@@ -4646,6 +5100,10 @@ export class VoiceSurvivorGame {
     const shortcut = button.dataset.shortcut ?? "";
     const spell = button.dataset.spell as SpellKey | undefined;
     const art = getLineglowSpellArt(spell ?? "cannon");
+    const glyphShortcut =
+      spell && art.glyph !== "•" && !(CORE_VOICE_SPELLS as readonly SpellKey[]).includes(spell)
+        ? this.normalizeManualShortcut(art.glyph)
+        : "";
     button.dataset.tone = art.tone;
 
     const icon = document.createElement("span");
@@ -4668,7 +5126,9 @@ export class VoiceSurvivorGame {
     badge.className = "survivor-command-state";
     badge.textContent = state.badge;
 
-    button.setAttribute("aria-label", `${shortcut ? `${shortcut}，` : ""}${state.label}，${state.meta}，${state.badge}`);
+    const glyphHint = glyphShortcut && glyphShortcut !== this.normalizeManualShortcut(shortcut) ? `，图标快捷键 ${art.glyph}` : "";
+    button.title = `${state.title}${glyphHint ? `；也可按 ${art.glyph}` : ""}`;
+    button.setAttribute("aria-label", `${shortcut ? `${shortcut}，` : ""}${state.label}${glyphHint}，${state.meta}，${state.badge}`);
     button.replaceChildren(icon, key, copy, badge);
   }
 
