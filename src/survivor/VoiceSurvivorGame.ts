@@ -747,6 +747,26 @@ type Buff = {
   apply: () => void;
 };
 
+type ResultRating = {
+  label: string;
+  score: number;
+};
+
+type PersonalLeaderboardEntry = {
+  id: string;
+  score: number;
+  rating: string;
+  rawScore: number;
+  kills: number;
+  level: number;
+  survivalTime: number;
+  buffCount: number;
+  spellCasts: number;
+  uniqueSpellCount: number;
+  topSpells: Array<{ spell: SpellKey; count: number }>;
+  createdAt: string;
+};
+
 type CommandButtonState = {
   label: string;
   meta: string;
@@ -878,6 +898,8 @@ const VOICE_CONTROL_ALIASES: Array<{ command: VoiceControlAction["command"]; ali
 
 const BASE_ENERGY_REGEN = 5.4;
 const CANNON_PREP_COSTS = [34, 48, 62] as const;
+const PERSONAL_LEADERBOARD_KEY = "voice-survivor-personal-leaderboard-v1";
+const PERSONAL_LEADERBOARD_LIMIT = 20;
 const INITIAL_XP_GOAL = 10;
 
 const ENEMY_CONFIG: Record<EnemyType, { hp: number; speed: number; radius: number; color: string; label: string; xp: number }> = {
@@ -4738,7 +4760,7 @@ export class VoiceSurvivorGame {
     this.syncCommandDockVisibility();
   }
 
-  private calculateResultRating(): { label: string; score: number } {
+  private calculateResultRating(): ResultRating {
     const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
     const uniqueSpellCount = this.spellCastCounts.size;
     const castCount = [...this.spellCastCounts.values()].reduce((sum, count) => sum + count, 0);
@@ -4758,16 +4780,21 @@ export class VoiceSurvivorGame {
   }
 
   private resultOneLineSummary(resultScore: number): string {
-    return `分数 ${this.score}，击杀 ${this.kills}，生存 ${this.formatResultTime(this.elapsed)}，结算点 ${resultScore}。`;
+    return `分数 ${this.score}，击杀 ${this.kills}，生存 ${this.formatResultTime(this.elapsed)}，记录分 ${resultScore}。`;
   }
 
-  private renderResultPanel(rating: { label: string; score: number }): void {
+  private renderResultPanel(rating: ResultRating): void {
     this.resultPanel.hidden = false;
     this.resultPanel.replaceChildren();
 
     const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
     const castCount = [...this.spellCastCounts.values()].reduce((sum, count) => sum + count, 0);
     const uniqueSpellCount = this.spellCastCounts.size;
+    const topSpells = this.topResultSpells();
+    const leaderboardEntry = this.createPersonalLeaderboardEntry(rating, buffCount, castCount, uniqueSpellCount, topSpells);
+    const personalBoard = this.savePersonalLeaderboard(leaderboardEntry);
+    const bestRecord = personalBoard[0]?.score ?? rating.score;
+    const currentRank = this.personalLeaderboardRank(leaderboardEntry, personalBoard);
 
     const resultConsole = document.createElement("div");
     resultConsole.className = "survivor-result-console";
@@ -4797,6 +4824,7 @@ export class VoiceSurvivorGame {
     heroMeta.className = "survivor-result-hero-meta";
     for (const [label, value] of [
       ["分数", String(this.score)],
+      ["记录分", String(rating.score)],
       ["击杀", String(this.kills)],
       ["生存", this.formatResultTime(this.elapsed)],
     ]) {
@@ -4816,6 +4844,7 @@ export class VoiceSurvivorGame {
     const statItems = [
       ["等级", `Lv.${this.level}`],
       ["战斗分", String(this.score)],
+      ["记录分", String(rating.score)],
       ["击杀", String(this.kills)],
       ["生存", this.formatResultTime(this.elapsed)],
       ["Buff", String(buffCount)],
@@ -4838,7 +4867,6 @@ export class VoiceSurvivorGame {
     spellTitle.textContent = "高频咒语档案";
     const spellList = document.createElement("div");
     spellList.className = "survivor-result-spell-list";
-    const topSpells = this.topResultSpells();
     if (topSpells.length > 0) {
       for (const [spell, count] of topSpells) {
         const item = document.createElement("span");
@@ -4856,6 +4884,56 @@ export class VoiceSurvivorGame {
       spellList.append(empty);
     }
     spellSummary.append(spellTitle, spellList);
+
+    const leaderboard = document.createElement("div");
+    leaderboard.className = "survivor-result-leaderboard";
+    const leaderboardTitle = document.createElement("strong");
+    leaderboardTitle.textContent = "个人排行榜";
+    const records = document.createElement("div");
+    records.className = "survivor-result-records";
+    for (const [label, value] of [
+      ["本局记录分", String(rating.score)],
+      ["历史最高", String(bestRecord)],
+      ["个人名次", currentRank > 0 ? `#${currentRank}` : "-"],
+    ]) {
+      const item = document.createElement("span");
+      const key = document.createElement("i");
+      key.textContent = label;
+      const val = document.createElement("b");
+      val.textContent = value;
+      item.append(key, val);
+      records.append(item);
+    }
+    const historyToggle = document.createElement("button");
+    historyToggle.type = "button";
+    historyToggle.className = "survivor-result-history-toggle";
+    historyToggle.setAttribute("aria-expanded", "false");
+    historyToggle.textContent = `查看过往历史数据（${personalBoard.length}条）`;
+    const rankList = document.createElement("div");
+    rankList.className = "survivor-result-rank-list";
+    rankList.hidden = true;
+    for (const entry of personalBoard) {
+      const rank = this.personalLeaderboardRank(entry, personalBoard);
+      const row = document.createElement("span");
+      if (entry.id === leaderboardEntry.id) row.classList.add("is-current");
+      const order = document.createElement("i");
+      order.textContent = rank > 0 ? `#${rank}` : "#-";
+      const score = document.createElement("b");
+      score.textContent = String(entry.score);
+      const meta = document.createElement("em");
+      meta.textContent = `${entry.rating} / 击杀 ${entry.kills} / ${this.formatResultTime(entry.survivalTime)}`;
+      const date = document.createElement("small");
+      date.textContent = this.formatLeaderboardDate(entry.createdAt);
+      row.append(order, score, meta, date);
+      rankList.append(row);
+    }
+    historyToggle.addEventListener("click", () => {
+      const expanded = rankList.hidden;
+      rankList.hidden = !expanded;
+      historyToggle.setAttribute("aria-expanded", String(expanded));
+      historyToggle.textContent = expanded ? "收起过往历史数据" : `查看过往历史数据（${personalBoard.length}条）`;
+    });
+    leaderboard.append(leaderboardTitle, records, historyToggle, rankList);
 
     const credits = document.createElement("div");
     credits.className = "survivor-result-credits";
@@ -4901,8 +4979,119 @@ export class VoiceSurvivorGame {
     lower.className = "survivor-result-lower";
     lower.append(spellSummary, credits);
 
-    resultConsole.append(hero, stats, lower);
+    resultConsole.append(hero, stats, leaderboard, lower);
     this.resultPanel.append(resultConsole);
+  }
+
+  private createPersonalLeaderboardEntry(
+    rating: ResultRating,
+    buffCount: number,
+    spellCasts: number,
+    uniqueSpellCount: number,
+    topSpells: Array<[SpellKey, number]>,
+  ): PersonalLeaderboardEntry {
+    return {
+      id: this.createLeaderboardEntryId(),
+      score: rating.score,
+      rating: rating.label,
+      rawScore: this.score,
+      kills: this.kills,
+      level: this.level,
+      survivalTime: Math.max(0, Math.floor(this.elapsed)),
+      buffCount,
+      spellCasts,
+      uniqueSpellCount,
+      topSpells: topSpells.map(([spell, count]) => ({ spell, count })),
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  private createLeaderboardEntryId(): string {
+    if (typeof globalThis.crypto?.randomUUID === "function") {
+      return globalThis.crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private loadPersonalLeaderboard(): PersonalLeaderboardEntry[] {
+    try {
+      const raw = window.localStorage.getItem(PERSONAL_LEADERBOARD_KEY);
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((entry): entry is PersonalLeaderboardEntry => this.isPersonalLeaderboardEntry(entry))
+        .sort((a, b) => this.compareLeaderboardEntries(a, b))
+        .slice(0, PERSONAL_LEADERBOARD_LIMIT);
+    } catch {
+      return [];
+    }
+  }
+
+  private savePersonalLeaderboard(entry: PersonalLeaderboardEntry): PersonalLeaderboardEntry[] {
+    const board = [...this.loadPersonalLeaderboard(), entry]
+      .sort((a, b) => this.compareLeaderboardEntries(a, b))
+      .slice(0, PERSONAL_LEADERBOARD_LIMIT);
+    try {
+      window.localStorage.setItem(PERSONAL_LEADERBOARD_KEY, JSON.stringify(board));
+    } catch {
+      // The run result should still render if storage is blocked.
+    }
+    return board;
+  }
+
+  private isPersonalLeaderboardEntry(value: unknown): value is PersonalLeaderboardEntry {
+    if (!value || typeof value !== "object") return false;
+    const entry = value as Partial<PersonalLeaderboardEntry>;
+    return (
+      typeof entry.id === "string" &&
+      Number.isFinite(entry.score) &&
+      typeof entry.rating === "string" &&
+      Number.isFinite(entry.rawScore) &&
+      Number.isFinite(entry.kills) &&
+      Number.isFinite(entry.level) &&
+      Number.isFinite(entry.survivalTime) &&
+      Number.isFinite(entry.buffCount) &&
+      Number.isFinite(entry.spellCasts) &&
+      Number.isFinite(entry.uniqueSpellCount) &&
+      typeof entry.createdAt === "string" &&
+      Array.isArray(entry.topSpells) &&
+      entry.topSpells.every((spell) => this.isLeaderboardSpellRecord(spell))
+    );
+  }
+
+  private isLeaderboardSpellRecord(value: unknown): value is { spell: SpellKey; count: number } {
+    if (!value || typeof value !== "object") return false;
+    const record = value as { spell?: unknown; count?: unknown };
+    return this.isSpellKey(record.spell) && Number.isFinite(record.count);
+  }
+
+  private isSpellKey(value: unknown): value is SpellKey {
+    return typeof value === "string" && Object.prototype.hasOwnProperty.call(SPELL_CONFIG, value);
+  }
+
+  private compareLeaderboardEntries(a: PersonalLeaderboardEntry, b: PersonalLeaderboardEntry): number {
+    return (
+      b.score - a.score ||
+      b.kills - a.kills ||
+      b.survivalTime - a.survivalTime ||
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  private personalLeaderboardRank(entry: PersonalLeaderboardEntry, board: readonly PersonalLeaderboardEntry[]): number {
+    const index = board.findIndex((item) => item.id === entry.id);
+    return index >= 0 ? index + 1 : 0;
+  }
+
+  private formatLeaderboardDate(iso: string): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${month}/${day} ${hours}:${minutes}`;
   }
 
   private voiceResultToneLabel(tone: "heard" | "spell" | "combo" | "control"): string {

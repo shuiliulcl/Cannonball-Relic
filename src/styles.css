@@ -2057,7 +2057,7 @@ button:focus-visible {
 
 .survivor-result-hero-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-top: 2px;
 }
@@ -2089,12 +2089,13 @@ button:focus-visible {
 
 .survivor-result-stats {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 8px;
 }
 
 .survivor-result-stats span,
 .survivor-result-spells,
+.survivor-result-leaderboard,
 .survivor-result-credits {
   border: 1px solid rgba(142, 232, 255, 0.24);
   border-radius: 8px;
@@ -2129,6 +2130,145 @@ button:focus-visible {
   font-size: 21px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.survivor-result-leaderboard {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.survivor-result-leaderboard > strong {
+  color: #8ee8ff;
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+.survivor-result-records {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.survivor-result-records span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border-left: 2px solid rgba(255, 207, 90, 0.74);
+  background: rgba(223, 249, 255, 0.07);
+}
+
+.survivor-result-records i {
+  color: rgba(223, 249, 255, 0.68);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.survivor-result-records b {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff8d6;
+  font-size: 22px;
+  font-weight: 1000;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.survivor-result-history-toggle {
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 207, 90, 0.74);
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, rgba(255, 207, 90, 0.18), rgba(142, 232, 255, 0.08)),
+    rgba(5, 9, 18, 0.52);
+  color: #fff8d6;
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 214, 0.08);
+  font-size: 13px;
+  font-weight: 1000;
+  text-align: center;
+  cursor: pointer;
+}
+
+.survivor-result-history-toggle:hover,
+.survivor-result-history-toggle:focus-visible {
+  border-color: rgba(142, 232, 255, 0.9);
+  background:
+    linear-gradient(90deg, rgba(142, 232, 255, 0.18), rgba(255, 207, 90, 0.12)),
+    rgba(5, 9, 18, 0.62);
+  outline: none;
+}
+
+.survivor-result-rank-list {
+  display: grid;
+  gap: 6px;
+  max-height: 258px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.survivor-result-rank-list[hidden] {
+  display: none;
+}
+
+.survivor-result-rank-list span {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 48px minmax(78px, 0.42fr) minmax(0, 1fr) 82px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(142, 232, 255, 0.14);
+  background: rgba(5, 9, 18, 0.34);
+  color: #dff9ff;
+}
+
+.survivor-result-rank-list span.is-current {
+  border-color: rgba(255, 207, 90, 0.82);
+  background:
+    linear-gradient(90deg, rgba(255, 207, 90, 0.18), rgba(142, 232, 255, 0.08)),
+    rgba(5, 9, 18, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 214, 0.1);
+}
+
+.survivor-result-rank-list i,
+.survivor-result-rank-list b,
+.survivor-result-rank-list em,
+.survivor-result-rank-list small {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.survivor-result-rank-list i {
+  color: #8ee8ff;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.survivor-result-rank-list b {
+  color: #fff8d6;
+  font-size: 18px;
+  font-weight: 1000;
+}
+
+.survivor-result-rank-list em {
+  color: rgba(223, 249, 255, 0.84);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.survivor-result-rank-list small {
+  color: rgba(223, 249, 255, 0.58);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: right;
 }
 
 .survivor-result-lower {
@@ -2608,6 +2748,11 @@ button:focus-visible {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .survivor-result-hero-meta,
+  .survivor-result-records {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .survivor-result-hero,
   .survivor-result-lower {
     grid-template-columns: 1fr;
@@ -2747,6 +2892,21 @@ button:focus-visible {
 
   .survivor-result-hero-meta {
     grid-template-columns: 1fr;
+  }
+
+  .survivor-result-records {
+    grid-template-columns: 1fr;
+  }
+
+  .survivor-result-rank-list span {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 5px 8px;
+  }
+
+  .survivor-result-rank-list em,
+  .survivor-result-rank-list small {
+    grid-column: 2 / -1;
+    text-align: left;
   }
 
   .survivor-result-stats {
