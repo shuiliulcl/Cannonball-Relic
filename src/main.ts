@@ -2,6 +2,7 @@ import "./styles.css";
 import { Game } from "./game/Game";
 import { Input } from "./game/input";
 import { VoiceInput } from "./game/voice";
+import { matchVoiceActions } from "./game/voiceCommands";
 import { SceneView } from "./render/SceneView";
 import { Hud } from "./ui/Hud";
 import { resolveSkinTheme } from "./render/skin";
@@ -186,13 +187,32 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
   const viewLevel = convertedLevel ?? firstCampaignLevel;
   const view = new SceneView(sceneRoot, noObstacles ? [] : viewLevel?.obstacles, viewLevel);
   mountPerfOverlay(view);
-  const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
-  const game = new Game(input, view, hud, convertedLevel, { campaignLevels, godMode, noMonsters, noObstacles });
+const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
+const game = new Game(input, view, hud, convertedLevel, { campaignLevels, godMode, noMonsters, noObstacles });
+let voiceCommandsEnabled = true;
+const matchRelicVoiceActions = (text: string) => {
+  const actions = matchVoiceActions(text);
+  return voiceCommandsEnabled ? actions : actions.filter((action) => action.type === "voice" && action.command === "start");
+};
 const voice = new VoiceInput((actions) => {
   for (const action of actions) {
+    if (action.type === "voice") {
+      if (action.command === "stop") {
+        voiceCommandsEnabled = false;
+        voiceToggle.dataset.state = "standby";
+        voiceToggle.textContent = "Voice Standby";
+        renderVoiceTranscript("Voice commands paused. Say 开启语音 to resume.", ["关闭语音"]);
+      } else {
+        voiceCommandsEnabled = true;
+        voiceToggle.dataset.state = "on";
+        voiceToggle.textContent = "Voice On";
+        renderVoiceTranscript("Voice commands resumed.", ["开启语音"]);
+      }
+      continue;
+    }
     game.queueVoiceAction(action);
   }
-});
+}, matchRelicVoiceActions);
 const voiceTranscriptElement = voiceTranscript;
 
   const startGame = () => {
@@ -281,17 +301,24 @@ voice.observe(({ status, transcript, actions, error }) => {
     renderVoiceTranscript("Voice idle.");
     return;
   }
-  voiceToggle.dataset.state = "on";
-  voiceToggle.textContent = "Voice On";
-  const actionTypes = actions.map((action) => action.type);
-  renderVoiceTranscript(transcript ? `Heard: ${transcript}` : "Listening: say 开 / 发 / 回收 / 闪避.", actionTypes);
+  voiceToggle.dataset.state = voiceCommandsEnabled ? "on" : "standby";
+  voiceToggle.textContent = voiceCommandsEnabled ? "Voice On" : "Voice Standby";
+  const actionTypes = actions.map((action) => (action.type === "voice" ? `voice:${action.command}` : action.type));
+  const message = voiceCommandsEnabled
+    ? transcript
+      ? `Heard: ${transcript}`
+      : "Listening: say 开 / 发 / 回收 / 闪避."
+    : "Voice standby: say 开启语音 to resume.";
+  renderVoiceTranscript(message, actionTypes);
 });
 
 voiceToggle.addEventListener("click", () => {
-  if (voiceToggle.dataset.state === "on") {
+  if (voiceToggle.dataset.state === "on" || voiceToggle.dataset.state === "standby") {
+    voiceCommandsEnabled = true;
     voice.stop();
     return;
   }
+  voiceCommandsEnabled = true;
   voiceToggle.dataset.state = "on";
   voiceToggle.textContent = "Voice On";
   voice.start();

@@ -43,6 +43,9 @@ function defaultActionKey<TAction>(action: TAction): string {
   if (typedAction.type === "hidden") {
     return `hidden:${typedAction.id ?? ""}`;
   }
+  if (typedAction.type === "voice") {
+    return `voice:${(typedAction as { command?: string }).command ?? ""}`;
+  }
   return typedAction.type ?? JSON.stringify(action);
 }
 
@@ -183,6 +186,9 @@ export class VoiceInput<TAction = VoiceAction> {
       if (actionsToEmit.length > 0) {
         this.onActions(actionsToEmit);
       }
+    }
+    if (!this.active) {
+      return;
     }
     this.notify({ status: "listening", transcript: latestTranscript, actions });
   }

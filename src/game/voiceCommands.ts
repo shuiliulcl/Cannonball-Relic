@@ -108,7 +108,36 @@ const EVADE_ALIASES = [
   "evade",
 ] as const;
 
+const VOICE_START_ALIASES = [
+  "开启语音",
+  "打开语音",
+  "启动语音",
+  "开始语音",
+  "语音开启",
+  "语音打开",
+  "开语音",
+  "开麦",
+] as const;
+
+const VOICE_STOP_ALIASES = [
+  "关闭语音",
+  "停止语音",
+  "关掉语音",
+  "语音关闭",
+  "语音停止",
+  "语音暂停",
+  "停止监听",
+  "暂停语音",
+  "关语音",
+  "闭麦",
+  "麦克风关闭",
+  "不要听了",
+  "别听了",
+] as const;
+
 export const VOICE_COMMANDS: readonly VoiceCommand[] = [
+  { id: "voiceStart", aliases: VOICE_START_ALIASES, action: { type: "voice", command: "start" }, priority: 20 },
+  { id: "voiceStop", aliases: VOICE_STOP_ALIASES, action: { type: "voice", command: "stop" }, priority: 20 },
   { id: "fire", aliases: FIRE_ALIASES, action: { type: "fire" } },
   { id: "recall", aliases: RECALL_ALIASES, action: { type: "recall" } },
   { id: "evade", aliases: EVADE_ALIASES, action: { type: "evade" } },
@@ -144,7 +173,7 @@ export function matchVoiceActions(text: string, commands: readonly VoiceCommand[
   const hasExplicitUtilityAction = matches.some((match) => match.id !== "fire");
   const filteredMatches = matches
     .filter((match) => !hasExplicitUtilityAction || match.id !== "fire" || match.aliasLength > 1)
-    .sort((a, b) => b.position - a.position || b.aliasLength - a.aliasLength || b.priority - a.priority);
+    .sort((a, b) => b.priority - a.priority || b.position - a.position || b.aliasLength - a.aliasLength);
 
   return filteredMatches[0] ? [filteredMatches[0].action] : [];
 }

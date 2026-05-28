@@ -7,6 +7,7 @@ export type VoiceAction =
   | { type: "fire" }
   | { type: "recall" }
   | { type: "evade" }
+  | { type: "voice"; command: "start" | "stop" }
   | { type: "hidden"; id: string };
 
 export type MarbleState = "ready" | "charging" | "flying" | "awaitingRecall" | "recalling" | "cannon";

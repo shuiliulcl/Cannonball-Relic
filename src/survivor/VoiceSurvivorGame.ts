@@ -32,7 +32,7 @@ const SPELL_CONFIG = {
     stage: "早期基础咒语",
     effect: "立刻冻结周围敌人，并让攻击短时间附带冻结。",
     links: ["爆炸", "刀刃", "冰裂弹片"],
-    aliases: ["冻结", "冻住", "冰冻", "冰霜", "冷冻", "冰封", "冻洁", "东结", "东洁", "冰住", "冰一下", "冰", "冻", "封", "冷"],
+    aliases: ["冻结", "冻住", "冰冻", "冰霜", "冷冻", "冰封", "冻洁", "东结", "东洁", "冰洞", "冰动", "兵冻", "兵动", "冰住", "冰一下", "冰", "冻", "封", "冷"],
   },
   lightning: {
     name: "雷电",
@@ -173,7 +173,7 @@ const SPELL_CONFIG = {
     category: "通用操作/救场",
     stage: "中期功能咒语",
     effect: "优雅闪避，位移更短但偏冷静返能。",
-    aliases: ["从容", "游刃有余", "稳住", "冷静", "从荣", "葱蓉", "从容一点", "淡定", "稳", "从", "静"],
+    aliases: ["从容", "游刃有余", "稳住", "冷静", "从荣", "葱蓉", "聪容", "从融", "从蓉", "葱容", "葱荣", "纵容", "从容一点", "淡定", "稳", "从", "静"],
   },
   scramble: {
     name: "连滚带爬",
@@ -186,6 +186,13 @@ const SPELL_CONFIG = {
 } as const satisfies Record<string, SpellConfig>;
 
 type SpellKey = keyof typeof SPELL_CONFIG;
+
+type VoiceControlAction = {
+  type: "voice";
+  command: "start" | "stop";
+};
+
+type SurvivorVoiceAction = SpellKey | VoiceControlAction;
 
 type EnemyType = "runner" | "brute" | "pouncer" | "ranged" | "repeater" | "silencer" | "target";
 
@@ -273,6 +280,17 @@ const SPELL_COMMAND_ALIASES = Object.entries(SPELL_CONFIG).map(([key, config]) =
   aliases: config.aliases,
 }));
 
+const VOICE_CONTROL_ALIASES: Array<{ command: VoiceControlAction["command"]; aliases: readonly string[] }> = [
+  {
+    command: "start",
+    aliases: ["开启语音", "打开语音", "启动语音", "开始语音", "语音开启", "语音打开", "开语音", "开麦"],
+  },
+  {
+    command: "stop",
+    aliases: ["关闭语音", "停止语音", "关掉语音", "语音关闭", "语音停止", "语音暂停", "停止监听", "暂停语音", "关语音", "闭麦", "麦克风关闭", "不要听了", "别听了"],
+  },
+];
+
 const BASE_ENERGY_REGEN = 5.4;
 const CANNON_PREP_COSTS = [34, 48, 62] as const;
 
@@ -350,6 +368,28 @@ function matchSpells(text: string): SpellKey[] {
   return selected.map((match) => match.key);
 }
 
+function matchVoiceControl(text: string): VoiceControlAction[] {
+  const normalized = normalizeVoiceText(text);
+  if (!normalized) return [];
+  const matches: Array<{ command: VoiceControlAction["command"]; position: number; length: number }> = [];
+  for (const control of VOICE_CONTROL_ALIASES) {
+    for (const alias of control.aliases) {
+      const aliasForm = normalizeVoiceText(alias);
+      const position = normalized.indexOf(aliasForm);
+      if (position >= 0) {
+        matches.push({ command: control.command, position, length: aliasForm.length });
+        break;
+      }
+    }
+  }
+  const best = matches.sort((a, b) => a.position - b.position || b.length - a.length)[0];
+  return best ? [{ type: "voice", command: best.command }] : [];
+}
+
+function survivorVoiceActionKey(action: SurvivorVoiceAction): string {
+  return typeof action === "string" ? action : `voice:${action.command}`;
+}
+
 export class VoiceSurvivorGame {
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;
@@ -370,8 +410,10 @@ export class VoiceSurvivorGame {
   private xpFill!: HTMLElement;
   private xpText!: HTMLElement;
 
-  private voiceInput!: VoiceInput<SpellKey>;
+  private voiceInput!: VoiceInput<SurvivorVoiceAction>;
   private voiceActive = false;
+  private voiceCommandsEnabled = true;
+  private voicePausedForUpgrade = false;
   private lastFrame = 0;
   private rafId = 0;
   private running = false;
@@ -606,14 +648,14 @@ export class VoiceSurvivorGame {
   }
 
   private setupVoice(): void {
-    this.voiceInput = new VoiceInput<SpellKey>(
-      (spells) => {
-        for (const spell of spells) {
-          this.castSpell(spell);
+    this.voiceInput = new VoiceInput<SurvivorVoiceAction>(
+      (actions) => {
+        for (const action of actions) {
+          this.handleVoiceAction(action);
         }
       },
-      matchSpells,
-      (spell) => spell,
+      (text) => this.matchSurvivorVoiceActions(text),
+      survivorVoiceActionKey,
     );
 
     if (!this.voiceInput.isSupported()) {
@@ -642,17 +684,46 @@ export class VoiceSurvivorGame {
       }
 
       this.voiceActive = true;
-      this.voiceButton.textContent = "语音中";
+      this.voiceButton.textContent = this.voiceCommandsEnabled ? "语音中" : "语音待机";
       if (actions.length > 0) {
-        this.say(`听见了：${transcript} -> ${actions.map((spell) => SPELL_NAMES[spell]).join(" / ")}`);
+        return;
+      }
+      if (!this.voiceCommandsEnabled && transcript) {
+        this.say("语音待机：说“开启语音”恢复。");
       } else if (transcript) {
         this.say(`听见了：${transcript}`);
       }
     });
   }
 
+  private matchSurvivorVoiceActions(text: string): SurvivorVoiceAction[] {
+    const controls = matchVoiceControl(text);
+    if (!this.voiceCommandsEnabled) {
+      return controls.filter((action) => action.command === "start");
+    }
+    return controls.length > 0 ? controls : matchSpells(text);
+  }
+
+  private handleVoiceAction(action: SurvivorVoiceAction): void {
+    if (typeof action === "string") {
+      this.castSpell(action);
+      return;
+    }
+    if (action.command === "stop") {
+      this.voiceCommandsEnabled = false;
+      this.voiceButton.textContent = "语音待机";
+      this.say("语音指令已关闭，说“开启语音”恢复。");
+      return;
+    }
+    this.voiceCommandsEnabled = true;
+    this.voiceButton.textContent = this.voiceActive ? "语音中" : "开启语音";
+    this.say("语音指令已开启。");
+  }
+
   private startVoice(): void {
     if (this.voiceActive) return;
+    this.voicePausedForUpgrade = false;
+    this.voiceCommandsEnabled = true;
     this.voiceActive = true;
     this.voiceButton.textContent = "语音中";
     this.voiceInput.start();
@@ -661,14 +732,40 @@ export class VoiceSurvivorGame {
 
   private stopVoice(): void {
     if (!this.voiceActive) return;
+    this.voicePausedForUpgrade = false;
+    this.voiceCommandsEnabled = true;
     this.voiceActive = false;
     this.voiceButton.textContent = "开启语音";
     this.voiceInput.stop();
   }
 
+  private pauseVoiceForUpgrade(): void {
+    if (!this.voiceActive) {
+      this.voicePausedForUpgrade = false;
+      return;
+    }
+    this.voicePausedForUpgrade = true;
+    this.voiceInput.stop();
+    this.voiceActive = false;
+    this.voiceButton.textContent = "语音暂停";
+  }
+
+  private resumeVoiceAfterUpgrade(): void {
+    if (!this.voicePausedForUpgrade || !this.voiceInput.isSupported()) {
+      this.voicePausedForUpgrade = false;
+      return;
+    }
+    this.voicePausedForUpgrade = false;
+    this.voiceActive = true;
+    this.voiceButton.textContent = this.voiceCommandsEnabled ? "语音中" : "语音待机";
+    this.voiceInput.start();
+  }
+
   private start(): void {
     this.running = true;
     this.selectingBuff = false;
+    this.voicePausedForUpgrade = false;
+    this.voiceCommandsEnabled = true;
     this.gameOver = false;
     this.startOverlay.hidden = true;
     this.resetRun();
@@ -1761,6 +1858,7 @@ export class VoiceSurvivorGame {
   }
 
   private showBuffChoices(): void {
+    this.pauseVoiceForUpgrade();
     const choices = this.draftBuffs(3);
     this.upgradeChoices.replaceChildren();
     for (const buff of choices) {
@@ -1780,6 +1878,7 @@ export class VoiceSurvivorGame {
         this.upgradeOverlay.hidden = true;
         this.renderCommandDock();
         this.say(`获得：${buff.title}`);
+        this.resumeVoiceAfterUpgrade();
       });
       this.upgradeChoices.append(button);
     }
@@ -1863,6 +1962,7 @@ export class VoiceSurvivorGame {
       "spell-gather",
       "spell-explode",
       "spell-freeze",
+      "spell-calm",
       "spell-split",
       "spell-ricochet",
     ].includes(buff.id);
