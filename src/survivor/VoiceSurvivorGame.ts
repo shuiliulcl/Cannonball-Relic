@@ -1432,7 +1432,7 @@ export class VoiceSurvivorGame {
           </div>
           <div class="survivor-voice">
             <button id="survivorVoiceButton" type="button">语音施法</button>
-            <span id="survivorStatus">手动施法就绪；语音可选。</span>
+            <span id="survivorStatus">开局默认听咒语；手动施法随时可用。</span>
           </div>
           <div id="survivorActiveSpells" class="survivor-active-spells" aria-label="持续效果状态"></div>
           <section id="survivorGuide" class="survivor-guide-panel" aria-label="新手引导"></section>
@@ -1462,7 +1462,7 @@ export class VoiceSurvivorGame {
         <div id="survivorStart" class="survivor-overlay">
           <span class="survivor-kicker">语音幸存者肉鸽</span>
           <h1>人间大炮一级准备</h1>
-          <p>自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。</p>
+          <p>开局默认听咒语，大声喊出一级准备、人间大炮、发射等咒语施法；键盘 Q/E/R 仍可备用。</p>
           <div class="survivor-start-guide" aria-label="首次进入操作引导" hidden>
             <span><b>W</b><strong>移动保命</strong><em>WASD / 方向键：拉开距离</em></span>
             <span><b>Q</b><strong>一级准备</strong><em>Q / 语音：一级准备</em></span>
@@ -2073,7 +2073,7 @@ export class VoiceSurvivorGame {
     this.startOverlay.classList.remove("is-result");
     this.startOverlay.querySelector(".survivor-kicker")!.textContent = "语音幸存者肉鸽";
     this.startOverlay.querySelector("h1")!.textContent = "人间大炮一级准备";
-    this.startOverlay.querySelector("p")!.textContent = "自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。";
+    this.startOverlay.querySelector("p")!.textContent = "开局默认听咒语，大声喊出一级准备、人间大炮、发射等咒语施法；键盘 Q/E/R 仍可备用。";
     this.startGuide.hidden = true;
     this.startButton.textContent = "确定";
     this.startExpertButton.hidden = true;
@@ -2084,7 +2084,7 @@ export class VoiceSurvivorGame {
     this.startOverlay.classList.remove("is-result");
     this.startOverlay.querySelector(".survivor-kicker")!.textContent = "首次进入游戏";
     this.startOverlay.querySelector("h1")!.textContent = "新人培训";
-    this.startOverlay.querySelector("p")!.textContent = "先学会活下来，再学会把自己打出去。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。";
+    this.startOverlay.querySelector("p")!.textContent = "先学会活下来，再学会喊咒语。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。";
     this.startGuide.hidden = false;
     this.startButton.textContent = "我是小白";
     this.startExpertButton.hidden = false;
@@ -2554,9 +2554,12 @@ export class VoiceSurvivorGame {
   }
 
   private startVoice(): void {
-    if (this.voiceActive) return;
     this.voicePausedForUpgrade = false;
     this.voiceCommandsEnabled = true;
+    if (this.voiceActive) {
+      this.voiceButton.textContent = "语音中";
+      return;
+    }
     this.voiceActive = true;
     this.voiceButton.textContent = "语音中";
     this.voiceInput.start();
@@ -2595,6 +2598,26 @@ export class VoiceSurvivorGame {
     this.voiceInput.start();
   }
 
+  private showVoiceStartPrompt(): void {
+    const center = {
+      x: this.width * 0.5,
+      y: clamp(this.height * 0.34, 150, 250),
+    };
+    const headlineSize = clamp(this.width * 0.092, 64, 88);
+    const hintSize = clamp(this.width * 0.036, 27, 38);
+    const promptLife = 2.18;
+
+    this.flashScreen("#ffe27a", 0.22, 0.16);
+    this.shakeScreen(7, 0.32);
+    this.playZoomPunch(0.055, 0.34);
+    this.addImpactLines(center, "#ffe27a", 18, 230, 0.38);
+    this.addSpellRing(center, 240, "#ffe27a", undefined, 1.72);
+    this.addSlamSpellGlyph(center, "大声念咒", "#ffe27a", headlineSize, 0, promptLife, 2.15, 0.96);
+    this.addSpellGlyph({ x: center.x, y: center.y + headlineSize * 0.98 }, "一级准备 / 人间大炮 / 发射", "#8ee8ff", hintSize, promptLife);
+    this.addVoiceDanmakuPin("喊出咒语", "一级准备 / 人间大炮 / 发射", "#ffe27a", "#8ee8ff");
+    this.say("大声念出咒语：一级准备、人间大炮、发射都能喊出来。");
+  }
+
   private start(options: { skipGuide?: boolean } = {}): void {
     this.running = true;
     this.paused = false;
@@ -2612,6 +2635,10 @@ export class VoiceSurvivorGame {
       this.tutorial.guideDismissed = true;
       this.renderGuidePanel();
     }
+    if (this.voiceInput.isSupported()) {
+      this.startVoice();
+    }
+    this.showVoiceStartPrompt();
     this.lastFrame = performance.now();
     cancelAnimationFrame(this.rafId);
     this.rafId = requestAnimationFrame((time) => this.loop(time));
@@ -9161,7 +9188,7 @@ export class VoiceSurvivorGame {
     const title = document.createElement("strong");
     title.textContent = "手动施法";
     const subtitle = document.createElement("span");
-    subtitle.textContent = "语音可选";
+    subtitle.textContent = "语音默认开启";
     header.append(title, subtitle);
 
     const list = document.createElement("div");
