@@ -436,3 +436,22 @@ Adjustment:
 Rule added:
 
 - If a player body does not rotate in normal movement, keep the base silhouette radially balanced. Directional silhouettes are only acceptable when the renderer also rotates them to an actual movement, aim, or launch vector.
+
+## Player Readability Pass v6.5
+
+Validation screenshot:
+
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/lineglow-v6-5-player-readability-density.png`
+
+Adjustment:
+
+- Added a density-reactive player visibility layer in `LineglowSurvivorRenderer.ts`.
+- The renderer now counts nearby enemies and strengthens the player treatment only when combat pressure rises.
+- The player gets a small dark focus pocket behind the body, which cuts enemy glow noise around the immediate read area without increasing the gameplay collision radius.
+- Added white/cyan locator arcs and short diagonal ticks around the player. These are radially balanced so they improve visibility without adding a fake movement direction.
+- The central signal core now has a brighter white inner point, so it stays separate from cyan ranged enemies and projectile trails.
+- Bottom HUD panels are slightly less opaque, with retained edge glow, so they cover less of the battlefield while preserving text/bar readability.
+
+Rule added:
+
+- In dense survivor gameplay, evaluate the player as a layered read stack: dark local contrast pocket, bright center, balanced locator ring, skill VFX, then HUD. Do not solve density by only scaling the player body, because that can break collision expectation and crowd spacing.

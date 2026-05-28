@@ -206,6 +206,16 @@ export class LineglowSurvivorRenderer {
     ctx.translate(this.player.position.x, this.player.position.y);
     const cannon = this.player.cannonTime > 0;
     const pulse = 1 + Math.sin(this.elapsed * 7) * 0.08;
+    const pressure = this.playerEnemyPressure();
+    const focusRadius = this.player.radius + 34 + pressure * 18 + (cannon ? 8 : 0);
+    const focus = ctx.createRadialGradient(0, 0, 0, 0, 0, focusRadius);
+    focus.addColorStop(0, `rgba(2, 8, 12, ${0.72 + pressure * 0.16})`);
+    focus.addColorStop(0.42, `rgba(3, 10, 16, ${0.34 + pressure * 0.18})`);
+    focus.addColorStop(1, "rgba(3, 10, 16, 0)");
+    ctx.fillStyle = focus;
+    ctx.beginPath();
+    ctx.arc(0, 0, focusRadius, 0, Math.PI * 2);
+    ctx.fill();
 
     if (this.activeMods.explosionTime > 0 || cannon) {
       ctx.strokeStyle = "rgba(255, 122, 47, 0.5)";
@@ -304,11 +314,35 @@ export class LineglowSurvivorRenderer {
       ctx.shadowBlur = 0;
     }
 
+    const locatorRadius = this.player.radius + 18 + pressure * 5;
+    ctx.strokeStyle = cannon ? `rgba(255, 248, 214, ${0.42 + pressure * 0.32})` : `rgba(226, 255, 255, ${0.44 + pressure * 0.34})`;
+    ctx.shadowColor = cannon ? "rgba(255, 207, 90, 0.65)" : "rgba(117, 238, 226, 0.7)";
+    ctx.shadowBlur = 8 + pressure * 14;
+    ctx.lineWidth = 1.35 + pressure * 0.75;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = this.elapsed * 0.22 + i * (Math.PI / 2);
+      ctx.beginPath();
+      ctx.arc(0, 0, locatorRadius, angle - 0.22 - pressure * 0.04, angle + 0.22 + pressure * 0.04);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = cannon ? "rgba(255, 207, 90, 0.7)" : "rgba(226, 255, 255, 0.68)";
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = Math.PI / 4 + i * (Math.PI / 2);
+      const inner = this.player.radius + 9 + pressure * 2;
+      const outer = this.player.radius + 15 + pressure * 4;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+      ctx.stroke();
+    }
+
     ctx.shadowColor = cannon ? "#ff9a3d" : "#75eee2";
-    ctx.shadowBlur = cannon ? 24 : 16;
-    ctx.fillStyle = "#10151b";
-    ctx.strokeStyle = cannon ? "rgba(255, 154, 61, 0.92)" : "rgba(117, 238, 226, 0.88)";
-    ctx.lineWidth = 2.2;
+    ctx.shadowBlur = cannon ? 26 : 18 + pressure * 10;
+    ctx.fillStyle = "#071017";
+    ctx.strokeStyle = cannon ? "rgba(255, 154, 61, 0.94)" : `rgba(190, 252, 255, ${0.9 + pressure * 0.08})`;
+    ctx.lineWidth = 2.35 + pressure * 0.35;
     ctx.beginPath();
     ctx.arc(0, 0, this.player.radius * 0.96, 0, Math.PI * 2);
     ctx.fill();
@@ -341,8 +375,22 @@ export class LineglowSurvivorRenderer {
     ctx.beginPath();
     ctx.arc(0, -1, (cannon ? 6.4 : 5.2) * pulse, 0, Math.PI * 2);
     ctx.fill();
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = cannon ? "#fff8d6" : "#ecffff";
+    ctx.beginPath();
+    ctx.arc(0, -1, (cannon ? 2.4 : 2.1) * pulse, 0, Math.PI * 2);
+    ctx.fill();
     ctx.shadowBlur = 0;
     ctx.restore();
+  }
+
+  private playerEnemyPressure(): number {
+    let nearby = 0;
+    for (const enemy of this.enemies) {
+      const range = 112 + enemy.radius;
+      if (distance(enemy.position, this.player.position) < range) nearby += enemy.type === "brute" || enemy.type === "target" ? 1.4 : 1;
+    }
+    return clamp(nearby / 8, 0, 1);
   }
 
   private renderEnemies(ctx: CanvasRenderingContext2D): void {
