@@ -1,6 +1,6 @@
 import { VoiceInput } from "../game/voice";
 import { LineglowSurvivorRenderer, type SurvivorRenderState } from "./render/LineglowSurvivorRenderer";
-import { getLineglowSpellArt } from "./render/lineglowTheme";
+import { getLineglowSpellArt, type LineglowTone } from "./render/lineglowTheme";
 
 export type Vec2 = {
   x: number;
@@ -538,6 +538,18 @@ const VOICE_COMBO_CONFIG = {
   { name: string; spells: readonly SpellKey[]; aliases: readonly string[]; effect: string }
 >;
 
+const VOICE_COMBO_DANMAKU_COLORS: Record<keyof typeof VOICE_COMBO_CONFIG, { color: string; accent: string }> = {
+  stormBloom: { color: "#e5ff66", accent: "#ff9b4a" },
+  iceBomb: { color: "#9be7ff", accent: "#ff9b4a" },
+  thunderRicochet: { color: "#e5ff66", accent: "#fff06a" },
+  scatterRicochet: { color: "#8ee8ff", accent: "#fff06a" },
+  pierceRicochet: { color: "#ffffff", accent: "#fff06a" },
+  bloomRicochet: { color: "#ff9b4a", accent: "#fff06a" },
+  frostBlades: { color: "#9be7ff", accent: "#ffffff" },
+  boomBlades: { color: "#ff9b4a", accent: "#ffffff" },
+  cannonBloom: { color: "#ffe27a", accent: "#ff9b4a" },
+};
+
 type VoiceControlAction = {
   type: "voice";
   command: "start" | "stop";
@@ -634,6 +646,35 @@ type ComboFlash = {
   maxLife: number;
 };
 
+type VoiceDanmakuKind = "plain" | "spell" | "combo";
+
+type VoiceDanmaku = {
+  text: string;
+  kind: VoiceDanmakuKind;
+  color: string;
+  accent: string;
+  lane: number;
+  x: number;
+  y: number;
+  speed: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  alpha: number;
+  width: number;
+};
+
+type VoiceDanmakuPin = {
+  label: string;
+  sublabel: string;
+  color: string;
+  accent: string;
+  life: number;
+  maxLife: number;
+  size: number;
+  seed: number;
+};
+
 type ImpactLine = {
   position: Vec2;
   angle: number;
@@ -720,6 +761,7 @@ type VoiceSurvivorGmApi = {
   buff: (id: string, count?: number) => boolean;
   spell: (spell: SpellKey) => boolean;
   cast: (spell: SpellKey) => boolean;
+  voice: (text: string) => string[];
   guard: (count?: number) => void;
   turrets: (count?: number) => void;
   showcase: () => void;
@@ -747,6 +789,15 @@ const SPELL_NAMES = Object.fromEntries(
 const SPELL_COSTS = Object.fromEntries(
   Object.entries(SPELL_CONFIG).map(([key, config]) => [key, config.cost]),
 ) as Record<SpellKey, number>;
+
+const SPELL_TONE_COLORS: Record<LineglowTone, string> = {
+  cyan: "#75eee2",
+  orange: "#ff9a3d",
+  violet: "#b16cff",
+  green: "#9cff8a",
+  red: "#ff4a5f",
+  amber: "#ffc247",
+};
 
 const getCoreVoiceSpells = (): Set<SpellKey> => new Set<SpellKey>(CORE_VOICE_SPELLS);
 
@@ -1037,6 +1088,11 @@ export class VoiceSurvivorGame {
   private particles: Particle[] = [];
   private spellCues: SpellCue[] = [];
   private comboFlash: ComboFlash | null = null;
+  private voiceDanmaku: VoiceDanmaku[] = [];
+  private voiceDanmakuPins: VoiceDanmakuPin[] = [];
+  private lastVoiceDanmakuText = "";
+  private lastVoiceDanmakuAt = 0;
+  private nextVoiceDanmakuLane = 0;
   private screenShakeTime = 0;
   private screenShakeDuration = 0;
   private screenShakeStrength = 0;
@@ -1257,6 +1313,7 @@ export class VoiceSurvivorGame {
       buff: (id: string, count = 1) => this.gmGrantBuff(id, count),
       spell: (spell: SpellKey) => this.gmUnlockSpell(spell),
       cast: (spell: SpellKey) => this.gmCastSpell(spell),
+      voice: (text: string) => this.gmSimulateVoice(text),
       guard: (count = 1) => { this.gmGrantBuff("weapon-guard-turret", count); },
       turrets: (count = 5) => this.gmSpawnPlacedTurrets(count),
       showcase: () => this.gmBuffShowcase(),
@@ -1358,6 +1415,17 @@ export class VoiceSurvivorGame {
     this.upgradeOverlay.hidden = true;
     this.energy = this.maxEnergy;
     return this.castSpell(spell);
+  }
+
+  private gmSimulateVoice(text: string): string[] {
+    const actions = this.matchSurvivorVoiceActions(text);
+    this.addVoiceTranscriptDanmaku(text, actions);
+    if (actions.length > 0) {
+      this.handleVoiceActions(actions);
+    } else if (text.trim()) {
+      this.say(`听见了：${text}`);
+    }
+    return actions.map((action) => voiceActionLabel(action));
   }
 
   private gmSpawnPlacedTurrets(count = 5): void {
@@ -1743,6 +1811,9 @@ export class VoiceSurvivorGame {
 
       this.voiceActive = true;
       this.voiceButton.textContent = this.voiceCommandsEnabled ? "语音中" : "语音待机";
+      if (transcript) {
+        this.addVoiceTranscriptDanmaku(transcript, actions);
+      }
       if (actions.length > 0) {
         return;
       }
@@ -1760,6 +1831,149 @@ export class VoiceSurvivorGame {
       return controls.filter((action) => action.command === "start");
     }
     return controls.length > 0 ? controls : matchSurvivorVoiceActions(text, this.voiceSpellCommands);
+  }
+
+  private addVoiceTranscriptDanmaku(transcript: string, actions: readonly SurvivorVoiceAction[]): void {
+    const text = this.compactVoiceDanmakuText(transcript);
+    const normalized = normalizeVoiceText(text);
+    if (!normalized) return;
+
+    const now = performance.now();
+    const isNearDuplicate =
+      normalized === this.lastVoiceDanmakuText ||
+      (normalized.length <= this.lastVoiceDanmakuText.length && this.lastVoiceDanmakuText.includes(normalized));
+    if (isNearDuplicate && now - this.lastVoiceDanmakuAt < 650) {
+      return;
+    }
+
+    this.lastVoiceDanmakuText = normalized;
+    this.lastVoiceDanmakuAt = now;
+    this.spawnVoiceDanmaku(text, this.voiceDanmakuStyle(actions));
+  }
+
+  private compactVoiceDanmakuText(text: string): string {
+    const normalized = text.trim().replace(/\s+/g, " ");
+    const chars = [...normalized];
+    if (chars.length <= 42) return normalized;
+    return `${chars.slice(0, 41).join("")}...`;
+  }
+
+  private voiceDanmakuStyle(actions: readonly SurvivorVoiceAction[]): Pick<VoiceDanmaku, "kind" | "color" | "accent" | "speed" | "size" | "alpha"> {
+    const comboAction = actions.find((action): action is Extract<SurvivorVoiceAction, { type: "combo" }> => action.type === "combo");
+    if (comboAction) {
+      const colors = this.voiceComboDanmakuColors(comboAction.combo);
+      return { kind: "combo", color: colors.color, accent: colors.accent, speed: 142, size: 25, alpha: 0.86 };
+    }
+
+    const spellAction = actions.find((action): action is Extract<SurvivorVoiceAction, { type: "spell" }> => action.type === "spell");
+    if (spellAction) {
+      if (this.isHiddenComboSpell(spellAction.spell)) {
+        const theme = this.funComboTheme(spellAction.spell);
+        return { kind: "combo", color: theme.color, accent: theme.accent, speed: 144, size: 26, alpha: 0.88 };
+      }
+      const color = this.spellDanmakuColor(spellAction.spell);
+      return { kind: "spell", color, accent: "#ffffff", speed: 126, size: 22, alpha: 0.78 };
+    }
+
+    return { kind: "plain", color: "#ffffff", accent: "#ffffff", speed: 92, size: 15, alpha: 0.34 };
+  }
+
+  private spawnVoiceDanmaku(
+    text: string,
+    style: Pick<VoiceDanmaku, "kind" | "color" | "accent" | "speed" | "size" | "alpha">,
+  ): void {
+    const laneCount = this.voiceDanmakuLaneCount();
+    const lane = this.nextVoiceDanmakuLane % laneCount;
+    this.nextVoiceDanmakuLane = (this.nextVoiceDanmakuLane + 1) % laneCount;
+    const width = this.measureVoiceDanmakuWidth(text, style.size);
+    const travel = this.width + width + 96;
+    const maxLife = clamp(travel / style.speed, 4.2, 7.5);
+
+    this.voiceDanmaku.push({
+      text,
+      kind: style.kind,
+      color: style.color,
+      accent: style.accent,
+      lane,
+      x: -width - 28,
+      y: this.voiceDanmakuLaneY(lane),
+      speed: style.speed,
+      life: maxLife,
+      maxLife,
+      size: style.size,
+      alpha: style.alpha,
+      width,
+    });
+
+    if (this.voiceDanmaku.length > 18) {
+      this.voiceDanmaku.splice(0, this.voiceDanmaku.length - 18);
+    }
+  }
+
+  private addVoiceDanmakuPin(label: string, sublabel: string, color: string, accent: string): void {
+    const existing = this.voiceDanmakuPins.find((pin) => pin.label === label);
+    if (existing) {
+      existing.life = existing.maxLife;
+      existing.sublabel = sublabel;
+      existing.color = color;
+      existing.accent = accent;
+      return;
+    }
+
+    this.voiceDanmakuPins.push({
+      label,
+      sublabel,
+      color,
+      accent,
+      life: 2.15,
+      maxLife: 2.15,
+      size: 38,
+      seed: Math.random() * Math.PI * 2,
+    });
+
+    if (this.voiceDanmakuPins.length > 3) {
+      this.voiceDanmakuPins.splice(0, this.voiceDanmakuPins.length - 3);
+    }
+  }
+
+  private voiceDanmakuLaneCount(): number {
+    return clamp(Math.floor(this.height / 118), 4, 7);
+  }
+
+  private voiceDanmakuLaneY(lane: number): number {
+    const top = clamp(this.height * 0.1, 52, 82);
+    const spacing = clamp(this.height * 0.044, 23, 34);
+    return top + lane * spacing;
+  }
+
+  private updateVoiceDanmaku(dt: number): void {
+    for (const item of this.voiceDanmaku) {
+      item.life -= dt;
+      item.x += item.speed * dt;
+    }
+    this.voiceDanmaku = this.voiceDanmaku.filter((item) => item.life > 0 && item.x < this.width + 48);
+
+    for (const pin of this.voiceDanmakuPins) {
+      pin.life -= dt;
+    }
+    this.voiceDanmakuPins = this.voiceDanmakuPins.filter((pin) => pin.life > 0);
+  }
+
+  private spellDanmakuColor(spell: SpellKey): string {
+    return SPELL_TONE_COLORS[getLineglowSpellArt(spell).tone];
+  }
+
+  private voiceComboDanmakuColors(comboKey: VoiceComboKey): { color: string; accent: string } {
+    return VOICE_COMBO_DANMAKU_COLORS[comboKey];
+  }
+
+  private measureVoiceDanmakuWidth(text: string, size: number): number {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.font = `900 ${size}px Microsoft YaHei, sans-serif`;
+    const width = ctx.measureText(text).width;
+    ctx.restore();
+    return Math.max(24, width);
   }
 
   private refreshVoiceSpellRecognition(): SpellKey[] {
@@ -1918,6 +2132,11 @@ export class VoiceSurvivorGame {
     this.particles = [];
     this.spellCues = [];
     this.comboFlash = null;
+    this.voiceDanmaku = [];
+    this.voiceDanmakuPins = [];
+    this.lastVoiceDanmakuText = "";
+    this.lastVoiceDanmakuAt = 0;
+    this.nextVoiceDanmakuLane = 0;
     this.screenShakeTime = 0;
     this.screenShakeDuration = 0;
     this.screenShakeStrength = 0;
@@ -2071,6 +2290,7 @@ export class VoiceSurvivorGame {
     this.updateLightningArcs(dt);
     this.updateFrostEffects(dt);
     this.updatePlayerAfterimages(dt);
+    this.updateVoiceDanmaku(dt);
   }
 
   private update(dt: number): void {
@@ -2782,6 +3002,8 @@ export class VoiceSurvivorGame {
   private triggerVoiceCombo(comboKey: VoiceComboKey): void {
     const combo = VOICE_COMBO_CONFIG[comboKey];
     const power = this.voiceComboPower(comboKey);
+    const danmakuColors = this.voiceComboDanmakuColors(comboKey);
+    this.addVoiceDanmakuPin(combo.name, "组合咒语接上", danmakuColors.color, danmakuColors.accent);
     this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 2.8 + power);
 
     switch (comboKey) {
@@ -3890,6 +4112,7 @@ export class VoiceSurvivorGame {
     this.playZoomPunch(0.044 + charge * 0.006, 0.24);
     this.addImpactLines(this.player.position, "#ffe27a", 16 + charge * 4, 150 + charge * 26);
     this.playSpellImpact({ glyph: "发射", glyphSize: 128 + charge * 16, color: "#ffe27a", shake: 12 + charge * 2, flash: 0.26, hitStop: 0.08, radius: 118 + charge * 18, particles: 28 + charge * 8 });
+    this.addVoiceDanmakuPin("人间大炮", "发射", "#ffe27a", "#ff9b4a");
     this.say(`发射！${charge} 层充能，${charge} 次弹射。`);
     this.updateCommandDockState();
     return true;
@@ -5120,6 +5343,7 @@ export class VoiceSurvivorGame {
     this.renderImpactLines(ctx);
     this.renderSpellCues(ctx);
     ctx.restore();
+    this.renderVoiceDanmaku(ctx);
     this.renderComboFlash(ctx);
     this.renderScreenFlash(ctx);
     this.renderHudText();
@@ -5720,48 +5944,156 @@ export class VoiceSurvivorGame {
     }
   }
 
+  private renderVoiceDanmaku(ctx: CanvasRenderingContext2D): void {
+    if (this.voiceDanmaku.length <= 0 && this.voiceDanmakuPins.length <= 0) return;
+
+    for (const item of this.voiceDanmaku) {
+      const age = item.maxLife - item.life;
+      const fadeIn = clamp(age / 0.34, 0, 1);
+      const fadeOut = clamp(item.life / 0.58, 0, 1);
+      const alpha = item.alpha * fadeIn * fadeOut;
+      if (alpha <= 0.01) continue;
+
+      const size = this.fitVoiceDanmakuFontSize(
+        ctx,
+        item.text,
+        item.size,
+        this.width * (item.kind === "plain" ? 0.5 : 0.62),
+        item.kind === "plain" ? 12 : 18,
+      );
+      const y = item.y + Math.sin(age * 1.7 + item.lane) * (item.kind === "plain" ? 1.1 : 1.8);
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = `${item.kind === "plain" ? 700 : 900} ${size}px Microsoft YaHei, sans-serif`;
+      ctx.lineJoin = "round";
+      ctx.lineWidth = item.kind === "plain" ? 2.2 : Math.max(3.2, size * 0.13);
+      ctx.strokeStyle = item.kind === "plain" ? "rgba(3, 7, 14, 0.28)" : "rgba(2, 6, 14, 0.68)";
+      ctx.shadowColor = item.kind === "plain" ? "rgba(255, 255, 255, 0.18)" : item.color;
+      ctx.shadowBlur = item.kind === "plain" ? 3 : item.kind === "combo" ? 20 : 13;
+      ctx.strokeText(item.text, item.x, y);
+      ctx.fillStyle = item.color;
+      ctx.fillText(item.text, item.x, y);
+      if (item.kind === "combo") {
+        ctx.globalAlpha = alpha * 0.42;
+        ctx.fillStyle = item.accent;
+        ctx.fillText(item.text, item.x + 1.6, y - 1.3);
+      }
+      ctx.restore();
+    }
+
+    this.renderVoiceDanmakuPins(ctx);
+  }
+
+  private renderVoiceDanmakuPins(ctx: CanvasRenderingContext2D): void {
+    for (const [index, pin] of this.voiceDanmakuPins.entries()) {
+      const age = pin.maxLife - pin.life;
+      const progress = clamp(age / pin.maxLife, 0, 1);
+      const fadeIn = clamp(age / 0.18, 0, 1);
+      const fadeOut = clamp(pin.life / 0.46, 0, 1);
+      const alpha = fadeIn * fadeOut;
+      if (alpha <= 0.01) continue;
+
+      const centerX = this.width / 2;
+      const centerY = clamp(this.height * 0.17, 70, 126) + index * 42 - progress * 8;
+      const pulse = 1 + Math.sin(age * 7.4 + pin.seed) * 0.026;
+      const labelSize = this.fitVoiceDanmakuFontSize(ctx, pin.label, pin.size * pulse, this.width * 0.82, 24);
+      const sublabelSize = this.fitVoiceDanmakuFontSize(ctx, pin.sublabel, 15, this.width * 0.62, 12);
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = pin.color;
+      ctx.shadowBlur = 28;
+      ctx.font = `900 ${labelSize}px Microsoft YaHei, sans-serif`;
+      ctx.lineWidth = Math.max(4, labelSize * 0.12);
+      ctx.strokeStyle = "rgba(2, 5, 14, 0.78)";
+      ctx.fillStyle = pin.color;
+      ctx.strokeText(pin.label, 0, 0);
+      ctx.fillText(pin.label, 0, 0);
+
+      ctx.globalAlpha = alpha * 0.82;
+      ctx.shadowColor = pin.accent;
+      ctx.shadowBlur = 14;
+      ctx.font = `800 ${sublabelSize}px Microsoft YaHei, sans-serif`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(2, 5, 14, 0.58)";
+      ctx.fillStyle = pin.accent;
+      ctx.strokeText(pin.sublabel, 0, labelSize * 0.68);
+      ctx.fillText(pin.sublabel, 0, labelSize * 0.68);
+      ctx.restore();
+    }
+  }
+
+  private fitVoiceDanmakuFontSize(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    targetSize: number,
+    maxWidth: number,
+    minSize: number,
+  ): number {
+    let size = targetSize;
+    ctx.save();
+    while (size > minSize) {
+      ctx.font = `900 ${size}px Microsoft YaHei, sans-serif`;
+      if (ctx.measureText(text).width <= maxWidth) break;
+      size -= 1;
+    }
+    ctx.restore();
+    return Math.max(minSize, size);
+  }
+
   private renderComboFlash(ctx: CanvasRenderingContext2D): void {
     const flash = this.comboFlash;
     if (!flash) return;
     const alpha = clamp(flash.life / flash.maxLife, 0, 1);
     const progress = 1 - alpha;
     const centerX = this.width / 2;
-    const centerY = this.height * 0.32;
+    const centerY = clamp(this.height * 0.22, 100, 165);
     const pulse = 1 + Math.sin(progress * Math.PI) * 0.08;
 
     ctx.save();
-    ctx.globalAlpha = alpha * 0.28;
-    const gradient = ctx.createRadialGradient(centerX, centerY, 20, centerX, centerY, Math.max(this.width, this.height) * 0.62);
+    ctx.globalAlpha = alpha * 0.18;
+    const gradient = ctx.createRadialGradient(centerX, centerY, 18, centerX, centerY, Math.max(this.width, this.height) * 0.42);
     gradient.addColorStop(0, flash.color);
-    gradient.addColorStop(0.35, "rgba(255,255,255,0.12)");
+    gradient.addColorStop(0.32, "rgba(255,255,255,0.08)");
     gradient.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    ctx.globalAlpha = alpha * 0.78;
-    ctx.fillStyle = "rgba(5, 7, 14, 0.42)";
     const bannerWidth = Math.min(this.width * 0.82, 720);
-    const bannerHeight = 86;
-    ctx.fillRect(centerX - bannerWidth / 2, centerY - bannerHeight / 2, bannerWidth, bannerHeight);
-
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = flash.color;
     ctx.shadowBlur = 28;
-    ctx.fillStyle = "#ffffff";
     ctx.font = `900 ${Math.round(35 * pulse)}px Microsoft YaHei, sans-serif`;
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(2, 5, 14, 0.72)";
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = alpha * 0.86;
+    ctx.strokeText(flash.label, centerX, centerY - 9 - progress * 10);
     ctx.fillText(flash.label, centerX, centerY - 9 - progress * 10);
     ctx.shadowBlur = 16;
     ctx.fillStyle = flash.accent;
     ctx.font = "800 16px Microsoft YaHei, sans-serif";
+    ctx.globalAlpha = alpha * 0.78;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(2, 5, 14, 0.62)";
+    ctx.strokeText(flash.sublabel, centerX, centerY + 30 - progress * 6);
     ctx.fillText(flash.sublabel, centerX, centerY + 30 - progress * 6);
 
     ctx.strokeStyle = flash.accent;
     ctx.lineWidth = 2;
-    ctx.globalAlpha = alpha * 0.86;
+    ctx.globalAlpha = alpha * 0.46;
     ctx.beginPath();
-    ctx.moveTo(centerX - bannerWidth * 0.44, centerY + bannerHeight * 0.5);
-    ctx.lineTo(centerX + bannerWidth * 0.44, centerY + bannerHeight * 0.5);
+    ctx.moveTo(centerX - bannerWidth * 0.44, centerY + 48);
+    ctx.lineTo(centerX + bannerWidth * 0.44, centerY + 48);
     ctx.stroke();
     ctx.restore();
   }
