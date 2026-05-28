@@ -2826,6 +2826,18 @@ button:focus-visible {
 }
 
 .survivor-upgrade-choices button {
+  --upgrade-card-accent: #c88444;
+  --upgrade-card-accent-soft: rgba(255, 183, 102, 0.28);
+  --upgrade-card-top: #7b3f24;
+  --upgrade-card-mid: #4b2b1f;
+  --upgrade-card-bottom: #171119;
+  --upgrade-card-trim: #d79b62;
+  --upgrade-card-ink: #fff0d0;
+  --upgrade-card-muted: rgba(255, 231, 200, 0.84);
+  --upgrade-card-chip-bg: rgba(19, 12, 17, 0.54);
+  --upgrade-card-chip-ink: #fff0d0;
+  --upgrade-card-action-bg: rgba(255, 183, 102, 0.16);
+  --upgrade-card-action-border: rgba(255, 202, 128, 0.42);
   position: relative;
   min-height: 210px;
   display: grid;
@@ -2833,22 +2845,27 @@ button:focus-visible {
   align-content: start;
   gap: 10px;
   padding: 16px;
-  border: 2px solid rgba(255, 248, 214, 0.5);
+  overflow: hidden;
+  border: 2px solid var(--upgrade-card-trim);
   border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(255, 248, 214, 0.96), rgba(255, 207, 90, 0.92)),
-    #ffcf5a;
-  color: #171821;
+    radial-gradient(circle at 50% -18%, var(--upgrade-card-accent-soft), transparent 42%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, var(--upgrade-card-top), var(--upgrade-card-mid) 54%, var(--upgrade-card-bottom));
+  color: var(--upgrade-card-ink);
   box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.36),
-    0 5px 0 #78510d,
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 14px 34px rgba(255, 255, 255, 0.08),
+    inset 0 -18px 40px rgba(0, 0, 0, 0.2),
+    0 5px 0 rgba(0, 0, 0, 0.45),
     0 16px 30px rgba(0, 0, 0, 0.36);
   text-align: left;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.38);
 }
 
 .survivor-upgrade-choices button.is-selected {
   border-color: #00f5ff;
-  outline: 4px solid #ffcf5a;
+  outline: 4px solid var(--upgrade-card-trim);
   outline-offset: 4px;
   filter: brightness(1.12) saturate(1.14);
   transform: translateY(-4px);
@@ -2856,6 +2873,7 @@ button:focus-visible {
     0 0 0 2px rgba(5, 7, 14, 0.96),
     0 0 0 7px rgba(0, 245, 255, 0.86),
     0 0 30px rgba(0, 245, 255, 0.62),
+    0 0 46px var(--upgrade-card-accent-soft),
     0 18px 38px rgba(0, 0, 0, 0.44);
 }
 
@@ -2876,17 +2894,40 @@ button:focus-visible {
   content: "";
   position: absolute;
   inset: 7px;
-  border: 2px solid rgba(5, 7, 14, 0.56);
+  border: 2px solid rgba(255, 255, 255, 0.34);
   border-radius: 6px;
+  box-shadow: inset 0 0 22px var(--upgrade-card-accent-soft);
   pointer-events: none;
 }
 
 .survivor-upgrade-choices button[data-rarity="gold"] {
-  background: linear-gradient(180deg, #fff5b8, #ffb84d 58%, #d96c35);
+  --upgrade-card-accent: #ffd45a;
+  --upgrade-card-accent-soft: rgba(255, 209, 75, 0.36);
+  --upgrade-card-top: #f0bd43;
+  --upgrade-card-mid: #9a6420;
+  --upgrade-card-bottom: #22170e;
+  --upgrade-card-trim: #ffe08a;
+  --upgrade-card-ink: #fff7d5;
+  --upgrade-card-muted: rgba(255, 244, 205, 0.88);
+  --upgrade-card-chip-bg: rgba(53, 34, 9, 0.56);
+  --upgrade-card-chip-ink: #fff7d5;
+  --upgrade-card-action-bg: rgba(255, 212, 90, 0.18);
+  --upgrade-card-action-border: rgba(255, 224, 138, 0.54);
 }
 
 .survivor-upgrade-choices button[data-rarity="diamond"] {
-  background: linear-gradient(180deg, #f5fdff, #8ee8ff 56%, #8d8aff);
+  --upgrade-card-accent: #8ee8ff;
+  --upgrade-card-accent-soft: rgba(142, 232, 255, 0.34);
+  --upgrade-card-top: #59d8ff;
+  --upgrade-card-mid: #365aaf;
+  --upgrade-card-bottom: #191335;
+  --upgrade-card-trim: #c5f6ff;
+  --upgrade-card-ink: #f5fdff;
+  --upgrade-card-muted: rgba(227, 249, 255, 0.88);
+  --upgrade-card-chip-bg: rgba(9, 31, 55, 0.56);
+  --upgrade-card-chip-ink: #f5fdff;
+  --upgrade-card-action-bg: rgba(142, 232, 255, 0.16);
+  --upgrade-card-action-border: rgba(197, 246, 255, 0.56);
 }
 
 .survivor-card-topline {
@@ -2908,36 +2949,42 @@ button:focus-visible {
   height: 26px;
   display: grid;
   place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 50%;
-  background: #101626;
-  color: #fff8d6;
+  background: rgba(5, 7, 14, 0.66);
+  color: var(--upgrade-card-ink);
   font-size: 13px;
+  box-shadow: 0 0 18px var(--upgrade-card-accent-soft);
 }
 
 .survivor-card-topline b,
 .survivor-card-topline em {
   padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(7, 16, 29, 0.12);
-  color: #172033;
+  background: var(--upgrade-card-chip-bg);
+  color: var(--upgrade-card-chip-ink);
   font-size: 12px;
 }
 
 .survivor-card-topline em {
-  background: rgba(7, 16, 29, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent),
+    var(--upgrade-card-accent-soft);
 }
 
 .survivor-upgrade-choices strong {
-  color: #101626;
+  color: var(--upgrade-card-ink);
   font-size: 28px;
   line-height: 1.1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.38);
 }
 
 .survivor-upgrade-choices button > em {
   min-width: 0;
   display: -webkit-box;
   overflow: hidden;
-  color: #182234;
+  color: var(--upgrade-card-muted);
   font-size: 15px;
   font-style: normal;
   font-weight: 850;
@@ -2949,12 +2996,13 @@ button:focus-visible {
 .survivor-upgrade-choices small {
   min-width: 0;
   padding: 8px 10px;
-  border-left: 3px solid rgba(16, 22, 38, 0.36);
-  background: rgba(255, 255, 255, 0.28);
-  color: #293348;
+  border-left: 3px solid var(--upgrade-card-trim);
+  background: var(--upgrade-card-action-bg);
+  color: var(--upgrade-card-muted);
   font-size: 13px;
   font-weight: 1000;
   line-height: 1.25;
+  box-shadow: inset 0 0 0 1px var(--upgrade-card-action-border);
 }
 
 @media (max-width: 1100px) {
