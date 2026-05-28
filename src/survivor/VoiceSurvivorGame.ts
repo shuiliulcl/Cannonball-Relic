@@ -570,6 +570,31 @@ type CommandButtonState = {
   state: "ready" | "empty" | "blocked";
 };
 
+type VoiceSurvivorGmApi = {
+  start: () => void;
+  draw: (count?: number) => void;
+  buff: (id: string, count?: number) => boolean;
+  spell: (spell: SpellKey) => boolean;
+  cast: (spell: SpellKey) => boolean;
+  guard: (count?: number) => void;
+  turrets: (count?: number) => void;
+  showcase: () => void;
+  listBuffs: () => Array<{ id: string; title: string; rarity: Buff["rarity"]; spell?: SpellKey }>;
+  state: () => {
+    level: number;
+    energy: number;
+    guardTurretCount: number;
+    placedTurretCount: number;
+    unlockedSpells: SpellKey[];
+  };
+};
+
+declare global {
+  interface Window {
+    __voiceSurvivorGM?: VoiceSurvivorGmApi;
+  }
+}
+
 const SPELL_NAMES = Object.fromEntries(
   Object.entries(SPELL_CONFIG).map(([key, config]) => [key, config.name]),
 ) as Record<SpellKey, string>;
@@ -758,6 +783,8 @@ export class VoiceSurvivorGame {
   private energyText!: HTMLElement;
   private xpFill!: HTMLElement;
   private xpText!: HTMLElement;
+  private gmPanel!: HTMLElement;
+  private readonly gmEnabled = new URLSearchParams(window.location.search).get("gm") === "1";
 
   private voiceInput!: VoiceInput<SurvivorVoiceAction>;
   private voiceActive = false;
@@ -925,6 +952,7 @@ export class VoiceSurvivorGame {
           </div>
         </section>
         <section id="survivorCommandDock" class="survivor-command-dock" aria-label="手动施法栏"></section>
+        <section id="survivorGmPanel" class="survivor-gm-panel" aria-label="GM debug tools" hidden></section>
         <div id="survivorStart" class="survivor-overlay">
           <span class="survivor-kicker">语音幸存者肉鸽</span>
           <h1>人间大炮一级准备</h1>
@@ -958,12 +986,180 @@ export class VoiceSurvivorGame {
     this.energyText = this.root.querySelector<HTMLElement>("#survivorEnergyText") ?? this.fail("Missing survivor energy text.");
     this.xpFill = this.root.querySelector<HTMLElement>("#survivorXpFill") ?? this.fail("Missing survivor XP fill.");
     this.xpText = this.root.querySelector<HTMLElement>("#survivorXpText") ?? this.fail("Missing survivor XP text.");
+    this.gmPanel = this.root.querySelector<HTMLElement>("#survivorGmPanel") ?? this.fail("Missing survivor GM panel.");
 
     this.resize();
     this.installEvents();
     this.setupVoice();
     this.renderCommandDock();
+    this.installGmApi();
+    this.renderGmPanel();
     this.render();
+  }
+
+  private installGmApi(): void {
+    window.__voiceSurvivorGM = {
+      start: () => this.gmStart(),
+      draw: (count = 3) => this.gmDrawCards(count),
+      buff: (id: string, count = 1) => this.gmGrantBuff(id, count),
+      spell: (spell: SpellKey) => this.gmUnlockSpell(spell),
+      cast: (spell: SpellKey) => this.gmCastSpell(spell),
+      guard: (count = 1) => { this.gmGrantBuff("weapon-guard-turret", count); },
+      turrets: (count = 5) => this.gmSpawnPlacedTurrets(count),
+      showcase: () => this.gmBuffShowcase(),
+      listBuffs: () => this.createBuffPool({ includeUnavailable: true }).map((buff) => ({
+        id: buff.id,
+        title: buff.title,
+        rarity: buff.rarity,
+        spell: buff.spell,
+      })),
+      state: () => ({
+        level: this.level,
+        energy: Math.round(this.energy),
+        guardTurretCount: this.guardTurretCount,
+        placedTurretCount: this.turrets.length,
+        unlockedSpells: [...this.unlockedSpells],
+      }),
+    };
+  }
+
+  private renderGmPanel(): void {
+    if (!this.gmEnabled) {
+      this.gmPanel.hidden = true;
+      return;
+    }
+    this.gmPanel.hidden = false;
+    this.gmPanel.replaceChildren();
+
+    const title = document.createElement("strong");
+    title.textContent = "GM";
+    const hint = document.createElement("span");
+    hint.textContent = "cards / buffs";
+    this.gmPanel.append(title, hint);
+
+    const actions: Array<[string, () => void]> = [
+      ["Start", () => this.gmStart()],
+      ["Draw 3", () => this.gmDrawCards(3)],
+      ["Draw 6", () => this.gmDrawCards(6)],
+      ["Guard +1", () => { this.gmGrantBuff("weapon-guard-turret"); }],
+      ["Guard x4", () => { this.gmGrantBuff("weapon-guard-turret", 4); }],
+      ["SkillGo", () => { this.gmGrantBuff("spell-skillgo"); }],
+      ["Place x5", () => this.gmSpawnPlacedTurrets(5)],
+      ["All VFX", () => this.gmBuffShowcase()],
+    ];
+
+    for (const [label, action] of actions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.addEventListener("click", () => {
+        action();
+        this.renderGmPanel();
+      });
+      this.gmPanel.append(button);
+    }
+  }
+
+  private gmStart(): void {
+    if (!this.running || this.gameOver) {
+      this.start();
+    }
+  }
+
+  private gmDrawCards(count: number): void {
+    this.gmStart();
+    this.selectingBuff = true;
+    this.showBuffChoices(clamp(Math.round(count), 1, 9));
+    this.say("GM: draft cards");
+  }
+
+  private gmGrantBuff(id: string, count = 1): boolean {
+    this.gmStart();
+    const buff = this.createBuffPool({ includeUnavailable: true }).find((candidate) => candidate.id === id);
+    if (!buff) {
+      this.say(`GM: missing buff ${id}`);
+      return false;
+    }
+    const times = clamp(Math.round(count), 1, 12);
+    for (let i = 0; i < times; i += 1) {
+      this.applyBuff(buff, { gm: true });
+    }
+    this.say(`GM: buff ${id} x${times}`);
+    return true;
+  }
+
+  private gmUnlockSpell(spell: SpellKey): boolean {
+    this.gmStart();
+    this.unlockedSpells.add(spell);
+    this.energy = this.maxEnergy;
+    this.renderCommandDock();
+    this.say(`GM: unlock ${spell}`);
+    return true;
+  }
+
+  private gmCastSpell(spell: SpellKey): boolean {
+    this.gmUnlockSpell(spell);
+    this.selectingBuff = false;
+    this.upgradeOverlay.hidden = true;
+    this.energy = this.maxEnergy;
+    return this.castSpell(spell);
+  }
+
+  private gmSpawnPlacedTurrets(count = 5): void {
+    this.gmStart();
+    this.unlockedSpells.add("skillGo");
+    this.skillGoLevel = Math.max(this.skillGoLevel, 3);
+    const turretCount = clamp(Math.round(count), 1, 12);
+    for (let i = 0; i < turretCount; i += 1) {
+      const angle = (Math.PI * 2 * i) / turretCount + this.elapsed;
+      const radius = 84 + (i % 2) * 26;
+      this.turrets.push({
+        position: {
+          x: clamp(this.player.position.x + Math.cos(angle) * radius, 34, this.width - 34),
+          y: clamp(this.player.position.y + Math.sin(angle) * radius, 34, this.height - 34),
+        },
+        cooldown: i * 0.08,
+        life: 18,
+      });
+    }
+    this.addSpellRing(this.player.position, 124, "#f8f1d1", "GM turrets");
+    this.renderCommandDock();
+    this.say(`GM: placed turrets x${turretCount}`);
+  }
+
+  private gmBuffShowcase(): void {
+    this.gmStart();
+    ([
+      "explode",
+      "freeze",
+      "lightning",
+      "split",
+      "pierce",
+      "ricochet",
+      "focus",
+      "serious",
+      "shield",
+      "gather",
+      "skillGo",
+    ] as SpellKey[]).forEach((spell) => this.unlockedSpells.add(spell));
+    this.activeMods.explosionTime = 18;
+    this.activeMods.freezeTime = 18;
+    this.activeMods.lightningTime = 18;
+    this.activeMods.splitTime = 18;
+    this.activeMods.pierceTime = 18;
+    this.activeMods.ricochetTime = 18;
+    this.activeMods.focusTime = 18;
+    this.activeMods.seriousTime = 12;
+    this.activeMods.damageBoost = 18;
+    this.player.shield = Math.max(this.player.shield, 70);
+    this.guardTurretCount = Math.max(this.guardTurretCount, 4);
+    this.guardTurretDamage = Math.max(this.guardTurretDamage, 12);
+    this.bladeCount = Math.max(this.bladeCount, 4);
+    this.cannonMeter = 100;
+    this.energy = this.maxEnergy;
+    this.gmSpawnPlacedTurrets(5);
+    this.renderCommandDock();
+    this.say("GM: full buff showcase");
   }
 
   private fail(message: string): never {
@@ -3206,9 +3402,9 @@ export class VoiceSurvivorGame {
     this.player.hp = Math.min(this.player.maxHp, this.player.hp + 3);
   }
 
-  private showBuffChoices(): void {
+  private showBuffChoices(count = 3): void {
     this.pauseVoiceForUpgrade();
-    const choices = this.draftBuffs(3);
+    const choices = this.draftBuffs(count);
     this.upgradeChoices.replaceChildren();
     this.upgradeOverlay.querySelector("h1")!.textContent = "选择强化";
     for (const buff of choices) {
@@ -3224,20 +3420,26 @@ export class VoiceSurvivorGame {
         <strong>${buff.title}</strong>
         <em>${buff.description}</em>
       `;
-      button.addEventListener("click", () => {
-        buff.apply();
-        this.ownedBuffs.set(buff.id, (this.ownedBuffs.get(buff.id) ?? 0) + 1);
-        if (buff.spell) this.unlockedSpells.add(buff.spell);
-        this.selectingBuff = false;
-        this.upgradeOverlay.hidden = true;
-        this.renderCommandDock();
-        this.addBuffFeedback(buff);
-        this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏。` : `获得被动强化：${buff.title}，效果已立即生效。`);
-        this.resumeVoiceAfterUpgrade();
-      });
+      button.addEventListener("click", () => this.applyBuff(buff));
       this.upgradeChoices.append(button);
     }
     this.upgradeOverlay.hidden = false;
+  }
+
+  private applyBuff(buff: Buff, options: { gm?: boolean } = {}): void {
+    buff.apply();
+    this.ownedBuffs.set(buff.id, (this.ownedBuffs.get(buff.id) ?? 0) + 1);
+    if (buff.spell) this.unlockedSpells.add(buff.spell);
+    this.selectingBuff = false;
+    this.upgradeOverlay.hidden = true;
+    this.renderCommandDock();
+    this.addBuffFeedback(buff);
+    if (options.gm) {
+      this.say(buff.spell ? `GM: unlocked ${buff.spell}` : `GM: buff ${buff.id}`);
+      return;
+    }
+    this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏。` : `获得被动强化：${buff.title}，效果已立即生效。`);
+    this.resumeVoiceAfterUpgrade();
   }
 
   private buffKind(buff: Buff): "spell" | "combo" | "passive" {
@@ -3359,7 +3561,7 @@ export class VoiceSurvivorGame {
     return this.unlockedSpells.has(spell);
   }
 
-  private createBuffPool(): Buff[] {
+  private createBuffPool(options: { includeUnavailable?: boolean } = {}): Buff[] {
     const buffs: Buff[] = [
       { id: "spell-evade", title: "基础咒语：闪避", description: "解锁语音“闪避”，操作忙不过来时自动脱离危险。", rarity: "bronze", spell: "evade", apply: () => { this.moveSpeed += 8; } },
       { id: "spell-shield", title: "基础咒语：护盾", description: "解锁语音“护盾”，获得短暂容错。", rarity: "bronze", spell: "shield", apply: () => { this.player.maxHp += 4; this.player.hp += 4; } },
@@ -3443,6 +3645,7 @@ export class VoiceSurvivorGame {
       { id: "stat-cannon", title: "炮弹保修", description: "人间大炮充能更快，靶心怪奖励更多。", rarity: "gold", apply: () => { this.cannonMeter = Math.min(100, this.cannonMeter + 35); this.spawnBudget += 1.2; } },
       { id: "stat-chain", title: "终音爆破", description: "四个不同咒语链返能大幅提高，爆炸范围 +16。", rarity: "diamond", apply: () => { this.maxEnergy += 12; this.chainEnergyBonus += 10; this.explosionRadius += 16; } },
     ];
+    if (options.includeUnavailable) return buffs;
     return buffs.filter((buff) => {
       if (!this.isBuffPrerequisiteMet(buff)) {
         return false;
