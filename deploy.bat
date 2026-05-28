@@ -78,18 +78,25 @@ if not exist "dist\index.html" (
 )
 call :run "dir /b dist"
 
-REM ---- 4. Port check ----
+REM ---- 4. Port check (auto-stop old server if port is busy) ----
 call :section "[4/5] port %PORT% check"
 netstat -ano | findstr ":%PORT% " | findstr LISTENING >nul
 if not errorlevel 1 (
-  call :log "[ERROR] port %PORT% is already in use. Conflicting processes:"
+  call :log "port %PORT% is in use. Treating this as a redeploy - stopping the old server."
   netstat -ano | findstr ":%PORT% " | findstr LISTENING >> "%LOG%" 2>&1
   netstat -ano | findstr ":%PORT% " | findstr LISTENING
-  call :log "        Stop the old server with: taskkill /F /PID ^<pid^>"
-  call :log "        Or change PORT at the top of deploy.bat and retry."
-  goto :fail
+  call :stop_old_server
+  REM Re-check after kill
+  netstat -ano | findstr ":%PORT% " | findstr LISTENING >nul
+  if not errorlevel 1 (
+    call :log "[ERROR] port %PORT% still occupied after kill attempt. Giving up."
+    call :log "        Check the listing above - it may be a non-vite process you do not want killed."
+    goto :fail
+  )
+  call :log "[OK] old server stopped, port %PORT% is now free."
+) else (
+  call :log "port %PORT% is free."
 )
-call :log "port %PORT% is free."
 
 if %NO_SERVE%==1 (
   call :log ""
@@ -173,6 +180,23 @@ setlocal enabledelayedexpansion
 set "MSG=%~1"
 echo(!MSG!
 >> "%LOG%" echo(!MSG!
+endlocal
+goto :eof
+
+:stop_old_server
+REM Kill every PID listening on %PORT%. Logs each kill so we know what happened.
+setlocal enabledelayedexpansion
+set KILLED=0
+for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%PORT% " ^| findstr LISTENING') do (
+  if not "%%p"=="0" (
+    call :log "[run] taskkill /F /PID %%p"
+    taskkill /F /PID %%p >> "%LOG%" 2>&1
+    set /a KILLED+=1
+  )
+)
+if !KILLED! == 0 call :log "[WARN] no PID found via netstat, port may free itself in a moment."
+REM Give Windows a beat to release the socket from TIME_WAIT.
+timeout /t 1 /nobreak >nul
 endlocal
 goto :eof
 
