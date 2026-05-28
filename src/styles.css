@@ -1382,6 +1382,7 @@ button:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
   background: rgba(6, 13, 24, 0.28);
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
 .survivor-resource-row b {
@@ -1400,6 +1401,56 @@ button:focus-visible {
 #survivorEnergyFill {
   background: linear-gradient(90deg, #8ee8ff, #ffcf5a);
   box-shadow: 0 0 14px rgba(142, 232, 255, 0.36);
+}
+
+.survivor-resource-row--energy.is-energy-denied {
+  animation: survivor-energy-denied-shake 360ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.survivor-resource-row--energy.is-energy-denied span,
+.survivor-resource-row--energy.is-energy-denied strong {
+  color: #ff9aa9;
+}
+
+.survivor-resource-row--energy.is-energy-denied i {
+  border-color: rgba(255, 74, 95, 0.95);
+  background: rgba(36, 8, 18, 0.54);
+  box-shadow:
+    0 0 0 2px rgba(255, 74, 95, 0.22),
+    0 0 18px rgba(255, 74, 95, 0.42),
+    inset 0 0 8px rgba(255, 74, 95, 0.22);
+}
+
+.survivor-resource-row--energy.is-energy-denied #survivorEnergyFill {
+  background: linear-gradient(90deg, #ff4a5f, #ffcf5a);
+  box-shadow: 0 0 16px rgba(255, 74, 95, 0.58);
+}
+
+@keyframes survivor-energy-denied-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  18% {
+    transform: translateX(-7px);
+  }
+
+  34% {
+    transform: translateX(6px);
+  }
+
+  50% {
+    transform: translateX(-4px);
+  }
+
+  68% {
+    transform: translateX(3px);
+  }
+
+  84% {
+    transform: translateX(-2px);
+  }
 }
 
 #survivorXpFill {
@@ -1495,10 +1546,10 @@ button:focus-visible {
 }
 
 .survivor-cannon-chain {
-  flex: 0 0 520px;
-  min-width: min(520px, 100%);
+  flex: 0 1 610px;
+  min-width: min(610px, 100%);
   display: grid;
-  grid-template-columns: 118px minmax(0, 1fr);
+  grid-template-columns: 124px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 6px;
@@ -1545,21 +1596,68 @@ button:focus-visible {
 }
 
 .survivor-command-dock button {
+  position: relative;
+  isolation: isolate;
   flex: 0 0 156px;
   min-width: 156px;
   min-height: 48px;
+  border: 1px solid rgba(142, 232, 255, 0.18);
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 7px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 6px 9px 7px;
   background:
-    radial-gradient(circle at 50% 0%, var(--spell-glow, rgba(117, 238, 226, 0.18)), transparent 72%),
-    linear-gradient(180deg, rgba(19, 35, 42, 0.76), rgba(11, 18, 24, 0.62));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 42%),
+    radial-gradient(circle at 14% 0%, var(--spell-glow, rgba(117, 238, 226, 0.16)), transparent 64%),
+    linear-gradient(180deg, rgba(13, 25, 39, 0.88), rgba(6, 11, 20, 0.72));
   box-shadow:
-    inset 0 0 0 1px rgba(216, 255, 255, 0.06),
+    inset 0 1px 0 rgba(216, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.34),
     0 0 12px var(--spell-glow, rgba(117, 238, 226, 0.08));
   text-align: left;
+  transition: border-color 120ms ease, box-shadow 120ms ease, filter 120ms ease, transform 120ms ease;
+}
+
+.survivor-command-dock button::before,
+.survivor-command-dock button::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 10px;
+  opacity: 0;
+}
+
+.survivor-command-dock button[data-state="ready"]::before {
+  border: 1px solid rgba(255, 214, 112, 0.82);
+  box-shadow:
+    0 0 8px rgba(255, 214, 112, 0.34),
+    0 0 20px rgba(255, 154, 61, 0.22),
+    inset 0 0 10px rgba(255, 226, 122, 0.16);
+  animation: survivor-command-ready-pulse 1.45s ease-in-out infinite;
+}
+
+.survivor-command-dock button[data-state="ready"]::after {
+  inset: -4px;
+  border: 1px solid rgba(255, 248, 205, 0.48);
+  box-shadow: 0 0 18px rgba(255, 214, 112, 0.22);
+  animation: survivor-command-ready-glint 1.45s ease-in-out infinite;
+}
+
+.survivor-command-dock button[data-state="ready"] {
+  border-color: rgba(255, 214, 112, 0.42);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 42%),
+    radial-gradient(circle at 14% 0%, rgba(255, 207, 90, 0.3), transparent 58%),
+    radial-gradient(circle at 100% 100%, var(--spell-glow, rgba(117, 238, 226, 0.15)), transparent 72%),
+    linear-gradient(180deg, rgba(18, 28, 39, 0.94), rgba(8, 12, 21, 0.78));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 214, 0.11),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.32),
+    0 0 16px rgba(255, 207, 90, 0.14),
+    0 0 12px var(--spell-glow, rgba(117, 238, 226, 0.09));
 }
 
 .survivor-cannon-chain button {
@@ -1584,6 +1682,68 @@ button:focus-visible {
     0 0 0 2px rgba(5, 7, 14, 0.9),
     0 0 24px rgba(255, 207, 90, 0.44),
     0 0 36px var(--spell-glow, rgba(117, 238, 226, 0.14));
+}
+
+@keyframes survivor-command-ready-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.992);
+  }
+
+  48% {
+    opacity: 0.96;
+    transform: scale(1.014);
+  }
+}
+
+@keyframes survivor-command-ready-glint {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  42% {
+    opacity: 0.66;
+    transform: scale(1.028);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.055);
+  }
+}
+
+@keyframes survivor-command-key-invite {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+    transform: translateY(-1px);
+  }
+
+  48% {
+    filter: brightness(1.12) saturate(1.08);
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survivor-resource-row--energy.is-energy-denied {
+    animation: none;
+  }
+
+  .survivor-command-dock button[data-state="ready"]::before {
+    opacity: 0.84;
+    animation: none;
+  }
+
+  .survivor-command-dock button[data-state="ready"]::after {
+    display: none;
+  }
+
+  .survivor-command-dock button[data-state="ready"] .survivor-command-key {
+    animation: none;
+  }
 }
 
 .survivor-gm-panel {
@@ -1662,25 +1822,94 @@ button:focus-visible {
 }
 
 .survivor-command-dock button[data-state="empty"] {
-  background: linear-gradient(180deg, rgba(41, 54, 74, 0.54), rgba(20, 32, 51, 0.48));
+  background: linear-gradient(180deg, rgba(28, 43, 60, 0.5), rgba(14, 24, 38, 0.46));
 }
 
 .survivor-command-dock button[data-state="blocked"] {
-  background: linear-gradient(180deg, rgba(43, 46, 56, 0.54), rgba(23, 27, 36, 0.48));
+  background: linear-gradient(180deg, rgba(39, 43, 53, 0.5), rgba(18, 22, 32, 0.46));
 }
 
 .survivor-command-key {
-  width: 22px;
-  height: 22px;
+  position: relative;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(7, 16, 29, 0.22);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.46);
-  color: #172136;
-  font-size: 11px;
-  font-weight: 900;
+  border: 1px solid rgba(151, 208, 235, 0.28);
+  border-bottom-color: rgba(0, 5, 12, 0.95);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 50% 0%, rgba(142, 232, 255, 0.16), transparent 56%),
+    linear-gradient(180deg, #18283a 0%, #0d1625 55%, #050912 100%);
+  color: #f3fbff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.62),
+    0 3px 0 rgba(0, 5, 12, 0.9),
+    0 5px 10px rgba(0, 0, 0, 0.26);
+  font-size: 14px;
+  font-weight: 1000;
   line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(142, 232, 255, 0.48);
+  transform: translateY(-1px);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+.survivor-command-key::before,
+.survivor-command-key::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.survivor-command-key::before {
+  left: 7px;
+  right: 7px;
+  top: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.34), transparent);
+  box-shadow: 0 1px 5px rgba(142, 232, 255, 0.12);
+}
+
+.survivor-command-key::after {
+  inset: 4px 5px 6px;
+  border: 1px solid rgba(142, 232, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.38);
+}
+
+.survivor-command-dock button[data-state="ready"] .survivor-command-key {
+  border-color: rgba(255, 238, 172, 0.78);
+  border-bottom-color: rgba(70, 39, 10, 0.96);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 30%),
+    radial-gradient(circle at 50% 0%, rgba(255, 248, 214, 0.5), transparent 54%),
+    linear-gradient(180deg, #ffe18b 0%, #f0b84e 52%, #925513 100%);
+  color: #241305;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.54),
+    inset 0 -2px 0 rgba(80, 43, 10, 0.62),
+    0 3px 0 rgba(70, 39, 10, 0.92),
+    0 5px 12px rgba(0, 0, 0, 0.18),
+    0 0 14px rgba(255, 214, 112, 0.34);
+  text-shadow: 0 1px 0 rgba(255, 248, 214, 0.54);
+  animation: survivor-command-key-invite 1.45s ease-in-out infinite;
+}
+
+.survivor-command-dock button.is-pressed .survivor-command-key {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.48),
+    0 1px 0 rgba(0, 5, 12, 0.78),
+    0 0 8px rgba(255, 207, 90, 0.12);
 }
 
 .survivor-command-copy {
@@ -1734,8 +1963,31 @@ button:focus-visible {
 .survivor-command-dock button[data-state="empty"] .survivor-command-key,
 .survivor-command-dock button[data-state="blocked"] .survivor-command-key {
   border-color: rgba(170, 190, 204, 0.16);
-  background: rgba(255, 255, 255, 0.08);
-  color: #7f93a6;
+  border-bottom-color: rgba(20, 26, 36, 0.8);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 24%),
+    radial-gradient(circle at 50% 13%, rgba(255, 255, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(80, 94, 116, 0.34), rgba(29, 38, 53, 0.66));
+  color: #92a6b8;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(8, 12, 20, 0.5),
+    0 1px 0 rgba(8, 12, 20, 0.7);
+  text-shadow: none;
+  transform: translateY(1px);
+  animation: none;
+}
+
+.survivor-command-dock button[data-state="empty"] .survivor-command-key::before,
+.survivor-command-dock button[data-state="blocked"] .survivor-command-key::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  box-shadow: none;
+}
+
+.survivor-command-dock button[data-state="empty"] .survivor-command-key::after,
+.survivor-command-dock button[data-state="blocked"] .survivor-command-key::after {
+  border-color: rgba(170, 190, 204, 0.08);
+  box-shadow: inset 0 -1px 0 rgba(8, 12, 20, 0.34);
 }
 
 .survivor-command-dock button[data-state="empty"] .survivor-command-state {
@@ -2827,9 +3079,16 @@ button:focus-visible {
   .survivor-command-dock button {
     flex-basis: clamp(100px, calc((100vw - 54px) / 3), 150px);
     min-width: clamp(100px, calc((100vw - 54px) / 3), 150px);
-    grid-template-columns: 18px minmax(0, 1fr);
+    grid-template-columns: 26px minmax(0, 1fr);
     gap: 5px;
     padding: 6px;
+  }
+
+  .survivor-command-key {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    font-size: 12px;
   }
 
   .survivor-cannon-chain button {

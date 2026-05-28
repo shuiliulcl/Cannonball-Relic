@@ -1104,8 +1104,10 @@ export class VoiceSurvivorGame {
   private upgradeGuide!: HTMLElement;
   private hpFill!: HTMLElement;
   private hpText!: HTMLElement;
+  private energyRow!: HTMLElement;
   private energyFill!: HTMLElement;
   private energyText!: HTMLElement;
+  private energyDeniedTimeout = 0;
   private xpFill!: HTMLElement;
   private xpText!: HTMLElement;
   private gmPanel!: HTMLElement;
@@ -1314,7 +1316,7 @@ export class VoiceSurvivorGame {
             <i><b id="survivorHpFill"></b></i>
             <strong id="survivorHpText">100/100</strong>
           </div>
-          <div class="survivor-resource-row">
+          <div class="survivor-resource-row survivor-resource-row--energy">
             <span>声能</span>
             <i><b id="survivorEnergyFill"></b></i>
             <strong id="survivorEnergyText">100/100</strong>
@@ -1385,6 +1387,7 @@ export class VoiceSurvivorGame {
     this.hpFill = this.root.querySelector<HTMLElement>("#survivorHpFill") ?? this.fail("Missing survivor HP fill.");
     this.hpText = this.root.querySelector<HTMLElement>("#survivorHpText") ?? this.fail("Missing survivor HP text.");
     this.energyFill = this.root.querySelector<HTMLElement>("#survivorEnergyFill") ?? this.fail("Missing survivor energy fill.");
+    this.energyRow = this.energyFill.closest<HTMLElement>(".survivor-resource-row") ?? this.fail("Missing survivor energy row.");
     this.energyText = this.root.querySelector<HTMLElement>("#survivorEnergyText") ?? this.fail("Missing survivor energy text.");
     this.xpFill = this.root.querySelector<HTMLElement>("#survivorXpFill") ?? this.fail("Missing survivor XP fill.");
     this.xpText = this.root.querySelector<HTMLElement>("#survivorXpText") ?? this.fail("Missing survivor XP text.");
@@ -3479,6 +3482,7 @@ export class VoiceSurvivorGame {
     const cost = isFreeCast ? 0 : Math.round(SPELL_COSTS[spell] * (1 + (1 - fatigue) * 1.1) * silenceCost);
     if (this.energy < cost) {
       this.say(`${SPELL_NAMES[spell]}声能不够，还差 ${cost - Math.floor(this.energy)}。`);
+      this.pulseEnergyDenied();
       return false;
     }
     this.energy -= cost;
@@ -3676,6 +3680,7 @@ export class VoiceSurvivorGame {
     const cost = this.currentSpellCost(spell);
     if (this.energy < cost) {
       this.say(`隐藏 Combo「${SPELL_NAMES[spell]}」声能不够，还差 ${cost - Math.floor(this.energy)}。`);
+      this.pulseEnergyDenied();
       return false;
     }
 
@@ -4273,6 +4278,7 @@ export class VoiceSurvivorGame {
     const cost = this.nextCannonPrepCost();
     if (this.energy < cost) {
       this.say(`第 ${this.cannonCharge + 1} 层一级准备需要 ${cost} 声能，还差 ${Math.ceil(cost - this.energy)}。`);
+      this.pulseEnergyDenied();
       this.updateCommandDockState();
       return false;
     }
@@ -7047,6 +7053,16 @@ export class VoiceSurvivorGame {
     void button.offsetWidth;
     button.classList.add("is-pressed");
     window.setTimeout(() => button.classList.remove("is-pressed"), 180);
+  }
+
+  private pulseEnergyDenied(): void {
+    this.energyRow.classList.remove("is-energy-denied");
+    void this.energyRow.offsetWidth;
+    this.energyRow.classList.add("is-energy-denied");
+    window.clearTimeout(this.energyDeniedTimeout);
+    this.energyDeniedTimeout = window.setTimeout(() => {
+      this.energyRow.classList.remove("is-energy-denied");
+    }, 520);
   }
 
   private commandSpells(): SpellKey[] {
