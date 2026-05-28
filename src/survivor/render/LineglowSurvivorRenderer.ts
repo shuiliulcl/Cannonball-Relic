@@ -1021,7 +1021,11 @@ export class LineglowSurvivorRenderer {
 
   private renderProjectiles(ctx: CanvasRenderingContext2D): void {
     for (const projectile of this.projectiles) {
-      const color = projectile.explosion ? "#ff9a3d" : projectile.freeze ? "#a8ecff" : projectile.lightning ? "#e5ff66" : "#75eee2";
+      const color = projectile.color ?? (projectile.explosion ? "#ff9a3d" : projectile.freeze ? "#a8ecff" : projectile.lightning ? "#e5ff66" : "#75eee2");
+      if (projectile.label) {
+        this.renderLabeledProjectile(ctx, projectile, color);
+        continue;
+      }
       const tail = normalize({ x: -projectile.velocity.x, y: -projectile.velocity.y });
       ctx.strokeStyle = projectile.explosion
         ? "rgba(255, 154, 61, 0.38)"
@@ -1067,6 +1071,69 @@ export class LineglowSurvivorRenderer {
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
+  }
+
+  private renderLabeledProjectile(ctx: CanvasRenderingContext2D, projectile: Projectile, color: string): void {
+    const label = projectile.label ?? "";
+    const fontSize = Math.max(34, projectile.radius * 1.12);
+    const padX = fontSize * 0.5;
+    const padY = fontSize * 0.26;
+    ctx.save();
+    ctx.translate(projectile.position.x, projectile.position.y);
+    ctx.font = `900 ${fontSize}px Microsoft YaHei, sans-serif`;
+    const textWidth = ctx.measureText(label).width;
+    const width = textWidth + padX * 2;
+    const height = fontSize + padY * 2;
+    const speed = Math.hypot(projectile.velocity.x, projectile.velocity.y);
+    const streak = clamp(speed * 0.08, 24, 70);
+
+    ctx.globalCompositeOperation = "lighter";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 32;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(width / 2 + streak, 0);
+    ctx.lineTo(width / 2 - 4, 0);
+    ctx.moveTo(width / 2 + streak * 0.72, -height * 0.28);
+    ctx.lineTo(width / 2 + 8, -height * 0.18);
+    ctx.moveTo(width / 2 + streak * 0.72, height * 0.28);
+    ctx.lineTo(width / 2 + 8, height * 0.18);
+    ctx.stroke();
+
+    ctx.globalCompositeOperation = "source-over";
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = "rgba(24, 8, 18, 0.82)";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.roundRect(-width / 2, -height / 2, width, height, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.26;
+    ctx.fillStyle = color;
+    ctx.fillRect(-width / 2 + 8, -height / 2 + 8, width - 16, height - 16);
+    ctx.globalAlpha = 1;
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowBlur = 14;
+    ctx.lineWidth = Math.max(5, fontSize * 0.12);
+    ctx.strokeStyle = "rgba(18, 6, 12, 0.95)";
+    ctx.strokeText(label, 0, 1);
+    ctx.fillStyle = "#fff8dc";
+    ctx.fillText(label, 0, 1);
+
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = "rgba(255, 248, 220, 0.72)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-width / 2 + 14, -height / 2 + 10);
+    ctx.lineTo(width / 2 - 14, -height / 2 + 10);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private renderEnemyShots(ctx: CanvasRenderingContext2D): void {
