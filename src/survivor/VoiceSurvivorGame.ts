@@ -612,11 +612,11 @@ const SPELL_COMMAND_ALIASES = Object.entries(SPELL_CONFIG).map(([key, config]) =
 const VOICE_CONTROL_ALIASES: Array<{ command: VoiceControlAction["command"]; aliases: readonly string[] }> = [
   {
     command: "start",
-    aliases: ["开启语音", "打开语音", "启动语音", "开始语音", "语音开启", "语音打开", "开语音", "开麦"],
+    aliases: ["开启语音", "打开语音", "启动语音", "开始语音", "启用语音", "恢复语音", "继续听", "语音开启", "语音打开", "语音启用", "开语音", "开麦", "打开麦克风", "开麦克风", "开起语音", "开机语音", "开启", "打开", "启动", "开始", "启用", "恢复", "继续听"],
   },
   {
     command: "stop",
-    aliases: ["关闭语音", "停止语音", "关掉语音", "语音关闭", "语音停止", "语音暂停", "停止监听", "暂停语音", "关语音", "闭麦", "麦克风关闭", "不要听了", "别听了"],
+    aliases: ["关闭语音", "停止语音", "关掉语音", "语音关闭", "语音停止", "语音暂停", "关闭声音", "停止监听", "停止识别", "暂停语音", "关语音", "关麦", "闭麦", "麦克风关闭", "关麦克风", "不要听了", "别听了", "关机语音", "关起语音", "关闭", "停止", "暂停", "关掉", "别听"],
   },
 ];
 
@@ -704,16 +704,20 @@ function matchVoiceControl(text: string): VoiceControlAction[] {
   if (!normalized) return [];
   const matches: Array<{ command: VoiceControlAction["command"]; position: number; length: number }> = [];
   for (const control of VOICE_CONTROL_ALIASES) {
+    let bestMatch: { command: VoiceControlAction["command"]; position: number; length: number } | undefined;
     for (const alias of control.aliases) {
       const aliasForm = normalizeVoiceText(alias);
-      const position = normalized.indexOf(aliasForm);
+      const position = normalized.lastIndexOf(aliasForm);
       if (position >= 0) {
-        matches.push({ command: control.command, position, length: aliasForm.length });
-        break;
+        const match = { command: control.command, position, length: aliasForm.length };
+        if (!bestMatch || match.position > bestMatch.position || (match.position === bestMatch.position && match.length > bestMatch.length)) {
+          bestMatch = match;
+        }
       }
     }
+    if (bestMatch) matches.push(bestMatch);
   }
-  const best = matches.sort((a, b) => a.position - b.position || b.length - a.length)[0];
+  const best = matches.sort((a, b) => b.position - a.position || b.length - a.length)[0];
   return best ? [{ type: "voice", command: best.command }] : [];
 }
 
@@ -790,6 +794,8 @@ export class VoiceSurvivorGame {
   private voiceActive = false;
   private voiceCommandsEnabled = true;
   private voicePausedForUpgrade = false;
+  private lastVoiceControlAt = 0;
+  private lastVoiceControlCommand: VoiceControlAction["command"] | null = null;
   private lastFrame = 0;
   private rafId = 0;
   private running = false;
@@ -1282,6 +1288,12 @@ export class VoiceSurvivorGame {
   }
 
   private handleVoiceControl(action: VoiceControlAction): void {
+    const now = performance.now();
+    if (this.lastVoiceControlCommand && now - this.lastVoiceControlAt < 900) {
+      return;
+    }
+    this.lastVoiceControlAt = now;
+    this.lastVoiceControlCommand = action.command;
     if (action.command === "stop") {
       this.voiceCommandsEnabled = false;
       this.voiceButton.textContent = "语音待机";

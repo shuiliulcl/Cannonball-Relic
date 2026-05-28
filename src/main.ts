@@ -194,6 +194,8 @@ async function loadCampaignLevels(): Promise<LevelDefinition[]> {
 const hud = new Hud(stageShell, upgradePanel, upgradeChoices, resultOverlay, pauseOverlay, buffOverlay);
 const game = new Game(input, view, hud, convertedLevel, { campaignLevels, godMode, noMonsters, noObstacles });
 let voiceCommandsEnabled = true;
+let lastVoiceControlAt = 0;
+let lastVoiceControlCommand: "start" | "stop" | null = null;
 const matchRelicVoiceActions = (text: string) => {
   const actions = matchVoiceActions(text);
   return voiceCommandsEnabled ? actions : actions.filter((action) => action.type === "voice" && action.command === "start");
@@ -201,6 +203,12 @@ const matchRelicVoiceActions = (text: string) => {
 const voice = new VoiceInput((actions) => {
   for (const action of actions) {
     if (action.type === "voice") {
+      const now = performance.now();
+      if (lastVoiceControlCommand && now - lastVoiceControlAt < 900) {
+        continue;
+      }
+      lastVoiceControlAt = now;
+      lastVoiceControlCommand = action.command;
       if (action.command === "stop") {
         voiceCommandsEnabled = false;
         voiceToggle.dataset.state = "standby";

@@ -113,10 +113,24 @@ const VOICE_START_ALIASES = [
   "打开语音",
   "启动语音",
   "开始语音",
+  "启用语音",
+  "恢复语音",
+  "继续听",
   "语音开启",
   "语音打开",
+  "语音启用",
   "开语音",
   "开麦",
+  "打开麦克风",
+  "开麦克风",
+  "开起语音",
+  "开机语音",
+  "开启",
+  "打开",
+  "启动",
+  "开始",
+  "启用",
+  "恢复",
 ] as const;
 
 const VOICE_STOP_ALIASES = [
@@ -126,13 +140,24 @@ const VOICE_STOP_ALIASES = [
   "语音关闭",
   "语音停止",
   "语音暂停",
+  "关闭声音",
   "停止监听",
+  "停止识别",
   "暂停语音",
   "关语音",
+  "关麦",
   "闭麦",
   "麦克风关闭",
+  "关麦克风",
   "不要听了",
   "别听了",
+  "关机语音",
+  "关起语音",
+  "关闭",
+  "停止",
+  "暂停",
+  "关掉",
+  "别听",
 ] as const;
 
 export const VOICE_COMMANDS: readonly VoiceCommand[] = [
@@ -157,17 +182,21 @@ export function matchVoiceActions(text: string, commands: readonly VoiceCommand[
 
   const matches: Array<{ id: string; position: number; priority: number; action: VoiceAction; aliasLength: number }> = [];
   for (const command of commands) {
+    let bestMatch: { id: string; position: number; priority: number; action: VoiceAction; aliasLength: number } | undefined;
     for (const alias of command.aliases) {
       const aliasForm = normalizeVoiceText(alias);
       if (!aliasForm) {
         continue;
       }
-      const position = normalized.indexOf(aliasForm);
+      const position = normalized.lastIndexOf(aliasForm);
       if (position !== -1) {
-        matches.push({ id: command.id, position, priority: command.priority ?? 0, action: command.action, aliasLength: aliasForm.length });
-        break;
+        const match = { id: command.id, position, priority: command.priority ?? 0, action: command.action, aliasLength: aliasForm.length };
+        if (!bestMatch || match.position > bestMatch.position || (match.position === bestMatch.position && match.aliasLength > bestMatch.aliasLength)) {
+          bestMatch = match;
+        }
       }
     }
+    if (bestMatch) matches.push(bestMatch);
   }
 
   const hasExplicitUtilityAction = matches.some((match) => match.id !== "fire");
