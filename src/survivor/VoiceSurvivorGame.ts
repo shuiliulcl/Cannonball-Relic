@@ -765,6 +765,7 @@ type VoiceSurvivorGmApi = {
   guard: (count?: number) => void;
   turrets: (count?: number) => void;
   showcase: () => void;
+  end: () => void;
   listBuffs: () => Array<{ id: string; title: string; rarity: Buff["rarity"]; spell?: SpellKey }>;
   state: () => {
     level: number;
@@ -962,7 +963,7 @@ function matchVoiceControl(text: string): VoiceControlAction[] {
     let bestMatch: { command: VoiceControlAction["command"]; position: number; length: number } | undefined;
     for (const alias of control.aliases) {
       const aliasForm = normalizeVoiceText(alias);
-      const position = normalized.lastIndexOf(aliasForm);
+      const position = voiceControlAliasPosition(normalized, aliasForm);
       if (position >= 0) {
         const match = { command: control.command, position, length: aliasForm.length };
         if (!bestMatch || match.position > bestMatch.position || (match.position === bestMatch.position && match.length > bestMatch.length)) {
@@ -974,6 +975,26 @@ function matchVoiceControl(text: string): VoiceControlAction[] {
   }
   const best = matches.sort((a, b) => b.position - a.position || b.length - a.length)[0];
   return best ? [{ type: "voice", command: best.command }] : [];
+}
+
+function voiceControlAliasPosition(text: string, alias: string): number {
+  if (!alias) return -1;
+  if (isExplicitVoiceControlAlias(alias)) {
+    return text.lastIndexOf(alias);
+  }
+  return text === alias ? 0 : -1;
+}
+
+function isExplicitVoiceControlAlias(alias: string): boolean {
+  return (
+    alias.includes("语音") ||
+    alias.includes("麦") ||
+    alias.includes("麦克风") ||
+    alias.includes("监听") ||
+    alias.includes("识别") ||
+    alias.includes("声音") ||
+    alias.includes("听")
+  );
 }
 
 function hasSpellSequence(spells: readonly SpellKey[], sequence: readonly SpellKey[]): boolean {
@@ -1022,6 +1043,20 @@ function voiceActionLabel(action: SurvivorVoiceAction): string {
   return action.type === "combo" ? `组合：${VOICE_COMBO_CONFIG[action.combo].name}` : SPELL_NAMES[action.spell];
 }
 
+function voiceErrorText(error: string | undefined): string {
+  const value = (error ?? "unknown").toLowerCase();
+  if (value.includes("not-allowed") || value.includes("permission")) {
+    return "麦克风权限未开启，请在浏览器地址栏允许麦克风后再点语音施法";
+  }
+  if (value.includes("audio-capture") || value.includes("device") || value.includes("notfound")) {
+    return "没有检测到可用麦克风，请检查输入设备后重试";
+  }
+  if (value.includes("network")) {
+    return "语音识别服务连接失败，请稍后重试";
+  }
+  return error ?? "unknown";
+}
+
 export class VoiceSurvivorGame {
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;
@@ -1032,13 +1067,16 @@ export class VoiceSurvivorGame {
   private lastStatSignature = "";
   private voiceButton!: HTMLButtonElement;
   private startOverlay!: HTMLElement;
+  private resultPanel!: HTMLElement;
   private pauseOverlay!: HTMLElement;
   private upgradeOverlay!: HTMLElement;
   private upgradeChoices!: HTMLElement;
   private commandDock!: HTMLElement;
   private commandDockObserver?: ResizeObserver;
   private commandDockHeight = 0;
+  private guidePanel!: HTMLElement;
   private activeSpellPanel!: HTMLElement;
+  private upgradeGuide!: HTMLElement;
   private hpFill!: HTMLElement;
   private hpText!: HTMLElement;
   private energyFill!: HTMLElement;
@@ -1119,6 +1157,18 @@ export class VoiceSurvivorGame {
   private ownedBuffs = new Map<string, number>();
   private spellChain: SpellKey[] = [];
   private repeatableSpellChain: SpellKey[] = [];
+  private spellCastCounts = new Map<SpellKey, number>();
+  private voiceBarrageLog: Array<{ text: string; tone: "heard" | "spell" | "combo" | "control"; time: number }> = [];
+  private lastVoiceBarrageText = "";
+  private lastVoiceBarrageAt = -999;
+  private tutorial = {
+    moved: false,
+    prepDone: false,
+    aimDone: false,
+    fireDone: false,
+    upgradeSeen: false,
+    upgradeChosen: false,
+  };
   private spellFatigue = new Map<SpellKey, { count: number; lastAt: number }>();
   private chainEnergyBonus = 0;
   private lastSpell: SpellKey | null = null;
@@ -1211,7 +1261,7 @@ export class VoiceSurvivorGame {
 
   mount(): void {
     this.root.innerHTML = `
-      <section class="survivor-shell">
+      <section class="survivor-shell${this.gmEnabled ? " has-gm" : ""}">
         <canvas class="survivor-canvas" aria-label="人间大炮一级准备"></canvas>
         <section class="survivor-hud" aria-label="战斗状态">
           <div class="survivor-title">
@@ -1226,6 +1276,7 @@ export class VoiceSurvivorGame {
             <span id="survivorStatus">手动施法就绪；语音可选。</span>
           </div>
           <div id="survivorActiveSpells" class="survivor-active-spells" aria-label="持续效果状态"></div>
+          <section id="survivorGuide" class="survivor-guide-panel" aria-label="新手引导"></section>
           <div class="survivor-detail-panel" aria-label="角色数值">
             <span id="survivorStats"></span>
           </div>
@@ -1250,10 +1301,17 @@ export class VoiceSurvivorGame {
         <section id="survivorCommandDock" class="survivor-command-dock" aria-label="手动施法栏"></section>
         <section id="survivorGmPanel" class="survivor-gm-panel" aria-label="GM debug tools" hidden></section>
         <div id="survivorStart" class="survivor-overlay">
-          <span class="survivor-kicker">语音幸存者肉鸽</span>
-          <h1>人间大炮一级准备</h1>
-          <p>自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。</p>
-          <button type="button" data-action="start">开始整活</button>
+          <span class="survivor-kicker">首次进入游戏</span>
+          <h1>操作训练</h1>
+          <p>先学会活下来，再学会把自己打出去。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。</p>
+          <div class="survivor-start-guide" aria-label="首次进入操作引导">
+            <span><b>W</b><strong>移动保命</strong><em>WASD / 方向键：拉开距离</em></span>
+            <span><b>Q</b><strong>一级准备</strong><em>Q / 语音：一级准备</em></span>
+            <span><b>E</b><strong>人间大炮</strong><em>E / 语音：人间大炮</em></span>
+            <span><b>R</b><strong>发射收割</strong><em>R / 语音：发射、开火</em></span>
+          </div>
+          <div id="survivorResult" class="survivor-result" hidden></div>
+          <button type="button" data-action="start">进入训练</button>
         </div>
         <div id="survivorPause" class="survivor-overlay survivor-pause" hidden>
           <span class="survivor-kicker">PAUSED</span>
@@ -1262,11 +1320,13 @@ export class VoiceSurvivorGame {
           <div class="survivor-pause-actions">
             <button type="button" data-action="resume">继续</button>
             <button type="button" data-action="restart">重新开始</button>
+            <button type="button" data-action="finish">结束游戏</button>
           </div>
         </div>
         <div id="survivorUpgrade" class="survivor-overlay survivor-upgrade" hidden>
           <span class="survivor-kicker">选择一个 Buff</span>
           <h1>新咒语入库</h1>
+          <div id="survivorUpgradeGuide" class="survivor-upgrade-guide"></div>
           <div id="survivorUpgradeChoices" class="survivor-upgrade-choices"></div>
         </div>
       </section>
@@ -1281,11 +1341,14 @@ export class VoiceSurvivorGame {
     this.chainLine = this.root.querySelector<HTMLElement>("#survivorChain") ?? this.fail("Missing survivor chain.");
     this.voiceButton = this.root.querySelector<HTMLButtonElement>("#survivorVoiceButton") ?? this.fail("Missing survivor voice button.");
     this.startOverlay = this.root.querySelector<HTMLElement>("#survivorStart") ?? this.fail("Missing survivor start overlay.");
+    this.resultPanel = this.root.querySelector<HTMLElement>("#survivorResult") ?? this.fail("Missing survivor result panel.");
     this.pauseOverlay = this.root.querySelector<HTMLElement>("#survivorPause") ?? this.fail("Missing survivor pause overlay.");
     this.upgradeOverlay = this.root.querySelector<HTMLElement>("#survivorUpgrade") ?? this.fail("Missing survivor upgrade overlay.");
     this.upgradeChoices = this.root.querySelector<HTMLElement>("#survivorUpgradeChoices") ?? this.fail("Missing survivor upgrade choices.");
     this.commandDock = this.root.querySelector<HTMLElement>("#survivorCommandDock") ?? this.fail("Missing survivor command dock.");
+    this.guidePanel = this.root.querySelector<HTMLElement>("#survivorGuide") ?? this.fail("Missing survivor guide panel.");
     this.activeSpellPanel = this.root.querySelector<HTMLElement>("#survivorActiveSpells") ?? this.fail("Missing survivor active spell panel.");
+    this.upgradeGuide = this.root.querySelector<HTMLElement>("#survivorUpgradeGuide") ?? this.fail("Missing survivor upgrade guide.");
     this.hpFill = this.root.querySelector<HTMLElement>("#survivorHpFill") ?? this.fail("Missing survivor HP fill.");
     this.hpText = this.root.querySelector<HTMLElement>("#survivorHpText") ?? this.fail("Missing survivor HP text.");
     this.energyFill = this.root.querySelector<HTMLElement>("#survivorEnergyFill") ?? this.fail("Missing survivor energy fill.");
@@ -1317,6 +1380,7 @@ export class VoiceSurvivorGame {
       guard: (count = 1) => { this.gmGrantBuff("weapon-guard-turret", count); },
       turrets: (count = 5) => this.gmSpawnPlacedTurrets(count),
       showcase: () => this.gmBuffShowcase(),
+      end: () => this.gmEndRun(),
       listBuffs: () => this.createBuffPool({ includeUnavailable: true }).map((buff) => ({
         id: buff.id,
         title: buff.title,
@@ -1357,6 +1421,7 @@ export class VoiceSurvivorGame {
       ["SkillGo", () => { this.gmGrantBuff("spell-skillgo"); }],
       ["Place x5", () => this.gmSpawnPlacedTurrets(5)],
       ["All VFX", () => this.gmBuffShowcase()],
+      ["End", () => this.gmEndRun()],
     ];
 
     for (const [label, action] of actions) {
@@ -1487,6 +1552,14 @@ export class VoiceSurvivorGame {
     this.say("GM: full buff showcase");
   }
 
+  private gmEndRun(): void {
+    this.gmStart();
+    this.score = Math.max(this.score, 1800 + this.level * 160);
+    this.kills = Math.max(this.kills, 18 + this.level * 2);
+    this.recordVoiceBarrage("识别：GM 结算预览", "control");
+    this.endRun();
+  }
+
   private fail(message: string): never {
     throw new Error(message);
   }
@@ -1515,6 +1588,7 @@ export class VoiceSurvivorGame {
         return;
       }
       this.keys.add(event.key.toLowerCase());
+      this.noteTutorialMovement(event.key);
       if (event.code === "Space") {
         event.preventDefault();
         this.castSpell("evade");
@@ -1538,6 +1612,7 @@ export class VoiceSurvivorGame {
     });
     this.root.querySelector<HTMLButtonElement>("[data-action='resume']")?.addEventListener("click", () => this.resume());
     this.root.querySelector<HTMLButtonElement>("[data-action='restart']")?.addEventListener("click", () => this.start());
+    this.root.querySelector<HTMLButtonElement>("[data-action='finish']")?.addEventListener("click", () => this.finishRunFromPause());
     this.voiceButton.addEventListener("click", () => {
       if (this.voiceActive) this.stopVoice();
       else this.startVoice();
@@ -1800,7 +1875,7 @@ export class VoiceSurvivorGame {
       if (status === "error") {
         this.voiceActive = false;
         this.voiceButton.textContent = "语音施法";
-        this.say(`语音出错：${error ?? "unknown"}`);
+        this.say(`语音出错：${voiceErrorText(error)}`);
         return;
       }
       if (status === "idle") {
@@ -1820,6 +1895,7 @@ export class VoiceSurvivorGame {
       if (!this.voiceCommandsEnabled && transcript) {
         this.say("语音待机：说“开启语音”恢复。");
       } else if (transcript) {
+        this.recordVoiceBarrage(`听见：${transcript}`, "heard");
         this.say(`听见了：${transcript}`);
       }
     });
@@ -2069,6 +2145,7 @@ export class VoiceSurvivorGame {
     this.voicePausedForUpgrade = false;
     this.voiceCommandsEnabled = true;
     this.gameOver = false;
+    this.restoreStartOverlay();
     this.startOverlay.hidden = true;
     this.pauseOverlay.hidden = true;
     this.upgradeOverlay.hidden = true;
@@ -2076,6 +2153,16 @@ export class VoiceSurvivorGame {
     this.lastFrame = performance.now();
     cancelAnimationFrame(this.rafId);
     this.rafId = requestAnimationFrame((time) => this.loop(time));
+  }
+
+  private restoreStartOverlay(): void {
+    this.startOverlay.classList.remove("is-result");
+    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "首次进入游戏";
+    this.startOverlay.querySelector("h1")!.textContent = "操作训练";
+    this.startOverlay.querySelector("p")!.textContent = "先学会活下来，再学会把自己打出去。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。";
+    this.startOverlay.querySelector("button")!.textContent = "进入训练";
+    this.resultPanel.hidden = true;
+    this.resultPanel.replaceChildren();
   }
 
   private pause(): void {
@@ -2087,6 +2174,7 @@ export class VoiceSurvivorGame {
     this.pauseOverlay.hidden = false;
     this.selectPauseAction(0);
     this.syncCommandDockVisibility();
+    this.renderGuidePanel();
   }
 
   private resume(): void {
@@ -2098,6 +2186,7 @@ export class VoiceSurvivorGame {
     this.pauseSelectionIndex = 0;
     this.lastFrame = performance.now();
     this.syncCommandDockVisibility();
+    this.renderGuidePanel();
   }
 
   private togglePause(): void {
@@ -2109,6 +2198,26 @@ export class VoiceSurvivorGame {
       return;
     }
     this.pause();
+  }
+
+  private noteTutorialMovement(key: string): void {
+    if (this.tutorial.moved || !this.running || this.paused || this.selectingBuff || this.gameOver) {
+      return;
+    }
+    const normalized = key.toLowerCase();
+    if (!["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"].includes(normalized)) {
+      return;
+    }
+    this.tutorial.moved = true;
+    this.renderGuidePanel();
+  }
+
+  private finishRunFromPause(): void {
+    if (!this.running || this.selectingBuff || this.gameOver) {
+      return;
+    }
+    this.recordVoiceBarrage("手动结束：进入结算", "control");
+    this.endRun();
   }
 
   private resetRun(): void {
@@ -2161,6 +2270,18 @@ export class VoiceSurvivorGame {
     this.ownedBuffs.clear();
     this.spellChain = [];
     this.repeatableSpellChain = [];
+    this.spellCastCounts.clear();
+    this.voiceBarrageLog = [];
+    this.lastVoiceBarrageText = "";
+    this.lastVoiceBarrageAt = -999;
+    this.tutorial = {
+      moved: false,
+      prepDone: false,
+      aimDone: false,
+      fireDone: false,
+      upgradeSeen: false,
+      upgradeChosen: false,
+    };
     this.spellFatigue.clear();
     this.chainEnergyBonus = 0;
     this.lastSpell = null;
@@ -2249,6 +2370,7 @@ export class VoiceSurvivorGame {
     this.screenShake = 0;
     this.screenShakePower = 0;
     this.renderCommandDock();
+    this.renderGuidePanel();
     this.say("开局：按 Q 一级准备，按 E 人间大炮瞄准，按 R 发射；普通咒语从 1 开始。");
   }
 
@@ -2443,6 +2565,10 @@ export class VoiceSurvivorGame {
       y: (this.keys.has("s") || this.keys.has("arrowdown") ? 1 : 0) - (this.keys.has("w") || this.keys.has("arrowup") ? 1 : 0),
     };
     const move = normalize(input);
+    if (!this.tutorial.moved && (Math.abs(input.x) > 0 || Math.abs(input.y) > 0)) {
+      this.tutorial.moved = true;
+      this.renderGuidePanel();
+    }
     const playerRadius = this.effectivePlayerRadius();
     this.player.velocity = { x: move.x * this.moveSpeed, y: move.y * this.moveSpeed };
     this.player.position.x = clamp(this.player.position.x + this.player.velocity.x * dt, playerRadius, this.width - playerRadius);
@@ -2930,6 +3056,14 @@ export class VoiceSurvivorGame {
   }
 
   private handleVoiceActions(actions: SurvivorVoiceAction[]): void {
+    if (actions.length > 0) {
+      const tone = actions.some((action) => action.type === "combo")
+        ? "combo"
+        : actions.some((action) => action.type === "voice")
+          ? "control"
+          : "spell";
+      this.recordVoiceBarrage(`识别：${actions.map(voiceActionLabel).join(" / ")}`, tone);
+    }
     for (const action of actions) {
       if (action.type === "voice") {
         this.handleVoiceControl(action);
@@ -2938,6 +3072,20 @@ export class VoiceSurvivorGame {
       } else {
         this.castSpell(action.spell);
       }
+    }
+  }
+
+  private recordVoiceBarrage(text: string, tone: "heard" | "spell" | "combo" | "control"): void {
+    const normalized = text.trim();
+    if (!normalized) return;
+    if (normalized === this.lastVoiceBarrageText && this.elapsed - this.lastVoiceBarrageAt < 2.5) {
+      return;
+    }
+    this.lastVoiceBarrageText = normalized;
+    this.lastVoiceBarrageAt = this.elapsed;
+    this.voiceBarrageLog.push({ text: normalized, tone, time: this.elapsed });
+    if (this.voiceBarrageLog.length > 28) {
+      this.voiceBarrageLog.shift();
     }
   }
 
@@ -4184,6 +4332,10 @@ export class VoiceSurvivorGame {
 
   private recordSpell(spell: SpellKey): void {
     const now = this.elapsed;
+    this.spellCastCounts.set(spell, (this.spellCastCounts.get(spell) ?? 0) + 1);
+    if (spell === "cannonPrep") this.tutorial.prepDone = true;
+    if (spell === "cannon") this.tutorial.aimDone = true;
+    if (spell === "cannonFire") this.tutorial.fireDone = true;
     const entry = this.spellFatigue.get(spell);
     const count = entry && now - entry.lastAt < 8 && this.lastSpell === spell ? entry.count + 1 : 0;
     this.spellFatigue.set(spell, { count, lastAt: now });
@@ -4198,6 +4350,7 @@ export class VoiceSurvivorGame {
       this.energy = clamp(this.energy + 3 + this.chainEnergyBonus, 0, this.maxEnergy);
       this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 4);
     }
+    this.renderGuidePanel();
   }
 
   private isRepeatableNormalSpell(spell: SpellKey): boolean {
@@ -4501,11 +4654,202 @@ export class VoiceSurvivorGame {
     this.running = false;
     this.paused = false;
     this.pauseOverlay.hidden = true;
+    const rating = this.calculateResultRating();
     this.startOverlay.hidden = false;
-    this.startOverlay.querySelector("h1")!.textContent = "本局结束";
-    this.startOverlay.querySelector("p")!.textContent = `分数 ${this.score}，击杀 ${this.kills}。再来一局，争取更梆。`;
-    this.startOverlay.querySelector("button")!.textContent = "重新开始";
+    this.startOverlay.classList.add("is-result");
+    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "本局结算";
+    this.startOverlay.querySelector("h1")!.textContent = rating.label;
+    this.startOverlay.querySelector("p")!.textContent = "声纹战报已生成，所有施法记录进入片尾归档。";
+    this.renderResultPanel(rating);
+    this.startOverlay.querySelector("button")!.textContent = "再次出击";
     this.syncCommandDockVisibility();
+  }
+
+  private calculateResultRating(): { label: string; score: number } {
+    const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
+    const uniqueSpellCount = this.spellCastCounts.size;
+    const castCount = [...this.spellCastCounts.values()].reduce((sum, count) => sum + count, 0);
+    const resultScore = Math.round(
+      this.score / 85 +
+      this.kills * 2.2 +
+      this.level * 18 +
+      this.elapsed * 1.08 +
+      buffCount * 7 +
+      uniqueSpellCount * 10 +
+      Math.min(80, castCount * 1.4),
+    );
+    if (resultScore < 130) return { label: "B", score: resultScore };
+    if (resultScore < 240) return { label: "A", score: resultScore };
+    const sCount = clamp(Math.floor((resultScore - 240) / 135) + 1, 1, 32);
+    return { label: "S".repeat(sCount), score: resultScore };
+  }
+
+  private resultOneLineSummary(resultScore: number): string {
+    return `分数 ${this.score}，击杀 ${this.kills}，生存 ${this.formatResultTime(this.elapsed)}，结算点 ${resultScore}。`;
+  }
+
+  private renderResultPanel(rating: { label: string; score: number }): void {
+    this.resultPanel.hidden = false;
+    this.resultPanel.replaceChildren();
+
+    const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
+    const castCount = [...this.spellCastCounts.values()].reduce((sum, count) => sum + count, 0);
+    const uniqueSpellCount = this.spellCastCounts.size;
+
+    const resultConsole = document.createElement("div");
+    resultConsole.className = "survivor-result-console";
+
+    const hero = document.createElement("div");
+    hero.className = "survivor-result-hero";
+
+    const grade = document.createElement("div");
+    grade.className = "survivor-result-grade";
+    const gradeLabel = document.createElement("span");
+    gradeLabel.textContent = "RESULT SCORE";
+    const gradeValue = document.createElement("strong");
+    gradeValue.textContent = String(rating.score);
+    const gradeScore = document.createElement("em");
+    gradeScore.textContent = `评级 ${rating.label}`;
+    grade.append(gradeLabel, gradeValue, gradeScore);
+
+    const brief = document.createElement("div");
+    brief.className = "survivor-result-brief";
+    const briefKicker = document.createElement("span");
+    briefKicker.textContent = "SURVIVOR REPORT";
+    const briefTitle = document.createElement("h2");
+    briefTitle.textContent = "声纹战报";
+    const briefCopy = document.createElement("p");
+    briefCopy.textContent = this.resultOneLineSummary(rating.score);
+    const heroMeta = document.createElement("div");
+    heroMeta.className = "survivor-result-hero-meta";
+    for (const [label, value] of [
+      ["分数", String(this.score)],
+      ["击杀", String(this.kills)],
+      ["生存", this.formatResultTime(this.elapsed)],
+    ]) {
+      const item = document.createElement("span");
+      const key = document.createElement("i");
+      key.textContent = label;
+      const val = document.createElement("b");
+      val.textContent = value;
+      item.append(key, val);
+      heroMeta.append(item);
+    }
+    brief.append(briefKicker, briefTitle, briefCopy, heroMeta);
+    hero.append(grade, brief);
+
+    const stats = document.createElement("div");
+    stats.className = "survivor-result-stats";
+    const statItems = [
+      ["等级", `Lv.${this.level}`],
+      ["战斗分", String(this.score)],
+      ["击杀", String(this.kills)],
+      ["生存", this.formatResultTime(this.elapsed)],
+      ["Buff", String(buffCount)],
+      ["施法", String(castCount)],
+      ["咒语", String(uniqueSpellCount)],
+    ];
+    for (const [label, value] of statItems) {
+      const item = document.createElement("span");
+      const key = document.createElement("i");
+      key.textContent = label;
+      const val = document.createElement("strong");
+      val.textContent = value;
+      item.append(key, val);
+      stats.append(item);
+    }
+
+    const spellSummary = document.createElement("div");
+    spellSummary.className = "survivor-result-spells";
+    const spellTitle = document.createElement("strong");
+    spellTitle.textContent = "高频咒语档案";
+    const spellList = document.createElement("div");
+    spellList.className = "survivor-result-spell-list";
+    const topSpells = this.topResultSpells();
+    if (topSpells.length > 0) {
+      for (const [spell, count] of topSpells) {
+        const item = document.createElement("span");
+        const name = document.createElement("b");
+        name.textContent = SPELL_NAMES[spell];
+        const value = document.createElement("em");
+        value.textContent = `x${count}`;
+        item.append(name, value);
+        spellList.append(item);
+      }
+    } else {
+      const empty = document.createElement("span");
+      empty.className = "survivor-result-spell-empty";
+      empty.textContent = "本局主要依靠走位和自动攻击。";
+      spellList.append(empty);
+    }
+    spellSummary.append(spellTitle, spellList);
+
+    const credits = document.createElement("div");
+    credits.className = "survivor-result-credits";
+    const title = document.createElement("strong");
+    title.textContent = "语音片尾字幕";
+    const viewport = document.createElement("div");
+    viewport.className = "survivor-result-credits-viewport";
+    const track = document.createElement("div");
+    track.className = "survivor-result-credits-track";
+    const entries = this.voiceBarrageLog.slice();
+    track.style.setProperty("--credits-duration", `${Math.max(16, entries.length * 2.2)}s`);
+    if (entries.length === 0) {
+      const empty = document.createElement("span");
+      empty.className = "survivor-result-credits-empty";
+      empty.textContent = "本局没有语音弹幕，安静得有点认真。";
+      track.append(empty);
+    } else {
+      const intro = document.createElement("span");
+      intro.className = "survivor-result-credits-intro";
+      intro.textContent = "本局被听见的声音";
+      track.append(intro);
+      for (const entry of entries) {
+        const row = document.createElement("span");
+        row.dataset.tone = entry.tone;
+        const time = document.createElement("i");
+        time.textContent = this.formatResultTime(entry.time);
+        const kind = document.createElement("b");
+        kind.textContent = this.voiceResultToneLabel(entry.tone);
+        const text = document.createElement("em");
+        text.textContent = entry.text;
+        row.append(time, kind, text);
+        track.append(row);
+      }
+      const outro = document.createElement("span");
+      outro.className = "survivor-result-credits-outro";
+      outro.textContent = "施法结束";
+      track.append(outro);
+    }
+    viewport.append(track);
+    credits.append(title, viewport);
+
+    const lower = document.createElement("div");
+    lower.className = "survivor-result-lower";
+    lower.append(spellSummary, credits);
+
+    resultConsole.append(hero, stats, lower);
+    this.resultPanel.append(resultConsole);
+  }
+
+  private voiceResultToneLabel(tone: "heard" | "spell" | "combo" | "control"): string {
+    if (tone === "spell") return "咒语";
+    if (tone === "combo") return "隐藏 Combo";
+    if (tone === "control") return "语音控制";
+    return "识别";
+  }
+
+  private topResultSpells(): Array<[SpellKey, number]> {
+    return [...this.spellCastCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || SPELL_NAMES[a[0]].localeCompare(SPELL_NAMES[b[0]], "zh-Hans-CN"))
+      .slice(0, 4);
+  }
+
+  private formatResultTime(seconds: number): string {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const rest = safeSeconds % 60;
+    return `${minutes}:${String(rest).padStart(2, "0")}`;
   }
 
   private checkLevelUp(): void {
@@ -4536,9 +4880,11 @@ export class VoiceSurvivorGame {
     this.pauseOverlay.hidden = true;
     this.pauseVoiceForUpgrade();
     const choices = this.draftBuffs(count);
+    this.tutorial.upgradeSeen = true;
     this.upgradeChoices.replaceChildren();
     this.upgradeChoices.setAttribute("role", "listbox");
     this.upgradeOverlay.querySelector("h1")!.textContent = "选择强化";
+    this.renderUpgradeGuide(choices);
     for (const [index, buff] of choices.entries()) {
       const button = document.createElement("button");
       button.type = "button";
@@ -4549,12 +4895,14 @@ export class VoiceSurvivorGame {
       button.setAttribute("aria-selected", "false");
       button.tabIndex = -1;
       button.innerHTML = `
-        <span class="survivor-card-tags">
-          <i>${buff.rarity === "diamond" ? "钻石" : buff.rarity === "gold" ? "黄金" : "青铜"}</i>
-          <i>${this.buffKindLabel(buff)}</i>
+        <span class="survivor-card-topline">
+          <i>${index + 1}</i>
+          <b>${this.buffKindLabel(buff)}</b>
+          <em>${buff.rarity === "diamond" ? "钻石" : buff.rarity === "gold" ? "黄金" : "青铜"}</em>
         </span>
         <strong>${buff.title}</strong>
         <em>${buff.description}</em>
+        <small>${this.buffPickHint(buff)}</small>
       `;
       button.addEventListener("click", () => this.applyBuff(buff));
       button.addEventListener("focus", () => this.selectUpgradeChoice(index, { focus: false }));
@@ -4564,10 +4912,12 @@ export class VoiceSurvivorGame {
     this.upgradeOverlay.hidden = false;
     this.selectUpgradeChoice(0);
     this.syncCommandDockVisibility();
+    this.renderGuidePanel();
   }
 
   private applyBuff(buff: Buff, options: { gm?: boolean } = {}): void {
     buff.apply();
+    this.tutorial.upgradeChosen = true;
     this.ownedBuffs.set(buff.id, (this.ownedBuffs.get(buff.id) ?? 0) + 1);
     if (buff.spell) this.unlockedSpells.add(buff.spell);
     const voiceUpdates = this.refreshVoiceSpellRecognition();
@@ -4579,10 +4929,33 @@ export class VoiceSurvivorGame {
     const extraVoiceUpdates = buff.spell ? voiceUpdates.filter((spell) => spell !== buff.spell) : voiceUpdates;
     if (options.gm) {
       this.say(buff.spell ? `GM: unlocked ${buff.spell}` : `GM: buff ${buff.id}`);
+      this.renderGuidePanel();
       return;
     }
     this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏和语音识别${this.voiceRecognitionUpdateText(extraVoiceUpdates)}。` : `获得被动强化：${buff.title}，效果已立即生效。`);
     this.resumeVoiceAfterUpgrade();
+    this.renderGuidePanel();
+  }
+
+  private renderUpgradeGuide(choices: readonly Buff[]): void {
+    this.upgradeGuide.replaceChildren();
+    const spellCount = choices.filter((buff) => this.buffKind(buff) === "spell").length;
+    const comboCount = choices.filter((buff) => this.buffKind(buff) === "combo").length;
+    const passiveCount = choices.length - spellCount - comboCount;
+    const summary = document.createElement("p");
+    summary.textContent = "高亮的是当前选择。缺什么，拿什么。";
+    const types = document.createElement("div");
+    types.className = "survivor-upgrade-guide-types";
+    ([
+      ["选择", "A/D", "方向键也可"],
+      ["确认", "Enter", "拿高亮卡"],
+      ["牌型", `${spellCount}/${comboCount}/${passiveCount}`, "咒语/组合/被动"],
+    ] as const).forEach(([label, count, copy]) => {
+      const item = document.createElement("span");
+      item.innerHTML = `<strong>${label}</strong><i>${count}</i><em>${copy}</em>`;
+      types.append(item);
+    });
+    this.upgradeGuide.append(summary, types);
   }
 
   private buffKind(buff: Buff): "spell" | "combo" | "passive" {
@@ -4593,9 +4966,16 @@ export class VoiceSurvivorGame {
 
   private buffKindLabel(buff: Buff): string {
     const kind = this.buffKind(buff);
-    if (kind === "spell") return "解锁咒语";
-    if (kind === "combo") return "组合强化";
-    return "被动生效";
+    if (kind === "spell") return "新咒语";
+    if (kind === "combo") return "组合";
+    return "被动";
+  }
+
+  private buffPickHint(buff: Buff): string {
+    const kind = this.buffKind(buff);
+    if (kind === "spell") return "加入施法栏，也能语音触发";
+    if (kind === "combo") return "强化已有咒语套路";
+    return "拿到后立即生效";
   }
 
   private addBuffFeedback(buff: Buff): void {
@@ -6214,6 +6594,96 @@ export class VoiceSurvivorGame {
     }
   }
 
+  private renderGuidePanel(): void {
+    const hidden = !this.running || this.paused || this.selectingBuff || this.gameOver;
+    this.guidePanel.hidden = hidden;
+    this.guidePanel.setAttribute("aria-hidden", hidden ? "true" : "false");
+    if (hidden) {
+      this.applyTutorialTargetHighlight(null);
+      return;
+    }
+
+    const step = this.currentGuideStep();
+    this.guidePanel.replaceChildren();
+    const title = document.createElement("strong");
+    title.textContent = step.title;
+    const body = document.createElement("p");
+    body.textContent = step.body;
+    const action = document.createElement("span");
+    action.className = "survivor-guide-action";
+    action.textContent = step.action;
+    const list = document.createElement("ul");
+    for (const tip of step.tips) {
+      const item = document.createElement("li");
+      item.textContent = tip;
+      list.append(item);
+    }
+    this.guidePanel.append(title, body, action, list);
+    this.applyTutorialTargetHighlight(step.target);
+  }
+
+  private currentGuideStep(): { title: string; body: string; action: string; tips: string[]; target: SpellKey | null } {
+    if (!this.tutorial.moved) {
+      return {
+        title: "1/5 移动",
+        body: "自动攻击会自己开火。",
+        action: "WASD / 方向键移动",
+        tips: ["先拉开距离。"],
+        target: null,
+      };
+    }
+    if (!this.tutorial.prepDone) {
+      return {
+        title: "2/5 准备",
+        body: "给人间大炮蓄力。",
+        action: "Q / 说“一级准备”",
+        tips: ["先攒 1 层。"],
+        target: "cannonPrep",
+      };
+    }
+    if (!this.tutorial.aimDone) {
+      return {
+        title: "3/5 瞄准",
+        body: "锁定敌群方向。",
+        action: "E / 说“人间大炮”",
+        tips: ["看到方向线再发射。"],
+        target: "cannon",
+      };
+    }
+    if (!this.tutorial.fireDone) {
+      return {
+        title: "4/5 发射",
+        body: "冲出去撞怪，落地清场。",
+        action: "R / 说“发射、开火”",
+        tips: ["它也是位移。"],
+        target: "cannonFire",
+      };
+    }
+    if (!this.tutorial.upgradeChosen) {
+      return {
+        title: "5/5 选卡",
+        body: "升级后拿一张强化。",
+        action: "A/D 选，Enter 确认。",
+        tips: ["高亮就是当前选择。"],
+        target: null,
+      };
+    }
+    return {
+      title: "自由战斗",
+      body: "大炮打爆发，咒语补短板。",
+      action: "数字键 / 语音施法",
+      tips: ["Esc 暂停。"],
+      target: null,
+    };
+  }
+
+  private applyTutorialTargetHighlight(target: SpellKey | null): void {
+    const buttons = this.commandDock.querySelectorAll<HTMLButtonElement>("button[data-spell]");
+    for (const button of buttons) {
+      button.classList.toggle("is-tutorial-target", Boolean(target && button.dataset.spell === target));
+    }
+  }
+
   private renderCommandDock(): void {
     this.commandDock.replaceChildren();
     const visible = this.commandSpells();
@@ -6288,6 +6758,9 @@ export class VoiceSurvivorGame {
     this.commandDock.hidden = hidden;
     this.commandDock.setAttribute("aria-hidden", hidden ? "true" : "false");
     if (hidden) this.commandDock.classList.remove("is-player-behind");
+    this.guidePanel.hidden = hidden;
+    this.guidePanel.setAttribute("aria-hidden", hidden ? "true" : "false");
+    if (hidden) this.applyTutorialTargetHighlight(null);
     window.requestAnimationFrame(() => this.updateCommandDockMetrics());
   }
 
@@ -6330,6 +6803,7 @@ export class VoiceSurvivorGame {
       button.setAttribute("aria-disabled", state.state === "ready" ? "false" : "true");
       this.renderCommandButton(button, state);
     }
+    if (!this.guidePanel.hidden) this.applyTutorialTargetHighlight(this.currentGuideStep().target);
   }
 
   private renderCommandButton(button: HTMLButtonElement, state: CommandButtonState): void {

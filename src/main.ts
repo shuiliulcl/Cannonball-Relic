@@ -295,6 +295,20 @@ function renderVoiceTranscript(message: string, actions: readonly string[] = [])
   voiceTranscriptElement.append(actionNode);
 }
 
+function voiceErrorText(error: string | undefined): string {
+  const value = (error ?? "unknown").toLowerCase();
+  if (value.includes("not-allowed") || value.includes("permission")) {
+    return "Microphone permission is blocked. Allow microphone access in the browser address bar, then try Voice On again.";
+  }
+  if (value.includes("audio-capture") || value.includes("device") || value.includes("notfound")) {
+    return "No microphone was detected. Check your input device, then try Voice On again.";
+  }
+  if (value.includes("network")) {
+    return "Speech recognition service is unavailable. Try again in a moment.";
+  }
+  return error ?? "unknown";
+}
+
 voice.observe(({ status, transcript, actions, error }) => {
   if (status === "unsupported") {
     voiceToggle.disabled = true;
@@ -304,7 +318,7 @@ voice.observe(({ status, transcript, actions, error }) => {
   if (status === "error") {
     voiceToggle.dataset.state = "off";
     voiceToggle.textContent = "Voice Off";
-    renderVoiceTranscript(`Voice error: ${error ?? "unknown"}`);
+    renderVoiceTranscript(`Voice error: ${voiceErrorText(error)}`);
     return;
   }
   if (status === "idle") {

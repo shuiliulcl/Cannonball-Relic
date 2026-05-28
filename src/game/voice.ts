@@ -54,6 +54,7 @@ export class VoiceInput<TAction = VoiceAction> {
   private observer: ((info: VoiceInfo<TAction>) => void) | null = null;
   private active = false;
   private shouldRestart = false;
+  private startGeneration = 0;
   private lastActionAt = 0;
   private lastActionKey = "";
   private lastRecognitionText = "";
@@ -83,7 +84,12 @@ export class VoiceInput<TAction = VoiceAction> {
     this.recognition.onresult = (event) => this.handleResult(event);
     this.recognition.onerror = (event) => {
       const error = event.error ?? "unknown";
-      this.shouldRestart = error !== "not-allowed" && error !== "service-not-allowed";
+      this.shouldRestart = this.isRestartableError(error);
+      if (!this.shouldRestart) {
+        this.active = false;
+        this.startGeneration += 1;
+        this.lastRecognitionText = "";
+      }
       this.notify({ status: "error", transcript: "", actions: [], error });
     };
     this.recognition.onend = () => {
@@ -119,17 +125,30 @@ export class VoiceInput<TAction = VoiceAction> {
   }
 
   start(): void {
-    if (!this.recognition || this.active) {
+    const recognition = this.recognition;
+    if (!recognition || this.active) {
       return;
     }
     this.active = true;
     this.shouldRestart = true;
     this.lastRecognitionText = "";
+    const generation = this.startGeneration + 1;
+    this.startGeneration = generation;
+    void this.startRecognition(generation, recognition);
+  }
+
+  private async startRecognition(generation: number, recognition: Recognition): Promise<void> {
     try {
-      this.recognition.start();
+      await this.ensureMicrophonePermission();
+      if (!this.active || this.startGeneration !== generation) {
+        return;
+      }
+      recognition.start();
       this.notify({ status: "listening", transcript: "", actions: [] });
     } catch (error) {
       this.active = false;
+      this.shouldRestart = false;
+      this.startGeneration += 1;
       this.notify({ status: "error", transcript: "", actions: [], error: error instanceof Error ? error.message : "start failed" });
     }
   }
@@ -140,6 +159,7 @@ export class VoiceInput<TAction = VoiceAction> {
     }
     this.active = false;
     this.shouldRestart = false;
+    this.startGeneration += 1;
     this.lastRecognitionText = "";
     try {
       this.recognition.stop();
@@ -147,6 +167,21 @@ export class VoiceInput<TAction = VoiceAction> {
       this.recognition.abort();
     }
     this.notify({ status: "idle", transcript: "", actions: [] });
+  }
+
+  private async ensureMicrophonePermission(): Promise<void> {
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.getUserMedia) {
+      return;
+    }
+    const stream = await mediaDevices.getUserMedia({ audio: true });
+    for (const track of stream.getTracks()) {
+      track.stop();
+    }
+  }
+
+  private isRestartableError(error: string): boolean {
+    return !["not-allowed", "service-not-allowed", "audio-capture"].includes(error);
   }
 
   private handleResult(event: RecognitionEvent): void {
