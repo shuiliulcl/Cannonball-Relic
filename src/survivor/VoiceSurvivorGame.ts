@@ -1067,6 +1067,9 @@ export class VoiceSurvivorGame {
   private lastStatSignature = "";
   private voiceButton!: HTMLButtonElement;
   private startOverlay!: HTMLElement;
+  private startGuide!: HTMLElement;
+  private startButton!: HTMLButtonElement;
+  private startExpertButton!: HTMLButtonElement;
   private resultPanel!: HTMLElement;
   private pauseOverlay!: HTMLElement;
   private upgradeOverlay!: HTMLElement;
@@ -1162,6 +1165,7 @@ export class VoiceSurvivorGame {
   private lastVoiceBarrageText = "";
   private lastVoiceBarrageAt = -999;
   private tutorial = {
+    guideDismissed: false,
     moved: false,
     prepDone: false,
     aimDone: false,
@@ -1256,6 +1260,7 @@ export class VoiceSurvivorGame {
   private skillGoLevel = 1;
   private screenShake = 0;
   private screenShakePower = 0;
+  private startOverlayMode: "intro" | "training" = "intro";
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -1301,17 +1306,20 @@ export class VoiceSurvivorGame {
         <section id="survivorCommandDock" class="survivor-command-dock" aria-label="手动施法栏"></section>
         <section id="survivorGmPanel" class="survivor-gm-panel" aria-label="GM debug tools" hidden></section>
         <div id="survivorStart" class="survivor-overlay">
-          <span class="survivor-kicker">首次进入游戏</span>
-          <h1>操作训练</h1>
-          <p>先学会活下来，再学会把自己打出去。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。</p>
-          <div class="survivor-start-guide" aria-label="首次进入操作引导">
+          <span class="survivor-kicker">语音幸存者肉鸽</span>
+          <h1>人间大炮一级准备</h1>
+          <p>自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。</p>
+          <div class="survivor-start-guide" aria-label="首次进入操作引导" hidden>
             <span><b>W</b><strong>移动保命</strong><em>WASD / 方向键：拉开距离</em></span>
             <span><b>Q</b><strong>一级准备</strong><em>Q / 语音：一级准备</em></span>
             <span><b>E</b><strong>人间大炮</strong><em>E / 语音：人间大炮</em></span>
             <span><b>R</b><strong>发射收割</strong><em>R / 语音：发射、开火</em></span>
           </div>
           <div id="survivorResult" class="survivor-result" hidden></div>
-          <button type="button" data-action="start">进入训练</button>
+          <div class="survivor-start-actions">
+            <button type="button" data-action="start">确定</button>
+            <button type="button" data-action="expert" hidden>我是高手高手高手高高手</button>
+          </div>
         </div>
         <div id="survivorPause" class="survivor-overlay survivor-pause" hidden>
           <span class="survivor-kicker">PAUSED</span>
@@ -1341,6 +1349,9 @@ export class VoiceSurvivorGame {
     this.chainLine = this.root.querySelector<HTMLElement>("#survivorChain") ?? this.fail("Missing survivor chain.");
     this.voiceButton = this.root.querySelector<HTMLButtonElement>("#survivorVoiceButton") ?? this.fail("Missing survivor voice button.");
     this.startOverlay = this.root.querySelector<HTMLElement>("#survivorStart") ?? this.fail("Missing survivor start overlay.");
+    this.startGuide = this.startOverlay.querySelector<HTMLElement>(".survivor-start-guide") ?? this.fail("Missing survivor start guide.");
+    this.startButton = this.root.querySelector<HTMLButtonElement>("[data-action='start']") ?? this.fail("Missing survivor start button.");
+    this.startExpertButton = this.root.querySelector<HTMLButtonElement>("[data-action='expert']") ?? this.fail("Missing survivor expert button.");
     this.resultPanel = this.root.querySelector<HTMLElement>("#survivorResult") ?? this.fail("Missing survivor result panel.");
     this.pauseOverlay = this.root.querySelector<HTMLElement>("#survivorPause") ?? this.fail("Missing survivor pause overlay.");
     this.upgradeOverlay = this.root.querySelector<HTMLElement>("#survivorUpgrade") ?? this.fail("Missing survivor upgrade overlay.");
@@ -1605,7 +1616,8 @@ export class VoiceSurvivorGame {
         this.cannonTarget = { ...this.pointer };
       }
     });
-    this.root.querySelector<HTMLButtonElement>("[data-action='start']")?.addEventListener("click", () => this.start());
+    this.startButton.addEventListener("click", () => this.advanceStartOverlay());
+    this.startExpertButton.addEventListener("click", () => this.start({ skipGuide: true }));
     this.pauseActionButtons().forEach((button, index) => {
       button.addEventListener("focus", () => this.selectPauseAction(index, { focus: false }));
       button.addEventListener("pointerenter", () => this.selectPauseAction(index, { focus: false }));
@@ -1627,9 +1639,43 @@ export class VoiceSurvivorGame {
       return false;
     }
     if (!event.repeat) {
-      this.start();
+      this.advanceStartOverlay();
     }
     return true;
+  }
+
+  private advanceStartOverlay(): void {
+    if (this.startOverlay.classList.contains("is-result")) {
+      this.start();
+      return;
+    }
+    if (this.startOverlayMode === "intro") {
+      this.renderStartTrainingOverlay();
+      return;
+    }
+    this.start();
+  }
+
+  private renderStartIntroOverlay(): void {
+    this.startOverlayMode = "intro";
+    this.startOverlay.classList.remove("is-result");
+    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "语音幸存者肉鸽";
+    this.startOverlay.querySelector("h1")!.textContent = "人间大炮一级准备";
+    this.startOverlay.querySelector("p")!.textContent = "自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。";
+    this.startGuide.hidden = true;
+    this.startButton.textContent = "确定";
+    this.startExpertButton.hidden = true;
+  }
+
+  private renderStartTrainingOverlay(): void {
+    this.startOverlayMode = "training";
+    this.startOverlay.classList.remove("is-result");
+    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "首次进入游戏";
+    this.startOverlay.querySelector("h1")!.textContent = "新人培训";
+    this.startOverlay.querySelector("p")!.textContent = "先学会活下来，再学会把自己打出去。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。";
+    this.startGuide.hidden = false;
+    this.startButton.textContent = "我是小白";
+    this.startExpertButton.hidden = false;
   }
 
   private handlePauseMenuKeyboard(event: KeyboardEvent): boolean {
@@ -2137,7 +2183,7 @@ export class VoiceSurvivorGame {
     this.voiceInput.start();
   }
 
-  private start(): void {
+  private start(options: { skipGuide?: boolean } = {}): void {
     this.running = true;
     this.paused = false;
     this.selectingBuff = false;
@@ -2150,17 +2196,17 @@ export class VoiceSurvivorGame {
     this.pauseOverlay.hidden = true;
     this.upgradeOverlay.hidden = true;
     this.resetRun();
+    if (options.skipGuide) {
+      this.tutorial.guideDismissed = true;
+      this.renderGuidePanel();
+    }
     this.lastFrame = performance.now();
     cancelAnimationFrame(this.rafId);
     this.rafId = requestAnimationFrame((time) => this.loop(time));
   }
 
   private restoreStartOverlay(): void {
-    this.startOverlay.classList.remove("is-result");
-    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "首次进入游戏";
-    this.startOverlay.querySelector("h1")!.textContent = "操作训练";
-    this.startOverlay.querySelector("p")!.textContent = "先学会活下来，再学会把自己打出去。自动攻击会持续开火，你只需要走位、蓄力、瞄准、发射。";
-    this.startOverlay.querySelector("button")!.textContent = "进入训练";
+    this.renderStartIntroOverlay();
     this.resultPanel.hidden = true;
     this.resultPanel.replaceChildren();
   }
@@ -2275,6 +2321,7 @@ export class VoiceSurvivorGame {
     this.lastVoiceBarrageText = "";
     this.lastVoiceBarrageAt = -999;
     this.tutorial = {
+      guideDismissed: false,
       moved: false,
       prepDone: false,
       aimDone: false,
@@ -2475,7 +2522,7 @@ export class VoiceSurvivorGame {
     this.updateSurges(dt);
     this.spawnEnemies(dt);
     this.checkLevelUp();
-    this.updateCommandDockPassThroughState();
+    this.updateHudPassThroughState();
   }
 
   private effectivePlayerRadius(): number {
@@ -2495,31 +2542,56 @@ export class VoiceSurvivorGame {
     };
   }
 
-  private commandDockBoundsInCanvas(): { left: number; right: number; top: number; bottom: number } | null {
-    if (!this.running || this.commandDock.hidden || this.commandDockHeight <= 0) return null;
+  private hudPanelBoundsInCanvas(panel: HTMLElement): { left: number; right: number; top: number; bottom: number } | null {
+    if (!this.running || panel.hidden) return null;
     const canvasRect = this.canvas.getBoundingClientRect();
-    const dockRect = this.commandDock.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    if (panelRect.width <= 0 || panelRect.height <= 0) return null;
     return {
-      left: dockRect.left - canvasRect.left,
-      right: dockRect.right - canvasRect.left,
-      top: dockRect.top - canvasRect.top,
-      bottom: dockRect.bottom - canvasRect.top,
+      left: panelRect.left - canvasRect.left,
+      right: panelRect.right - canvasRect.left,
+      top: panelRect.top - canvasRect.top,
+      bottom: panelRect.bottom - canvasRect.top,
     };
   }
 
-  private updateCommandDockPassThroughState(): void {
-    const bounds = this.commandDockBoundsInCanvas();
-    if (!bounds) {
-      this.commandDock.classList.remove("is-player-behind");
+  private updateHudPassThroughState(): void {
+    if (!this.running) {
+      this.clearHudPassThroughState();
       return;
     }
     const radius = this.effectivePlayerRadius() + 8;
-    const overlaps =
-      this.player.position.x + radius >= bounds.left &&
-      this.player.position.x - radius <= bounds.right &&
-      this.player.position.y + radius >= bounds.top &&
-      this.player.position.y - radius <= bounds.bottom;
-    this.commandDock.classList.toggle("is-player-behind", overlaps);
+    const panels = this.root.querySelectorAll<HTMLElement>([
+      ".survivor-title",
+      ".survivor-bars",
+      ".survivor-voice",
+      ".survivor-active-spells",
+      ".survivor-guide-panel",
+      ".survivor-detail-panel",
+      ".survivor-resource-panel",
+      ".survivor-gm-panel",
+      ".survivor-command-dock",
+    ].join(", "));
+    for (const panel of panels) {
+      const bounds = this.hudPanelBoundsInCanvas(panel);
+      if (!bounds) {
+        panel.classList.remove("is-player-behind");
+        continue;
+      }
+      const overlaps =
+        this.player.position.x + radius >= bounds.left &&
+        this.player.position.x - radius <= bounds.right &&
+        this.player.position.y + radius >= bounds.top &&
+        this.player.position.y - radius <= bounds.bottom;
+      panel.classList.toggle("is-player-behind", overlaps);
+    }
+  }
+
+  private clearHudPassThroughState(): void {
+    const panels = this.root.querySelectorAll<HTMLElement>(".is-player-behind");
+    for (const panel of panels) {
+      panel.classList.remove("is-player-behind");
+    }
   }
 
   private updatePlayer(dt: number): void {
@@ -4661,7 +4733,8 @@ export class VoiceSurvivorGame {
     this.startOverlay.querySelector("h1")!.textContent = rating.label;
     this.startOverlay.querySelector("p")!.textContent = "声纹战报已生成，所有施法记录进入片尾归档。";
     this.renderResultPanel(rating);
-    this.startOverlay.querySelector("button")!.textContent = "再次出击";
+    this.startButton.textContent = "再次出击";
+    this.startExpertButton.hidden = true;
     this.syncCommandDockVisibility();
   }
 
@@ -4793,7 +4866,7 @@ export class VoiceSurvivorGame {
     const track = document.createElement("div");
     track.className = "survivor-result-credits-track";
     const entries = this.voiceBarrageLog.slice();
-    track.style.setProperty("--credits-duration", `${Math.max(16, entries.length * 2.2)}s`);
+    track.style.setProperty("--credits-duration", `${Math.max(9, entries.length * 1.25)}s`);
     if (entries.length === 0) {
       const empty = document.createElement("span");
       empty.className = "survivor-result-credits-empty";
@@ -6595,7 +6668,7 @@ export class VoiceSurvivorGame {
   }
 
   private renderGuidePanel(): void {
-    const hidden = !this.running || this.paused || this.selectingBuff || this.gameOver;
+    const hidden = this.tutorial.guideDismissed || !this.running || this.paused || this.selectingBuff || this.gameOver;
     this.guidePanel.hidden = hidden;
     this.guidePanel.setAttribute("aria-hidden", hidden ? "true" : "false");
     if (hidden) {
@@ -6605,6 +6678,16 @@ export class VoiceSurvivorGame {
 
     const step = this.currentGuideStep();
     this.guidePanel.replaceChildren();
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "survivor-guide-close";
+    close.setAttribute("aria-label", "关闭引导");
+    close.title = "关闭引导";
+    close.textContent = "×";
+    close.addEventListener("click", () => {
+      this.tutorial.guideDismissed = true;
+      this.renderGuidePanel();
+    });
     const title = document.createElement("strong");
     title.textContent = step.title;
     const body = document.createElement("p");
@@ -6618,7 +6701,7 @@ export class VoiceSurvivorGame {
       item.textContent = tip;
       list.append(item);
     }
-    this.guidePanel.append(title, body, action, list);
+    this.guidePanel.append(close, title, body, action, list);
     this.applyTutorialTargetHighlight(step.target);
   }
 
@@ -6757,9 +6840,9 @@ export class VoiceSurvivorGame {
     const hidden = !this.running || this.paused || this.selectingBuff || this.gameOver;
     this.commandDock.hidden = hidden;
     this.commandDock.setAttribute("aria-hidden", hidden ? "true" : "false");
-    if (hidden) this.commandDock.classList.remove("is-player-behind");
-    this.guidePanel.hidden = hidden;
-    this.guidePanel.setAttribute("aria-hidden", hidden ? "true" : "false");
+    if (hidden) this.clearHudPassThroughState();
+    this.guidePanel.hidden = hidden || this.tutorial.guideDismissed;
+    this.guidePanel.setAttribute("aria-hidden", hidden || this.tutorial.guideDismissed ? "true" : "false");
     if (hidden) this.applyTutorialTargetHighlight(null);
     window.requestAnimationFrame(() => this.updateCommandDockMetrics());
   }
