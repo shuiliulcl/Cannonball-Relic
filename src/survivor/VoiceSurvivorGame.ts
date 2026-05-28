@@ -986,6 +986,7 @@ export class VoiceSurvivorGame {
   private upgradeChoices!: HTMLElement;
   private commandDock!: HTMLElement;
   private commandDockObserver?: ResizeObserver;
+  private commandDockHeight = 0;
   private activeSpellPanel!: HTMLElement;
   private hpFill!: HTMLElement;
   private hpText!: HTMLElement;
@@ -1371,7 +1372,7 @@ export class VoiceSurvivorGame {
       this.turrets.push({
         position: {
           x: clamp(this.player.position.x + Math.cos(angle) * radius, 34, this.width - 34),
-          y: clamp(this.player.position.y + Math.sin(angle) * radius, 34, this.height - 34),
+          y: clamp(this.player.position.y + Math.sin(angle) * radius, 34, this.playerMaxY(34)),
         },
         cooldown: i * 0.08,
         life: 18,
@@ -1557,6 +1558,9 @@ export class VoiceSurvivorGame {
     if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) {
       return false;
     }
+    if (this.isMovementKey(event)) {
+      return false;
+    }
     const shortcuts = this.manualShortcutCandidates(event);
     if (shortcuts.length === 0) return false;
     if (!this.running || this.paused || this.selectingBuff || this.gameOver) {
@@ -1617,6 +1621,11 @@ export class VoiceSurvivorGame {
     if (options.focus !== false) {
       buttons[normalized]?.focus({ preventScroll: true });
     }
+  }
+
+  private isMovementKey(event: KeyboardEvent): boolean {
+    const key = event.key.toLowerCase();
+    return key === "w" || key === "a" || key === "s" || key === "d" || key.startsWith("arrow");
   }
 
   private manualShortcutCandidates(event: KeyboardEvent): string[] {
@@ -1695,7 +1704,7 @@ export class VoiceSurvivorGame {
     this.canvas.height = Math.floor(this.height * scale);
     this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
     this.player.position.x = clamp(this.player.position.x, 30, this.width - 30);
-    this.player.position.y = clamp(this.player.position.y, 30, this.height - 30);
+    this.player.position.y = clamp(this.player.position.y, 30, this.playerMaxY(30));
   }
 
   private setupVoice(): void {
@@ -2124,12 +2133,51 @@ export class VoiceSurvivorGame {
     this.updateSurges(dt);
     this.spawnEnemies(dt);
     this.checkLevelUp();
+    this.updateCommandDockPassThroughState();
   }
 
   private effectivePlayerRadius(): number {
     const slim = this.activeMods.slimTime > 0 ? 0.68 : 1;
     const graceful = this.activeMods.gracefulTime > 0 ? 0.86 : 1;
     return Math.max(7, this.player.radius * slim * graceful);
+  }
+
+  private playerMaxY(radius: number): number {
+    return Math.max(radius, this.height - radius);
+  }
+
+  private clampToPlayableArea(position: Vec2, radius: number): Vec2 {
+    return {
+      x: clamp(position.x, radius, this.width - radius),
+      y: clamp(position.y, radius, this.playerMaxY(radius)),
+    };
+  }
+
+  private commandDockBoundsInCanvas(): { left: number; right: number; top: number; bottom: number } | null {
+    if (!this.running || this.commandDock.hidden || this.commandDockHeight <= 0) return null;
+    const canvasRect = this.canvas.getBoundingClientRect();
+    const dockRect = this.commandDock.getBoundingClientRect();
+    return {
+      left: dockRect.left - canvasRect.left,
+      right: dockRect.right - canvasRect.left,
+      top: dockRect.top - canvasRect.top,
+      bottom: dockRect.bottom - canvasRect.top,
+    };
+  }
+
+  private updateCommandDockPassThroughState(): void {
+    const bounds = this.commandDockBoundsInCanvas();
+    if (!bounds) {
+      this.commandDock.classList.remove("is-player-behind");
+      return;
+    }
+    const radius = this.effectivePlayerRadius() + 8;
+    const overlaps =
+      this.player.position.x + radius >= bounds.left &&
+      this.player.position.x - radius <= bounds.right &&
+      this.player.position.y + radius >= bounds.top &&
+      this.player.position.y - radius <= bounds.bottom;
+    this.commandDock.classList.toggle("is-player-behind", overlaps);
   }
 
   private updatePlayer(dt: number): void {
@@ -2149,13 +2197,13 @@ export class VoiceSurvivorGame {
         this.cannonBouncesLeft -= 1;
         this.addBurst(this.player.position, "#ffd25a", 16);
       }
-      if (this.player.position.y < this.player.radius || this.player.position.y > this.height - this.player.radius) {
+      if (this.player.position.y < this.player.radius || this.player.position.y > this.playerMaxY(this.player.radius)) {
         this.player.cannonVelocity.y *= -0.9;
         this.cannonBouncesLeft -= 1;
         this.addBurst(this.player.position, "#ffd25a", 16);
       }
       this.player.position.x = clamp(this.player.position.x, this.player.radius, this.width - this.player.radius);
-      this.player.position.y = clamp(this.player.position.y, this.player.radius, this.height - this.player.radius);
+      this.player.position.y = clamp(this.player.position.y, this.player.radius, this.playerMaxY(this.player.radius));
       for (const enemy of this.enemies) {
         if (distance(this.player.position, enemy.position) < this.player.radius + enemy.radius + 8) {
           const targetBonus = enemy.type === "target" ? 2.4 : 1;
@@ -2178,7 +2226,7 @@ export class VoiceSurvivorGame {
     const playerRadius = this.effectivePlayerRadius();
     this.player.velocity = { x: move.x * this.moveSpeed, y: move.y * this.moveSpeed };
     this.player.position.x = clamp(this.player.position.x + this.player.velocity.x * dt, playerRadius, this.width - playerRadius);
-    this.player.position.y = clamp(this.player.position.y + this.player.velocity.y * dt, playerRadius, this.height - playerRadius);
+    this.player.position.y = clamp(this.player.position.y + this.player.velocity.y * dt, playerRadius, this.playerMaxY(playerRadius));
   }
 
   private updateAutoFire(dt: number): void {
@@ -2321,13 +2369,13 @@ export class VoiceSurvivorGame {
       enemy.position.x += enemy.velocity.x * dt;
       enemy.position.y += enemy.velocity.y * dt;
       enemy.position.x = clamp(enemy.position.x, enemy.radius, this.width - enemy.radius);
-      enemy.position.y = clamp(enemy.position.y, enemy.radius, this.height - enemy.radius);
+      enemy.position.y = clamp(enemy.position.y, enemy.radius, this.playerMaxY(enemy.radius));
 
       if (distance(enemy.position, this.player.position) < enemy.radius + playerRadius) {
         this.hurtPlayer(this.scaledEnemyDamage(enemy.type));
         const away = normalize({ x: this.player.position.x - enemy.position.x, y: this.player.position.y - enemy.position.y });
         this.player.position.x = clamp(this.player.position.x + away.x * 18, playerRadius, this.width - playerRadius);
-        this.player.position.y = clamp(this.player.position.y + away.y * 18, playerRadius, this.height - playerRadius);
+        this.player.position.y = clamp(this.player.position.y + away.y * 18, playerRadius, this.playerMaxY(playerRadius));
       }
     }
     this.enemies = this.enemies.filter((enemy) => enemy.hp > 0);
@@ -2421,6 +2469,7 @@ export class VoiceSurvivorGame {
   private updateDrops(dt: number): void {
     const playerRadius = this.effectivePlayerRadius();
     for (const drop of this.drops) {
+      drop.position = this.clampToPlayableArea(drop.position, drop.radius);
       const dist = distance(drop.position, this.player.position);
       if (dist < playerRadius + drop.radius) {
         this.xp += drop.value;
@@ -2434,6 +2483,7 @@ export class VoiceSurvivorGame {
         const speed = 120 + (1 - dist / magnetRange) * 520;
         drop.position.x += pull.x * speed * dt;
         drop.position.y += pull.y * speed * dt;
+        drop.position = this.clampToPlayableArea(drop.position, drop.radius);
       }
     }
     this.drops = this.drops.filter((drop) => drop.value > 0);
@@ -2532,13 +2582,13 @@ export class VoiceSurvivorGame {
       return;
     }
     this.spawnSurge();
-    this.surgeTimer = Math.max(18, 34 - this.threatTier() * 3.5);
+    this.surgeTimer = Math.max(24, 40 - this.threatTier() * 3);
   }
 
   private spawnSurge(): void {
     const tier = this.threatTier();
     const roomLeft = Math.max(0, this.targetEnemyCount() + 6 - this.enemies.length);
-    const count = Math.min(roomLeft, 4 + tier * 2);
+    const count = Math.min(roomLeft, 4 + Math.floor(tier * 1.45));
     for (let i = 0; i < count; i += 1) {
       const type: EnemyType =
         i === 0 && tier >= 3 ? "target" :
@@ -2546,7 +2596,7 @@ export class VoiceSurvivorGame {
         i % 3 === 0 ? "ranged" :
         i % 2 === 0 ? "pouncer" :
         "brute";
-      this.spawnEnemy(type, 1.22 + tier * 0.18);
+      this.spawnEnemy(type, 1.12 + tier * 0.12);
     }
     this.cannonMeter = clamp(this.cannonMeter + 12, 0, 100);
     this.say("压力波来了：这波值得开大。");
@@ -2559,14 +2609,14 @@ export class VoiceSurvivorGame {
     const pressure = this.enemyPressure();
     const targetCount = this.targetEnemyCount();
     const tier = this.threatTier();
-    const pressureLimit = tier >= 3 ? 1.12 : 1;
+    const pressureLimit = tier >= 4 ? 1.06 : tier >= 3 ? 1.08 : 1;
     if (pressure >= pressureLimit) {
-      this.spawnTimer = tier >= 3 ? 0.62 : 0.9;
-      this.spawnBudget = Math.min(this.spawnBudget, tier >= 3 ? 1.8 : 1.2);
+      this.spawnTimer = tier >= 4 ? 0.78 : tier >= 3 ? 0.72 : 0.9;
+      this.spawnBudget = Math.min(this.spawnBudget, tier >= 4 ? 1.45 : tier >= 3 ? 1.6 : 1.2);
       return;
     }
     const earlyRush = this.elapsed < 20;
-    const maxBatch = earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 5 + tier;
+    const maxBatch = earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 4 + tier;
     const roomLeft = Math.max(0, targetCount - this.enemies.length);
     const count = Math.min(maxBatch, roomLeft, (earlyRush ? 2 : 1) + Math.floor(this.spawnBudget));
     for (let i = 0; i < count; i += 1) {
@@ -2580,8 +2630,8 @@ export class VoiceSurvivorGame {
     const tier = this.threatTier();
     if (this.elapsed < 20) return 20;
     if (this.elapsed < 55) return 24 + tier * 2;
-    if (this.elapsed < 100) return 30 + tier * 3;
-    return 34 + tier * 4;
+    if (this.elapsed < 100) return 29 + tier * 3;
+    return 32 + tier * 3;
   }
 
   private enemyPressure(): number {
@@ -2590,16 +2640,16 @@ export class VoiceSurvivorGame {
 
   private nextSpawnInterval(pressure: number): number {
     const tier = this.threatTier();
-    const base = this.elapsed < 20 ? 0.86 : this.elapsed < 70 ? 1.08 : 1.28;
-    const pressureDelay = pressure * (0.74 - tier * 0.07);
-    return clamp(base + pressureDelay - tier * 0.08, 0.42, 1.95);
+    const base = this.elapsed < 20 ? 0.86 : this.elapsed < 70 ? 1.08 : 1.36;
+    const pressureDelay = pressure * (0.78 - tier * 0.06);
+    return clamp(base + pressureDelay - tier * 0.065, 0.5, 2.05);
   }
 
   private threatTier(): number {
     const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
-    const byBuffs = buffCount >= 7 ? 4 : buffCount >= 5 ? 3 : buffCount >= 3 ? 2 : buffCount >= 1 ? 1 : 0;
-    const byLevel = this.level >= 8 ? 4 : this.level >= 6 ? 3 : this.level >= 4 ? 2 : this.level >= 2 ? 1 : 0;
-    const byTime = this.elapsed >= 130 ? 4 : this.elapsed >= 90 ? 3 : this.elapsed >= 55 ? 2 : this.elapsed >= 28 ? 1 : 0;
+    const byBuffs = buffCount >= 10 ? 4 : buffCount >= 7 ? 3 : buffCount >= 4 ? 2 : buffCount >= 1 ? 1 : 0;
+    const byLevel = this.level >= 10 ? 4 : this.level >= 7 ? 3 : this.level >= 4 ? 2 : this.level >= 2 ? 1 : 0;
+    const byTime = this.elapsed >= 175 ? 4 : this.elapsed >= 115 ? 3 : this.elapsed >= 60 ? 2 : this.elapsed >= 28 ? 1 : 0;
     return Math.max(byBuffs, byLevel, byTime);
   }
 
@@ -2619,12 +2669,13 @@ export class VoiceSurvivorGame {
   private spawnEnemy(type: EnemyType, strength = 1): void {
     const cfg = ENEMY_CONFIG[type];
     const scaling = this.enemyScaling();
-    const baseHp = cfg.hp + this.elapsed * (0.18 + scaling.tier * 0.04);
+    const baseHp = cfg.hp + this.elapsed * (0.15 + scaling.tier * 0.03);
     const hp = baseHp * scaling.hpMultiplier * strength;
     const edge = Math.floor(Math.random() * 4);
+    const maxY = this.playerMaxY(cfg.radius);
     const position = {
       x: edge === 0 ? -30 : edge === 1 ? this.width + 30 : Math.random() * this.width,
-      y: edge === 2 ? -30 : edge === 3 ? this.height + 30 : Math.random() * this.height,
+      y: edge === 2 ? -30 : edge === 3 ? maxY + 30 : Math.random() * maxY,
     };
     this.enemies.push({
       id: this.nextEnemyId,
@@ -2647,9 +2698,9 @@ export class VoiceSurvivorGame {
     const minutes = this.elapsed / 60;
     return {
       tier,
-      hpMultiplier: 1 + tier * 0.28 + Math.max(0, minutes - 1) * 0.18,
-      speedMultiplier: 1 + tier * 0.045 + Math.max(0, minutes - 1.3) * 0.025,
-      damageMultiplier: 1 + tier * 0.16 + Math.max(0, minutes - 1) * 0.08,
+      hpMultiplier: 1 + tier * 0.23 + Math.max(0, minutes - 1) * 0.13,
+      speedMultiplier: 1 + tier * 0.04 + Math.max(0, minutes - 1.3) * 0.02,
+      damageMultiplier: 1 + tier * 0.13 + Math.max(0, minutes - 1) * 0.06,
     };
   }
 
@@ -3383,7 +3434,7 @@ export class VoiceSurvivorGame {
     const dashAngle = Math.atan2(safe.y, safe.x);
     this.addPlayerAfterimage(from, "#9cffd0", this.effectivePlayerRadius(), 0.22, dashAngle, 1.34);
     this.player.position.x = clamp(this.player.position.x + safe.x * distanceBoost, this.player.radius, this.width - this.player.radius);
-    this.player.position.y = clamp(this.player.position.y + safe.y * distanceBoost, this.player.radius, this.height - this.player.radius);
+    this.player.position.y = clamp(this.player.position.y + safe.y * distanceBoost, this.player.radius, this.playerMaxY(this.player.radius));
     this.player.invuln = Math.max(this.player.invuln, 0.35);
     this.addPlayerAfterimage(this.player.position, "#9cffd0", this.effectivePlayerRadius(), 0.16, dashAngle, 1.18);
     this.addBurst(this.player.position, "#9cffd0", 12);
@@ -3601,7 +3652,7 @@ export class VoiceSurvivorGame {
       const radius = this.effectivePlayerRadius();
       this.player.position = {
         x: clamp(snapshot.position.x, radius, this.width - radius),
-        y: clamp(snapshot.position.y, radius, this.height - radius),
+        y: clamp(snapshot.position.y, radius, this.playerMaxY(radius)),
       };
       this.player.hp = Math.min(this.player.maxHp, Math.max(this.player.hp, snapshot.hp));
       this.addParticle(from, this.player.position, "#9cffd0");
@@ -3642,7 +3693,7 @@ export class VoiceSurvivorGame {
       affected += 1;
       const push = normalize({ x: center.x - enemy.position.x, y: center.y - enemy.position.y });
       enemy.position.x = clamp(enemy.position.x + push.x * 72 * power, enemy.radius, this.width - enemy.radius);
-      enemy.position.y = clamp(enemy.position.y + push.y * 72 * power, enemy.radius, this.height - enemy.radius);
+      enemy.position.y = clamp(enemy.position.y + push.y * 72 * power, enemy.radius, this.playerMaxY(enemy.radius));
       enemy.cooldown = Math.max(enemy.cooldown, 1.25);
       this.damageEnemy(enemy, (13 + this.attackDamage * 0.55) * power * (1 + missingHpRatio * 0.65), "externalDrain");
       this.addBurst(enemy.position, "#c491ff", 7);
@@ -3960,7 +4011,7 @@ export class VoiceSurvivorGame {
     const dashAngle = Math.atan2(safe.y, safe.x);
     this.addPlayerAfterimage(from, spell === "calm" ? "#9cffd0" : "#66e0ff", this.effectivePlayerRadius(), 0.25, dashAngle, 1.42);
     this.player.position.x = clamp(this.player.position.x + safe.x * distanceBoost, this.player.radius, this.width - this.player.radius);
-    this.player.position.y = clamp(this.player.position.y + safe.y * distanceBoost, this.player.radius, this.height - this.player.radius);
+    this.player.position.y = clamp(this.player.position.y + safe.y * distanceBoost, this.player.radius, this.playerMaxY(this.player.radius));
     this.player.invuln = Math.max(this.player.invuln, spell === "scramble" ? 0.75 : 0.45);
     this.player.dodgeCooldown = spell === "scramble" ? 5.4 : 3.2;
     if (spell === "scramble") this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 2.5);
@@ -3980,7 +4031,7 @@ export class VoiceSurvivorGame {
       this.damageEnemy(enemy, (18 + this.bangLevel * 4) * power, "bang");
       const away = normalize({ x: enemy.position.x - this.player.position.x, y: enemy.position.y - this.player.position.y });
       enemy.position.x = clamp(enemy.position.x + away.x * 32, enemy.radius, this.width - enemy.radius);
-      enemy.position.y = clamp(enemy.position.y + away.y * 32, enemy.radius, this.height - enemy.radius);
+      enemy.position.y = clamp(enemy.position.y + away.y * 32, enemy.radius, this.playerMaxY(enemy.radius));
       this.addBurst(enemy.position, "#ffcf5a", 10);
     }
     if (hits === 0) {
@@ -4006,7 +4057,7 @@ export class VoiceSurvivorGame {
       this.turrets.push({
         position: {
           x: clamp(this.player.position.x + Math.cos(angle) * 84, 34, this.width - 34),
-          y: clamp(this.player.position.y + Math.sin(angle) * 84, 34, this.height - 34),
+          y: clamp(this.player.position.y + Math.sin(angle) * 84, 34, this.playerMaxY(34)),
         },
         cooldown: i * 0.08,
         life: 7 + this.skillGoLevel,
@@ -4101,7 +4152,7 @@ export class VoiceSurvivorGame {
   private knockEnemyAway(enemy: Enemy, origin: Vec2, amount: number): void {
     const away = normalize({ x: enemy.position.x - origin.x, y: enemy.position.y - origin.y });
     enemy.position.x = clamp(enemy.position.x + away.x * amount, enemy.radius, this.width - enemy.radius);
-    enemy.position.y = clamp(enemy.position.y + away.y * amount, enemy.radius, this.height - enemy.radius);
+    enemy.position.y = clamp(enemy.position.y + away.y * amount, enemy.radius, this.playerMaxY(enemy.radius));
   }
 
   private clearEnemyShotsNear(position: Vec2, radius: number): void {
@@ -4170,7 +4221,7 @@ export class VoiceSurvivorGame {
     this.cannonMeter = clamp(this.cannonMeter + (enemy.type === "target" ? 14 : 3), 0, 100);
     const xpValue = ENEMY_CONFIG[enemy.type].xp * this.currentXpDropMultiplier();
     this.drops.push({
-      position: { ...enemy.position },
+      position: this.clampToPlayableArea(enemy.position, 7),
       value: xpValue,
       radius: 7,
       magnet: 0,
@@ -4186,7 +4237,8 @@ export class VoiceSurvivorGame {
   private currentXpDropMultiplier(): number {
     if (this.elapsed < 45) return 1.38;
     if (this.elapsed < 100) return 1.18;
-    return 1;
+    if (this.elapsed < 180) return 1.1;
+    return 1.04;
   }
 
   private hurtPlayer(amount: number, ignoreInvuln = false): void {
@@ -4239,8 +4291,9 @@ export class VoiceSurvivorGame {
     this.level += 1;
     this.xpGoal = this.level <= 6 ? Math.round(this.xpGoal * 1.08 + 5) : Math.round(this.xpGoal * 1.16 + 11);
     this.applyBaselineLevelReward();
-    this.energy = clamp(this.energy + 10, 0, this.maxEnergy);
-    this.cannonMeter = clamp(this.cannonMeter + 8, 0, 100);
+    const lateTempo = this.level >= 8 ? 1.35 : 1;
+    this.energy = clamp(this.energy + 10 * lateTempo, 0, this.maxEnergy);
+    this.cannonMeter = clamp(this.cannonMeter + 8 * lateTempo, 0, 100);
     this.addBurst(this.player.position, "#7cff9b", 48);
     this.addBurst(this.player.position, "#8ee8ff", 28);
     this.selectingBuff = true;
@@ -4248,10 +4301,11 @@ export class VoiceSurvivorGame {
   }
 
   private applyBaselineLevelReward(): void {
-    this.attackDamage += 0.7;
-    if (this.level % 3 === 0) this.maxEnergy += 2;
-    this.player.maxHp += 2;
-    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 3);
+    const lateTempo = this.level >= 8 ? 1.45 : 1;
+    this.attackDamage += 0.7 * lateTempo;
+    if (this.level % 3 === 0) this.maxEnergy += this.level >= 8 ? 4 : 2;
+    this.player.maxHp += this.level >= 8 ? 3 : 2;
+    this.player.hp = Math.min(this.player.maxHp, this.player.hp + (this.level >= 8 ? 5 : 3));
   }
 
   private showBuffChoices(count = 3): void {
@@ -4917,7 +4971,7 @@ export class VoiceSurvivorGame {
     const radius = this.player.radius + 28;
     return {
       x: clamp(this.player.position.x + Math.cos(angle) * radius, 18, this.width - 18),
-      y: clamp(this.player.position.y + Math.sin(angle) * radius, 18, this.height - 18),
+      y: clamp(this.player.position.y + Math.sin(angle) * radius, 18, this.playerMaxY(18)),
     };
   }
 
@@ -5830,6 +5884,7 @@ export class VoiceSurvivorGame {
 
   private renderCommandDock(): void {
     this.commandDock.replaceChildren();
+    const visible = this.commandSpells();
     const header = document.createElement("div");
     header.className = "survivor-command-header";
     const title = document.createElement("strong");
@@ -5876,7 +5931,6 @@ export class VoiceSurvivorGame {
     cannonChain.append(cannonTitle, cannonActions);
     list.append(cannonChain);
 
-    const visible = this.commandSpells();
     visible.forEach((spell, index) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -5901,11 +5955,13 @@ export class VoiceSurvivorGame {
     const hidden = !this.running || this.paused || this.selectingBuff || this.gameOver;
     this.commandDock.hidden = hidden;
     this.commandDock.setAttribute("aria-hidden", hidden ? "true" : "false");
+    if (hidden) this.commandDock.classList.remove("is-player-behind");
     window.requestAnimationFrame(() => this.updateCommandDockMetrics());
   }
 
   private updateCommandDockMetrics(): void {
     const height = this.commandDock.hidden ? 0 : this.commandDock.getBoundingClientRect().height;
+    this.commandDockHeight = Math.ceil(height);
     this.root.style.setProperty("--survivor-command-dock-height", `${Math.ceil(height)}px`);
   }
 
