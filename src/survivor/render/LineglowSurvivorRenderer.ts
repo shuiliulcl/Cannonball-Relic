@@ -482,11 +482,11 @@ export class LineglowSurvivorRenderer {
   private drawLightningSignature(ctx: CanvasRenderingContext2D): void {
     const spin = this.elapsed * 0.86;
     const r = this.player.radius + 31;
-    ctx.strokeStyle = "rgba(205, 166, 255, 0.82)";
-    ctx.fillStyle = "rgba(18, 8, 31, 0.86)";
-    ctx.shadowColor = "rgba(177, 108, 255, 0.78)";
-    ctx.shadowBlur = 14;
-    ctx.lineWidth = 1.75;
+    ctx.strokeStyle = "rgba(229, 255, 102, 0.86)";
+    ctx.fillStyle = "rgba(12, 24, 23, 0.88)";
+    ctx.shadowColor = "rgba(229, 255, 102, 0.82)";
+    ctx.shadowBlur = 18;
+    ctx.lineWidth = 1.9;
     for (let i = 0; i < 3; i += 1) {
       const angle = spin + i * (Math.PI * 2 / 3);
       ctx.save();
@@ -499,7 +499,7 @@ export class LineglowSurvivorRenderer {
       ctx.beginPath();
       ctx.arc(0, 0, 6.4, -Math.PI * 0.72, Math.PI * 0.1);
       ctx.stroke();
-      ctx.strokeStyle = "rgba(239, 225, 255, 0.72)";
+      ctx.strokeStyle = "rgba(247, 253, 255, 0.9)";
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(-1.8, -4.2);
@@ -508,6 +508,20 @@ export class LineglowSurvivorRenderer {
       ctx.lineTo(2.0, 4.4);
       ctx.stroke();
       ctx.restore();
+    }
+
+    ctx.strokeStyle = "rgba(143, 248, 255, 0.72)";
+    ctx.lineWidth = 1.3;
+    for (let i = 0; i < 5; i += 1) {
+      const angle = -spin * 1.7 + i * (Math.PI * 2 / 5);
+      const inner = this.player.radius + 20 + (i % 2) * 3;
+      const mid = inner + 8;
+      const outer = inner + 17;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      ctx.lineTo(Math.cos(angle + 0.18) * mid, Math.sin(angle + 0.18) * mid);
+      ctx.lineTo(Math.cos(angle - 0.12) * outer, Math.sin(angle - 0.12) * outer);
+      ctx.stroke();
     }
   }
 
@@ -959,12 +973,12 @@ export class LineglowSurvivorRenderer {
 
   private renderProjectiles(ctx: CanvasRenderingContext2D): void {
     for (const projectile of this.projectiles) {
-      const color = projectile.explosion ? "#ff9a3d" : projectile.freeze ? "#a8ecff" : projectile.lightning ? "#b16cff" : "#75eee2";
+      const color = projectile.explosion ? "#ff9a3d" : projectile.freeze ? "#a8ecff" : projectile.lightning ? "#e5ff66" : "#75eee2";
       const tail = normalize({ x: -projectile.velocity.x, y: -projectile.velocity.y });
       ctx.strokeStyle = projectile.explosion
         ? "rgba(255, 154, 61, 0.38)"
         : projectile.lightning
-          ? "rgba(177, 108, 255, 0.38)"
+          ? "rgba(229, 255, 102, 0.48)"
           : projectile.freeze
             ? "rgba(168, 236, 255, 0.38)"
             : "rgba(117, 238, 226, 0.34)";
@@ -973,6 +987,17 @@ export class LineglowSurvivorRenderer {
       ctx.moveTo(projectile.position.x, projectile.position.y);
       ctx.lineTo(projectile.position.x + tail.x * 24, projectile.position.y + tail.y * 24);
       ctx.stroke();
+      if (projectile.lightning) {
+        ctx.strokeStyle = "rgba(247, 253, 255, 0.78)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(projectile.position.x + tail.y * 6, projectile.position.y - tail.x * 6);
+        ctx.lineTo(projectile.position.x + tail.x * 10, projectile.position.y + tail.y * 10);
+        ctx.lineTo(projectile.position.x - tail.y * 7, projectile.position.y + tail.x * 7);
+        ctx.moveTo(projectile.position.x - tail.x * 7 + tail.y * 4, projectile.position.y - tail.y * 7 - tail.x * 4);
+        ctx.lineTo(projectile.position.x - tail.x * 18 - tail.y * 8, projectile.position.y - tail.y * 18 + tail.x * 8);
+        ctx.stroke();
+      }
       if (projectile.pierce > 0) {
         ctx.strokeStyle = "rgba(117, 238, 226, 0.72)";
         ctx.lineWidth = 1.2;

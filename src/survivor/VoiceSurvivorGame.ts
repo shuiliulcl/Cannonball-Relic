@@ -646,6 +646,18 @@ type ImpactLine = {
   maxLife: number;
 };
 
+type LightningArc = {
+  from: Vec2;
+  to: Vec2;
+  color: string;
+  coreColor: string;
+  life: number;
+  maxLife: number;
+  width: number;
+  branches: number;
+  seed: number;
+};
+
 export type PlayerAfterimage = {
   position: Vec2;
   radius: number;
@@ -1014,6 +1026,7 @@ export class VoiceSurvivorGame {
   private zoomPunchDuration = 0;
   private zoomPunchStrength = 0;
   private impactLines: ImpactLine[] = [];
+  private lightningArcs: LightningArc[] = [];
   private playerAfterimages: PlayerAfterimage[] = [];
   private turrets: Turret[] = [];
   private unlockedSpells = new Set<SpellKey>(["cannon", "cannonPrep", "cannonFire"]);
@@ -1689,6 +1702,7 @@ export class VoiceSurvivorGame {
     this.zoomPunchDuration = 0;
     this.zoomPunchStrength = 0;
     this.impactLines = [];
+    this.lightningArcs = [];
     this.playerAfterimages = [];
     this.turrets = [];
     this.unlockedSpells = new Set(["cannon", "cannonPrep", "cannonFire"]);
@@ -1820,6 +1834,7 @@ export class VoiceSurvivorGame {
       this.zoomPunchStrength = 0;
     }
     this.updateImpactLines(dt);
+    this.updateLightningArcs(dt);
     this.updatePlayerAfterimages(dt);
   }
 
@@ -2254,6 +2269,13 @@ export class VoiceSurvivorGame {
     this.impactLines = this.impactLines.filter((line) => line.life > 0);
   }
 
+  private updateLightningArcs(dt: number): void {
+    for (const arc of this.lightningArcs) {
+      arc.life -= dt;
+    }
+    this.lightningArcs = this.lightningArcs.filter((arc) => arc.life > 0);
+  }
+
   private updatePlayerAfterimages(dt: number): void {
     for (const image of this.playerAfterimages) {
       image.life -= dt;
@@ -2503,10 +2525,10 @@ export class VoiceSurvivorGame {
         break;
       }
       case "thunderRicochet": {
-        this.playSlowMo(0.56, 0.16);
-        this.playZoomPunch(0.026, 0.18);
-        this.addImpactLines(this.player.position, "#e5ff66", 12, 136);
-        this.playSpellImpact({ glyph: "电", glyphCount: 4, glyphSize: 60, color: "#e5ff66", shake: 7, flash: 0.16, hitStop: 0.035, radius: 126, particles: 18 });
+        this.playSlowMo(0.48, 0.2);
+        this.playZoomPunch(0.038, 0.22);
+        this.addImpactLines(this.player.position, "#e5ff66", 16, 156);
+        this.playSpellImpact({ glyph: "电", glyphCount: 5, glyphSize: 66, color: "#e5ff66", shake: 9, flash: 0.2, hitStop: 0.045, radius: 142, particles: 26 });
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.2 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
         this.chainLightning(this.player.position, (20 + this.lightningJumps * 2) * power);
@@ -2728,10 +2750,11 @@ export class VoiceSurvivorGame {
       case "lightning":
         this.chainLightning(this.player.position, 10 * power);
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 7 * power);
-        this.addBurst(this.player.position, "#e5ff66", 26);
-        this.playZoomPunch(0.022, 0.16);
-        this.addImpactLines(this.player.position, "#e5ff66", 10, 118);
-        this.playSpellImpact({ glyph: "雷", glyphCount: 3, glyphSize: 62, color: "#e5ff66", shake: 5, flash: 0.15, hitStop: 0.028, radius: 108, particles: 14 });
+        this.addBurst(this.player.position, "#e5ff66", 34);
+        this.playSlowMo(0.52, 0.18);
+        this.playZoomPunch(0.034, 0.2);
+        this.addImpactLines(this.player.position, "#e5ff66", 14, 144);
+        this.playSpellImpact({ glyph: "雷", glyphCount: 5, glyphSize: 66, color: "#e5ff66", shake: 7, flash: 0.2, hitStop: 0.04, radius: 132, particles: 24 });
         this.say(`雷电 Buff 开启 ${Math.ceil(this.activeMods.lightningTime)} 秒。`);
         break;
       case "split":
@@ -3847,12 +3870,18 @@ export class VoiceSurvivorGame {
       .filter((enemy) => enemy.hp > 0)
       .sort((a, b) => distance(a.position, position) - distance(b.position, position))
       .slice(0, this.lightningJumps);
-    for (const enemy of targets) {
+    let arcOrigin = { ...position };
+    for (const [index, enemy] of targets.entries()) {
       this.damageEnemy(enemy, damage, "lightning");
       if (this.lightningBurstRadius > 0) {
         this.explode(enemy.position, this.lightningBurstRadius, damage * 0.34, false);
       }
-      this.addParticle(position, enemy.position, "#d8ff5a");
+      this.addLightningArc(arcOrigin, enemy.position, index === 0 ? 3.6 : 2.7, index === 0 ? 3 : 2);
+      this.addImpactBurst(enemy.position, index === 0 ? "#f4ff8a" : "#9cf7ff", 7 + Math.min(5, index));
+      if (index === 0 && damage >= 8) {
+        this.addSpellGlyph(enemy.position, "雷", "#f4ff8a", 34, 0.28);
+      }
+      arcOrigin = { ...enemy.position };
     }
   }
 
@@ -4192,6 +4221,23 @@ export class VoiceSurvivorGame {
     }
     if (this.impactLines.length > 120) {
       this.impactLines.splice(0, this.impactLines.length - 120);
+    }
+  }
+
+  private addLightningArc(from: Vec2, to: Vec2, width = 2.6, branches = 2, life = 0.22): void {
+    this.lightningArcs.push({
+      from: { ...from },
+      to: { ...to },
+      color: "#e5ff66",
+      coreColor: "#f7fdff",
+      life,
+      maxLife: life,
+      width,
+      branches,
+      seed: Math.random() * 1000,
+    });
+    if (this.lightningArcs.length > 72) {
+      this.lightningArcs.splice(0, this.lightningArcs.length - 72);
     }
   }
 
@@ -4700,6 +4746,7 @@ export class VoiceSurvivorGame {
       ctx.translate(-this.width / 2, -this.height / 2);
     }
     this.renderer.render(ctx, this.getRenderState());
+    this.renderLightningArcs(ctx);
     this.renderImpactLines(ctx);
     this.renderSpellCues(ctx);
     ctx.restore();
@@ -4719,6 +4766,87 @@ export class VoiceSurvivorGame {
       x: (Math.random() * 2 - 1) * strength,
       y: (Math.random() * 2 - 1) * strength,
     };
+  }
+
+  private renderLightningArcs(ctx: CanvasRenderingContext2D): void {
+    if (this.lightningArcs.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (const arc of this.lightningArcs) {
+      const alpha = clamp(arc.life / arc.maxLife, 0, 1);
+      const dist = distance(arc.from, arc.to);
+      if (dist < 1) continue;
+      const dx = (arc.to.x - arc.from.x) / dist;
+      const dy = (arc.to.y - arc.from.y) / dist;
+      const nx = -dy;
+      const ny = dx;
+      const segments = clamp(Math.round(dist / 38), 4, 11);
+      const jitter = Math.min(32, dist * 0.075) * (0.45 + alpha * 0.55);
+      const points: Vec2[] = [];
+      for (let i = 0; i <= segments; i += 1) {
+        const t = i / segments;
+        const offset = i === 0 || i === segments ? 0 : (this.lightningNoise(arc.seed, i) * 2 - 1) * jitter;
+        points.push({
+          x: arc.from.x + (arc.to.x - arc.from.x) * t + nx * offset,
+          y: arc.from.y + (arc.to.y - arc.from.y) * t + ny * offset,
+        });
+      }
+
+      ctx.globalAlpha = alpha * 0.42;
+      ctx.strokeStyle = "#8ff8ff";
+      ctx.shadowColor = arc.color;
+      ctx.shadowBlur = 22 * alpha;
+      ctx.lineWidth = arc.width * 3.1;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i += 1) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+
+      ctx.globalAlpha = alpha * 0.92;
+      ctx.strokeStyle = arc.color;
+      ctx.lineWidth = arc.width * 1.45;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i += 1) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = arc.coreColor;
+      ctx.lineWidth = Math.max(1.1, arc.width * 0.52);
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i += 1) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+
+      ctx.globalAlpha = alpha * 0.68;
+      ctx.strokeStyle = "#f7fdff";
+      ctx.lineWidth = Math.max(0.9, arc.width * 0.38);
+      for (let i = 0; i < arc.branches; i += 1) {
+        const sourceIndex = Math.max(1, Math.min(points.length - 2, 1 + Math.floor(this.lightningNoise(arc.seed + 9, i) * (points.length - 2))));
+        const start = points[sourceIndex];
+        const branchSide = this.lightningNoise(arc.seed + 27, i) > 0.5 ? 1 : -1;
+        const branchLength = Math.min(68, dist * (0.15 + this.lightningNoise(arc.seed + 41, i) * 0.12));
+        const branchAngle = Math.atan2(dy, dx) + branchSide * (0.72 + this.lightningNoise(arc.seed + 63, i) * 0.56);
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(start.x + Math.cos(branchAngle) * branchLength, start.y + Math.sin(branchAngle) * branchLength);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  private lightningNoise(seed: number, index: number): number {
+    const value = Math.sin(seed * 12.9898 + index * 78.233 + this.elapsed * 38.17) * 43758.5453;
+    return value - Math.floor(value);
   }
 
   private renderImpactLines(ctx: CanvasRenderingContext2D): void {
