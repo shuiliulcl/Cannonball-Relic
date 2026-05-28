@@ -217,89 +217,7 @@ export class LineglowSurvivorRenderer {
     ctx.arc(0, 0, focusRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    if (this.activeMods.explosionTime > 0 || cannon) {
-      ctx.strokeStyle = "rgba(255, 122, 47, 0.5)";
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.arc(0, 0, this.player.radius + 13 + Math.sin(this.elapsed * 9) * 2, 0.25, Math.PI * 1.76);
-      ctx.stroke();
-    }
-
-    if (this.activeMods.freezeTime > 0) {
-      ctx.strokeStyle = "rgba(168, 236, 255, 0.55)";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([8, 7]);
-      ctx.beginPath();
-      ctx.arc(0, 0, this.player.radius + 20, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    if (this.activeMods.lightningTime > 0) {
-      ctx.strokeStyle = "rgba(177, 108, 255, 0.7)";
-      ctx.lineWidth = 1.8;
-      for (let i = 0; i < 3; i += 1) {
-        const angle = this.elapsed * 3 + i * 2.1;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(angle) * 18, Math.sin(angle) * 18);
-        ctx.lineTo(Math.cos(angle + 0.3) * 27, Math.sin(angle + 0.3) * 27);
-        ctx.lineTo(Math.cos(angle + 0.75) * 21, Math.sin(angle + 0.75) * 21);
-        ctx.stroke();
-      }
-    }
-
-    if (this.activeMods.splitTime > 0) {
-      ctx.strokeStyle = "rgba(117, 238, 226, 0.34)";
-      ctx.lineWidth = 1;
-      const baseAngle = this.cannonTarget ? Math.atan2(this.cannonTarget.y - this.player.position.y, this.cannonTarget.x - this.player.position.x) : -Math.PI / 2;
-      for (let i = -2; i <= 2; i += 1) {
-        const angle = baseAngle + i * this.splitAngle;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(angle) * 16, Math.sin(angle) * 16);
-        ctx.lineTo(Math.cos(angle) * 46, Math.sin(angle) * 46);
-        ctx.stroke();
-      }
-    }
-
-    if (this.activeMods.ricochetTime > 0) {
-      ctx.strokeStyle = "rgba(117, 238, 226, 0.62)";
-      ctx.lineWidth = 1.5;
-      for (let i = 0; i < 5; i += 1) {
-        const angle = this.elapsed * 1.2 + (Math.PI * 2 * i) / 5;
-        const x = Math.cos(angle) * (this.player.radius + 27);
-        const y = Math.sin(angle) * (this.player.radius + 27);
-        ctx.beginPath();
-        ctx.rect(x - 2.5, y - 2.5, 5, 5);
-        ctx.stroke();
-      }
-    }
-
-    if (this.activeMods.focusTime > 0 || this.activeMods.seriousTime > 0) {
-      ctx.strokeStyle = this.activeMods.seriousTime > 0 ? "rgba(255, 74, 95, 0.72)" : "rgba(117, 238, 226, 0.68)";
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.arc(0, 0, this.player.radius + 25, 0, Math.PI * 2);
-      ctx.moveTo(-this.player.radius - 31, 0);
-      ctx.lineTo(-this.player.radius - 18, 0);
-      ctx.moveTo(this.player.radius + 18, 0);
-      ctx.lineTo(this.player.radius + 31, 0);
-      ctx.moveTo(0, -this.player.radius - 31);
-      ctx.lineTo(0, -this.player.radius - 18);
-      ctx.moveTo(0, this.player.radius + 18);
-      ctx.lineTo(0, this.player.radius + 31);
-      ctx.stroke();
-    }
-
-    if (this.player.shield > 0) {
-      ctx.strokeStyle = "rgba(117, 238, 226, 0.76)";
-      ctx.shadowColor = "rgba(117, 238, 226, 0.6)";
-      ctx.shadowBlur = 14;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, this.player.radius + 12, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
+    this.renderPlayerBuffSignatures(ctx, cannon, pressure);
 
     if (this.cannonCharge > 0) {
       for (let i = 0; i < this.cannonCharge; i += 1) {
@@ -382,6 +300,270 @@ export class LineglowSurvivorRenderer {
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.restore();
+  }
+
+  private renderPlayerBuffSignatures(ctx: CanvasRenderingContext2D, cannon: boolean, pressure: number): void {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    if (this.player.shield > 0) {
+      this.drawShieldSignature(ctx, pressure);
+    }
+    if (this.activeMods.freezeTime > 0) {
+      this.drawFreezeSignature(ctx, pressure);
+    }
+    if (this.activeMods.ricochetTime > 0) {
+      this.drawRicochetSignature(ctx, pressure);
+    }
+    if (this.activeMods.splitTime > 0) {
+      this.drawSplitSignature(ctx);
+    }
+    if (this.activeMods.pierceTime > 0) {
+      this.drawPierceSignature(ctx);
+    }
+    if (this.activeMods.lightningTime > 0) {
+      this.drawLightningSignature(ctx);
+    }
+    if (this.activeMods.explosionTime > 0 || cannon) {
+      this.drawExplosionSignature(ctx, cannon);
+    }
+    if (this.activeMods.damageBoost > 0) {
+      this.drawDamageSignature(ctx);
+    }
+    if (this.activeMods.focusTime > 0 || this.activeMods.seriousTime > 0) {
+      this.drawFocusSignature(ctx, pressure);
+    }
+
+    ctx.restore();
+  }
+
+  private drawShieldSignature(ctx: CanvasRenderingContext2D, pressure: number): void {
+    const r = this.player.radius + 17 + pressure * 3;
+    const pulse = Math.sin(this.elapsed * 4.2) * 1.6;
+    ctx.strokeStyle = "rgba(226, 255, 255, 0.82)";
+    ctx.shadowColor = "rgba(117, 238, 226, 0.72)";
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 2.35;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + pulse, Math.PI * 0.08, Math.PI * 0.92);
+    ctx.arc(0, 0, r + pulse, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+
+    ctx.lineWidth = 1.35;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = Math.PI / 4 + i * (Math.PI / 2);
+      const x = Math.cos(angle) * (r + 1);
+      const y = Math.sin(angle) * (r + 1);
+      ctx.beginPath();
+      ctx.moveTo(x - Math.cos(angle) * 5, y - Math.sin(angle) * 5);
+      ctx.lineTo(x + Math.cos(angle) * 6, y + Math.sin(angle) * 6);
+      ctx.stroke();
+    }
+  }
+
+  private drawFreezeSignature(ctx: CanvasRenderingContext2D, pressure: number): void {
+    const r = this.player.radius + 30 + pressure * 3;
+    const spin = -this.elapsed * 0.28;
+    ctx.strokeStyle = "rgba(182, 242, 255, 0.72)";
+    ctx.shadowColor = "rgba(168, 236, 255, 0.68)";
+    ctx.shadowBlur = 13;
+    ctx.lineWidth = 1.55;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = spin + Math.PI / 4 + i * (Math.PI / 2);
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(5.5, 0);
+      ctx.lineTo(0, 7);
+      ctx.lineTo(-5.5, 0);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-4, 0);
+      ctx.lineTo(4, 0);
+      ctx.moveTo(0, -5);
+      ctx.lineTo(0, 5);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  private drawRicochetSignature(ctx: CanvasRenderingContext2D, pressure: number): void {
+    const r = this.player.radius + 33 + pressure * 4;
+    const spin = this.elapsed * 0.42;
+    ctx.strokeStyle = "rgba(124, 255, 155, 0.72)";
+    ctx.shadowColor = "rgba(124, 255, 155, 0.6)";
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 1.8;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = spin + i * (Math.PI / 2);
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle + Math.PI / 4);
+      ctx.beginPath();
+      ctx.moveTo(-7, 4);
+      ctx.lineTo(-1, -5);
+      ctx.lineTo(8, -1);
+      ctx.moveTo(-1, -5);
+      ctx.lineTo(2, -9);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  private drawSplitSignature(ctx: CanvasRenderingContext2D): void {
+    const baseAngle = this.cannonTarget ? Math.atan2(this.cannonTarget.y - this.player.position.y, this.cannonTarget.x - this.player.position.x) : this.elapsed * 0.38 - Math.PI / 2;
+    ctx.strokeStyle = "rgba(117, 238, 226, 0.58)";
+    ctx.shadowColor = "rgba(117, 238, 226, 0.52)";
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = 1.45;
+    for (let side = 0; side < 2; side += 1) {
+      const origin = baseAngle + side * Math.PI;
+      for (let i = -1; i <= 1; i += 1) {
+        const angle = origin + i * Math.max(0.26, this.splitAngle);
+        const inner = this.player.radius + 18;
+        const outer = this.player.radius + (i === 0 ? 43 : 36);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+        ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+    }
+  }
+
+  private drawPierceSignature(ctx: CanvasRenderingContext2D): void {
+    const angle = this.cannonTarget ? Math.atan2(this.cannonTarget.y - this.player.position.y, this.cannonTarget.x - this.player.position.x) : this.elapsed * 0.5;
+    const inner = this.player.radius + 14;
+    const outer = this.player.radius + 45;
+    ctx.strokeStyle = "rgba(255, 248, 214, 0.76)";
+    ctx.shadowColor = "rgba(255, 207, 90, 0.62)";
+    ctx.shadowBlur = 13;
+    ctx.lineWidth = 1.9;
+    for (let side = 0; side < 2; side += 1) {
+      const a = angle + side * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+      ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+      ctx.moveTo(Math.cos(a + 0.16) * (outer - 8), Math.sin(a + 0.16) * (outer - 8));
+      ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+      ctx.lineTo(Math.cos(a - 0.16) * (outer - 8), Math.sin(a - 0.16) * (outer - 8));
+      ctx.stroke();
+    }
+  }
+
+  private drawLightningSignature(ctx: CanvasRenderingContext2D): void {
+    const spin = this.elapsed * 0.86;
+    const r = this.player.radius + 31;
+    ctx.strokeStyle = "rgba(205, 166, 255, 0.82)";
+    ctx.fillStyle = "rgba(18, 8, 31, 0.86)";
+    ctx.shadowColor = "rgba(177, 108, 255, 0.78)";
+    ctx.shadowBlur = 14;
+    ctx.lineWidth = 1.75;
+    for (let i = 0; i < 3; i += 1) {
+      const angle = spin + i * (Math.PI * 2 / 3);
+      ctx.save();
+      ctx.translate(Math.cos(angle) * r, Math.sin(angle) * r);
+      ctx.rotate(angle + Math.PI / 2);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 4.5, 8.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 6.4, -Math.PI * 0.72, Math.PI * 0.1);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(239, 225, 255, 0.72)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-1.8, -4.2);
+      ctx.lineTo(1.4, -0.8);
+      ctx.lineTo(-0.8, 0.9);
+      ctx.lineTo(2.0, 4.4);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  private drawExplosionSignature(ctx: CanvasRenderingContext2D, cannon: boolean): void {
+    const r = this.player.radius + 22 + Math.sin(this.elapsed * 8.5) * 2;
+    const points = cannon ? 8 : 6;
+    ctx.strokeStyle = cannon ? "rgba(255, 207, 90, 0.84)" : "rgba(255, 122, 47, 0.74)";
+    ctx.shadowColor = cannon ? "rgba(255, 207, 90, 0.8)" : "rgba(255, 122, 47, 0.72)";
+    ctx.shadowBlur = cannon ? 18 : 14;
+    ctx.lineWidth = cannon ? 2.15 : 1.8;
+    for (let i = 0; i < points; i += 1) {
+      const angle = this.elapsed * -0.3 + i * (Math.PI * 2 / points);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * (r - 7), Math.sin(angle) * (r - 7));
+      ctx.lineTo(Math.cos(angle) * (r + (cannon ? 11 : 8)), Math.sin(angle) * (r + (cannon ? 11 : 8)));
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.player.radius + 15, 0.18, Math.PI * 1.72);
+    ctx.stroke();
+  }
+
+  private drawDamageSignature(ctx: CanvasRenderingContext2D): void {
+    const r = this.player.radius + 27;
+    const spin = this.elapsed * 1.1;
+    ctx.strokeStyle = "rgba(255, 226, 120, 0.76)";
+    ctx.fillStyle = "rgba(45, 18, 4, 0.84)";
+    ctx.shadowColor = "rgba(255, 154, 61, 0.64)";
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 1.55;
+    for (let i = 0; i < 3; i += 1) {
+      const angle = spin + i * (Math.PI * 2 / 3);
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(9, 0);
+      ctx.lineTo(-3.5, 6);
+      ctx.quadraticCurveTo(-7, 0, -3.5, -6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 248, 214, 0.7)";
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(-1.5, 0);
+      ctx.lineTo(4.6, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  private drawFocusSignature(ctx: CanvasRenderingContext2D, pressure: number): void {
+    const serious = this.activeMods.seriousTime > 0;
+    const r = this.player.radius + 27 + pressure * 4;
+    ctx.strokeStyle = serious ? "rgba(255, 74, 95, 0.78)" : "rgba(226, 255, 255, 0.72)";
+    ctx.shadowColor = serious ? "rgba(255, 74, 95, 0.66)" : "rgba(117, 238, 226, 0.58)";
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 1.65;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, Math.PI * 0.05, Math.PI * 0.45);
+    ctx.arc(0, 0, r, Math.PI * 0.55, Math.PI * 0.95);
+    ctx.arc(0, 0, r, Math.PI * 1.05, Math.PI * 1.45);
+    ctx.arc(0, 0, r, Math.PI * 1.55, Math.PI * 1.95);
+    ctx.stroke();
+
+    for (let i = 0; i < 4; i += 1) {
+      const angle = i * (Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * (r - 7), Math.sin(angle) * (r - 7));
+      ctx.lineTo(Math.cos(angle) * (r + 8), Math.sin(angle) * (r + 8));
+      ctx.stroke();
+    }
   }
 
   private playerEnemyPressure(): number {
@@ -669,13 +851,13 @@ export class LineglowSurvivorRenderer {
     switch (enemy.type) {
       case "runner":
         ctx.rotate(moveFacing);
-        ctx.strokeStyle = "rgba(255, 194, 71, 0.48)";
-        ctx.lineWidth = 1.45;
+        ctx.strokeStyle = "rgba(255, 194, 71, 0.26)";
+        ctx.lineWidth = 1.15;
         ctx.beginPath();
-        ctx.moveTo(-radius * 1.22, -radius * 0.24);
-        ctx.lineTo(-radius * 1.82, -radius * 0.24);
-        ctx.moveTo(-radius * 1.22, radius * 0.24);
-        ctx.lineTo(-radius * 1.82, radius * 0.24);
+        ctx.moveTo(-radius * 1.1, -radius * 0.32);
+        ctx.quadraticCurveTo(-radius * 1.55, -radius * 0.5, -radius * 1.95, -radius * 0.36);
+        ctx.moveTo(-radius * 1.1, radius * 0.32);
+        ctx.quadraticCurveTo(-radius * 1.55, radius * 0.5, -radius * 1.95, radius * 0.36);
         ctx.stroke();
         break;
       case "brute":

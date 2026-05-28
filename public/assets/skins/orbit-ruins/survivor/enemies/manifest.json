@@ -1,12 +1,18 @@
 {
   "source": "docs\\concepts\\voice-survivor-orbit-ruins\\sheets\\lineglow-enemy-tokens-v6-clean-shape.png",
-  "note": "v6: clean preserved-shape enemy tokens. Thick lines, stable silhouettes, closed internal marks, no stray lineheads. v6.4 overrides pouncer with transparent procedural crouched-body PNGs because the original triangular body read as an unclear symbol.",
+  "note": "v6: clean preserved-shape enemy tokens. Thick lines, stable silhouettes, closed internal marks, no stray lineheads. v6.12 overrides runner with rounded bullet-like signal bodies and a single eye/core because runner is high-frequency and should read closer to the original projectile language without internal line noise. v6.20 overrides pouncer with a concave triangle shell and slanted flat-up sensor so it separates from the runner projectile silhouette.",
   "overrides": [
     {
       "family": "pouncer",
-      "version": "v6.4-pouncer-rebody",
-      "source": "docs\\concepts\\voice-survivor-orbit-ruins\\extracted\\lineglow-enemy-tokens-v6-4-pouncer-rebody",
-      "reason": "Replace triangular/arrow-like body language with a movement-aligned crouched leap body."
+      "version": "v6.20-pouncer-slanted-flat-eye",
+      "source": "docs\\concepts\\voice-survivor-orbit-ruins\\extracted\\lineglow-enemy-tokens-v6-20-pouncer-slanted-flat-eye-review\\h2-flat-up-slant",
+      "reason": "Use a concave triangle shell with a slanted flat-up solid sensor. This keeps pouncer sharp and jump-like after runner moved to a rounded bullet silhouette, while avoiding the old arrow-like interior line clutter."
+    },
+    {
+      "family": "runner",
+      "version": "v6.12-runner-eye",
+      "source": "docs\\concepts\\voice-survivor-orbit-ruins\\extracted\\lineglow-enemy-tokens-v6-12-runner-eye",
+      "reason": "Make the high-frequency runner more rounded and projectile-like with a dark filled core, warm contour, short soft tail, and one readable eye/core instead of interior line strokes."
     }
   ],
   "assetCount": 28,

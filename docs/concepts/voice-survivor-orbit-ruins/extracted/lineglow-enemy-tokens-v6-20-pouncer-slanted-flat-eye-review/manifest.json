@@ -1,0 +1,22 @@
+{
+  "version": "v6.20-pouncer-slanted-flat-eye-review",
+  "note": "Review-only H2 pouncer variants comparing dome-down eye against flat-edge-up semicircle eyes with increasing slant.",
+  "variants": [
+    {
+      "key": "h2-dome-down",
+      "label": "dome down"
+    },
+    {
+      "key": "h2-flat-up-soft",
+      "label": "flat up soft"
+    },
+    {
+      "key": "h2-flat-up-slant",
+      "label": "flat up slant"
+    },
+    {
+      "key": "h2-flat-up-hard",
+      "label": "flat up hard"
+    }
+  ]
+}
