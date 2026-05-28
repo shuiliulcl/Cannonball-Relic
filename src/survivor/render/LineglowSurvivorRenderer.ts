@@ -1,4 +1,4 @@
-import type { Drop, Enemy, EnemyShot, EnemyType, Particle, Projectile, Turret, Vec2 } from "../VoiceSurvivorGame";
+import type { Drop, Enemy, EnemyShot, EnemyType, Particle, PlayerAfterimage, Projectile, Turret, Vec2 } from "../VoiceSurvivorGame";
 import { LINEGLOW_ENEMY_ART } from "./lineglowTheme";
 
 const LINEGLOW_ENEMY_SPRITE_BASE = "/assets/skins/orbit-ruins/survivor/enemies";
@@ -42,6 +42,7 @@ export type SurvivorRenderState = {
   enemyShots: readonly EnemyShot[];
   drops: readonly Drop[];
   particles: readonly Particle[];
+  afterimages: readonly PlayerAfterimage[];
   turrets: readonly Turret[];
   activeMods: SurvivorRenderActiveMods;
   cannonTarget: Vec2 | null;
@@ -82,6 +83,7 @@ export class LineglowSurvivorRenderer {
     this.renderProjectiles(ctx);
     this.renderEnemies(ctx);
     this.renderEnemyShots(ctx);
+    this.renderPlayerAfterimages(ctx);
     this.renderPlayer(ctx);
     this.renderParticles(ctx);
   }
@@ -95,6 +97,7 @@ export class LineglowSurvivorRenderer {
   private get enemyShots(): readonly EnemyShot[] { return this.state.enemyShots; }
   private get drops(): readonly Drop[] { return this.state.drops; }
   private get particles(): readonly Particle[] { return this.state.particles; }
+  private get afterimages(): readonly PlayerAfterimage[] { return this.state.afterimages; }
   private get turrets(): readonly Turret[] { return this.state.turrets; }
   private get activeMods(): SurvivorRenderActiveMods { return this.state.activeMods; }
   private get cannonTarget(): Vec2 | null { return this.state.cannonTarget; }
@@ -1003,6 +1006,33 @@ export class LineglowSurvivorRenderer {
       ctx.fill();
       ctx.shadowBlur = 0;
     }
+  }
+
+  private renderPlayerAfterimages(ctx: CanvasRenderingContext2D): void {
+    if (this.afterimages.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const image of this.afterimages) {
+      const alpha = clamp(image.life / image.maxLife, 0, 1);
+      const progress = 1 - alpha;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.34;
+      ctx.translate(image.position.x, image.position.y);
+      ctx.rotate(image.angle);
+      ctx.scale(image.stretch + progress * 0.24, 1 / Math.max(1, image.stretch * 0.78));
+      ctx.fillStyle = image.color;
+      ctx.shadowColor = image.color;
+      ctx.shadowBlur = 18 * alpha;
+      ctx.beginPath();
+      ctx.arc(0, 0, image.radius * (1 + progress * 0.42), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = alpha * 0.46;
+      ctx.strokeStyle = "rgba(255,255,255,0.72)";
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
   private renderDrops(ctx: CanvasRenderingContext2D): void {

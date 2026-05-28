@@ -634,6 +634,28 @@ type ComboFlash = {
   maxLife: number;
 };
 
+type ImpactLine = {
+  position: Vec2;
+  angle: number;
+  innerRadius: number;
+  outerRadius: number;
+  drift: number;
+  color: string;
+  width: number;
+  life: number;
+  maxLife: number;
+};
+
+export type PlayerAfterimage = {
+  position: Vec2;
+  radius: number;
+  color: string;
+  angle: number;
+  stretch: number;
+  life: number;
+  maxLife: number;
+};
+
 export type Turret = {
   position: Vec2;
   cooldown: number;
@@ -984,6 +1006,14 @@ export class VoiceSurvivorGame {
   private screenFlashRgb = "255,255,255";
   private screenFlashAlpha = 0;
   private hitStopTime = 0;
+  private slowMoTime = 0;
+  private slowMoDuration = 0;
+  private slowMoScale = 1;
+  private zoomPunchTime = 0;
+  private zoomPunchDuration = 0;
+  private zoomPunchStrength = 0;
+  private impactLines: ImpactLine[] = [];
+  private playerAfterimages: PlayerAfterimage[] = [];
   private turrets: Turret[] = [];
   private unlockedSpells = new Set<SpellKey>(["cannon", "cannonPrep", "cannonFire"]);
   private voiceRecognizedSpells = getCoreVoiceSpells();
@@ -1648,6 +1678,14 @@ export class VoiceSurvivorGame {
     this.screenFlashDuration = 0;
     this.screenFlashAlpha = 0;
     this.hitStopTime = 0;
+    this.slowMoTime = 0;
+    this.slowMoDuration = 0;
+    this.slowMoScale = 1;
+    this.zoomPunchTime = 0;
+    this.zoomPunchDuration = 0;
+    this.zoomPunchStrength = 0;
+    this.impactLines = [];
+    this.playerAfterimages = [];
     this.turrets = [];
     this.unlockedSpells = new Set(["cannon", "cannonPrep", "cannonFire"]);
     this.refreshVoiceSpellRecognition();
@@ -1750,12 +1788,13 @@ export class VoiceSurvivorGame {
     this.lastFrame = time;
     const impactPaused = this.hitStopTime > 0;
     this.updateScreenEffects(dt);
+    const worldDt = dt * this.currentTimeScale();
     if (this.running && !this.selectingBuff && !this.gameOver) {
       if (impactPaused) {
         this.updateParticles(dt * 0.18);
         this.updateSpellCues(dt * 0.18);
       } else {
-        this.update(dt);
+        this.update(worldDt);
       }
     }
     this.render();
@@ -1766,6 +1805,18 @@ export class VoiceSurvivorGame {
     this.screenShakeTime = Math.max(0, this.screenShakeTime - dt);
     this.screenFlashTime = Math.max(0, this.screenFlashTime - dt);
     this.hitStopTime = Math.max(0, this.hitStopTime - dt);
+    this.slowMoTime = Math.max(0, this.slowMoTime - dt);
+    if (this.slowMoTime <= 0) {
+      this.slowMoDuration = 0;
+      this.slowMoScale = 1;
+    }
+    this.zoomPunchTime = Math.max(0, this.zoomPunchTime - dt);
+    if (this.zoomPunchTime <= 0) {
+      this.zoomPunchDuration = 0;
+      this.zoomPunchStrength = 0;
+    }
+    this.updateImpactLines(dt);
+    this.updatePlayerAfterimages(dt);
   }
 
   private update(dt: number): void {
@@ -1842,6 +1893,9 @@ export class VoiceSurvivorGame {
       this.player.invuln = Math.max(this.player.invuln, 0.12);
       if (Math.random() < 0.55) {
         this.addBurst(this.player.position, "#ffe27a", 2);
+      }
+      if (Math.random() < Math.min(1, dt * 22)) {
+        this.addPlayerAfterimage(this.player.position, "#ffe27a", this.effectivePlayerRadius() + 5, 0.22, undefined, 1.55);
       }
       this.player.position.x += this.player.cannonVelocity.x * dt;
       this.player.position.y += this.player.cannonVelocity.y * dt;
@@ -2189,6 +2243,20 @@ export class VoiceSurvivorGame {
     this.spellCues = this.spellCues.filter((cue) => cue.life > 0);
   }
 
+  private updateImpactLines(dt: number): void {
+    for (const line of this.impactLines) {
+      line.life -= dt;
+    }
+    this.impactLines = this.impactLines.filter((line) => line.life > 0);
+  }
+
+  private updatePlayerAfterimages(dt: number): void {
+    for (const image of this.playerAfterimages) {
+      image.life -= dt;
+    }
+    this.playerAfterimages = this.playerAfterimages.filter((image) => image.life > 0);
+  }
+
   private updateSurges(dt: number): void {
     if (this.threatTier() < 2) {
       return;
@@ -2401,6 +2469,9 @@ export class VoiceSurvivorGame {
 
     switch (comboKey) {
       case "stormBloom": {
+        this.playSlowMo(0.38, 0.26);
+        this.playZoomPunch(0.044, 0.24);
+        this.addImpactLines(this.player.position, "#e5ff66", 18, 180);
         this.playSpellImpact({ glyph: "爆", glyphCount: 6, glyphSize: 58, color: "#e5ff66", shake: 10, flash: 0.22, hitStop: 0.055, radius: 158, particles: 24 });
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.5 * power);
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.5 * power);
@@ -2414,6 +2485,9 @@ export class VoiceSurvivorGame {
         break;
       }
       case "iceBomb": {
+        this.playSlowMo(0.42, 0.24);
+        this.playZoomPunch(0.038, 0.22);
+        this.addImpactLines(this.player.position, "#9be7ff", 16, 168);
         this.playSpellImpact({ glyph: "冰", glyphCount: 6, glyphSize: 54, color: "#9be7ff", shake: 9, flash: 0.2, hitStop: 0.05, radius: 150, particles: 22 });
         const radius = this.freezePulseRadius + 52;
         this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 3.8 * power);
@@ -2425,6 +2499,9 @@ export class VoiceSurvivorGame {
         break;
       }
       case "thunderRicochet": {
+        this.playSlowMo(0.56, 0.16);
+        this.playZoomPunch(0.026, 0.18);
+        this.addImpactLines(this.player.position, "#e5ff66", 12, 136);
         this.playSpellImpact({ glyph: "电", glyphCount: 4, glyphSize: 60, color: "#e5ff66", shake: 7, flash: 0.16, hitStop: 0.035, radius: 126, particles: 18 });
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.2 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
@@ -2451,6 +2528,8 @@ export class VoiceSurvivorGame {
         break;
       }
       case "pierceRicochet": {
+        this.playZoomPunch(0.026, 0.18);
+        this.addImpactLines(this.player.position, "#ffffff", 10, 128);
         this.playSpellImpact({ glyph: "穿", glyphSize: 122, color: "#ffffff", shake: 6, flash: 0.12, hitStop: 0.035, radius: 118, particles: 14 });
         this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 3.6 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
@@ -2464,6 +2543,9 @@ export class VoiceSurvivorGame {
         break;
       }
       case "bloomRicochet": {
+        this.playSlowMo(0.45, 0.22);
+        this.playZoomPunch(0.038, 0.22);
+        this.addImpactLines(this.player.position, "#ff9b4a", 16, 158);
         this.playSpellImpact({ glyph: "爆", glyphCount: 5, glyphSize: 58, color: "#ff9b4a", shake: 9, flash: 0.2, hitStop: 0.045, radius: 144, particles: 22 });
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.4 * power);
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.4 * power);
@@ -2495,6 +2577,9 @@ export class VoiceSurvivorGame {
       case "boomBlades": {
         const hasBlades = this.bladeCount > 0;
         if (hasBlades) {
+          this.playSlowMo(0.48, 0.2);
+          this.playZoomPunch(0.032, 0.2);
+          this.addImpactLines(this.player.position, "#ff9b4a", 14, 144);
           this.playSpellImpact({ glyph: "爆", glyphCount: Math.min(5, this.bladeCount + 1), glyphSize: 54, color: "#ff9b4a", shake: 8, flash: 0.16, hitStop: 0.04, radius: 132, particles: 18 });
         }
         this.explode(this.player.position, this.bladeRadius + (hasBlades ? 104 : 58), (12 + this.bladeDamage) * power, false);
@@ -2510,6 +2595,9 @@ export class VoiceSurvivorGame {
         break;
       }
       case "cannonBloom": {
+        this.playSlowMo(0.34, 0.28);
+        this.playZoomPunch(0.052, 0.26);
+        this.addImpactLines(this.player.position, "#ffe27a", 22, 196);
         this.playSpellImpact({ glyph: "炮", glyphCount: 6, glyphSize: 64, color: "#ffe27a", shake: 12, flash: 0.24, hitStop: 0.06, radius: 166, particles: 26 });
         const charge = Math.max(1, this.cannonLaunchCharge);
         this.cannonBouncesLeft += 1 + Math.floor(power);
@@ -2621,6 +2709,9 @@ export class VoiceSurvivorGame {
         if (this.recentChainIncludes("freeze")) this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 4.5 * power);
         this.explode(this.player.position, this.explosionRadius * 0.55, this.attackDamage * this.explosionDamageScale * power, false);
         this.addBurst(this.player.position, "#ff9b4a", 30);
+        this.playSlowMo(0.58, 0.18);
+        this.playZoomPunch(0.026, 0.18);
+        this.addImpactLines(this.player.position, "#ff9b4a", 12, 132);
         this.playSpellImpact({ glyph: "爆", glyphCount: 5, glyphSize: 58, color: "#ff9b4a", shake: 7, flash: 0.18, hitStop: 0.035, radius: 116, particles: 18 });
         this.say(`爆炸 Buff 开启 ${Math.ceil(this.activeMods.explosionTime)} 秒，记得续。`);
         break;
@@ -2634,6 +2725,8 @@ export class VoiceSurvivorGame {
         this.chainLightning(this.player.position, 10 * power);
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 7 * power);
         this.addBurst(this.player.position, "#e5ff66", 26);
+        this.playZoomPunch(0.022, 0.16);
+        this.addImpactLines(this.player.position, "#e5ff66", 10, 118);
         this.playSpellImpact({ glyph: "雷", glyphCount: 3, glyphSize: 62, color: "#e5ff66", shake: 5, flash: 0.15, hitStop: 0.028, radius: 108, particles: 14 });
         this.say(`雷电 Buff 开启 ${Math.ceil(this.activeMods.lightningTime)} 秒。`);
         break;
@@ -2808,10 +2901,16 @@ export class VoiceSurvivorGame {
 
     switch (spell) {
       case "comboBangFull":
+        this.playSlowMo(0.42, 0.24);
+        this.playZoomPunch(0.038, 0.22);
+        this.addImpactLines(this.player.position, "#ffcf5a", 18, 172);
         this.playHiddenComboImpact(SPELL_NAMES[spell], "#ffcf5a", { glyph: "梆", glyphCount: 5, glyphSize: 58, radius: 138, particles: 30 });
         this.castBangFullCombo(power);
         break;
       case "comboBangTwoFists":
+        this.playSlowMo(0.34, 0.2);
+        this.playZoomPunch(0.052, 0.24);
+        this.addImpactLines(this.player.position, "#ffe27a", 14, 142);
         this.playHiddenComboImpact(SPELL_NAMES[spell], "#ffe27a", { glyph: "拳", glyphSize: 148, shake: 12, flash: 0.24, radius: 118, particles: 26 });
         this.castBangTwoFists(power);
         break;
@@ -2823,6 +2922,9 @@ export class VoiceSurvivorGame {
         this.castTooLateCombo(power);
         break;
       case "comboNoTalk":
+        this.playSlowMo(0.5, 0.18);
+        this.playZoomPunch(0.028, 0.2);
+        this.addImpactLines(this.player.position, "#e9fbff", 14, 176);
         this.playHiddenComboImpact(SPELL_NAMES[spell], "#e9fbff", { glyph: "禁", glyphCount: 6, glyphSize: 54, shake: 8, flash: 0.18, radius: 154, particles: 24 });
         this.activeMods.refusalTime = Math.max(this.activeMods.refusalTime, 5.5 * power);
         this.clearEnemyShotsNear(this.player.position, 720);
@@ -2844,6 +2946,9 @@ export class VoiceSurvivorGame {
         this.say("隐藏 Combo：不知道，我的身材很曼妙。擦弹会攒自信光环。");
         break;
       case "comboExternalize":
+        this.playSlowMo(0.48, 0.2);
+        this.playZoomPunch(0.032, 0.2);
+        this.addImpactLines(this.player.position, "#c491ff", 16, 164);
         this.playHiddenComboImpact(SPELL_NAMES[spell], "#c491ff", { glyph: "耗", glyphCount: 4, glyphSize: 62, shake: 9, flash: 0.18, radius: 142, particles: 24 });
         this.castExternalizeCombo(power);
         break;
@@ -3003,9 +3108,13 @@ export class VoiceSurvivorGame {
 
   private shortSafeStep(distanceBoost: number): void {
     const safe = this.safeDirection();
+    const from = { ...this.player.position };
+    const dashAngle = Math.atan2(safe.y, safe.x);
+    this.addPlayerAfterimage(from, "#9cffd0", this.effectivePlayerRadius(), 0.22, dashAngle, 1.34);
     this.player.position.x = clamp(this.player.position.x + safe.x * distanceBoost, this.player.radius, this.width - this.player.radius);
     this.player.position.y = clamp(this.player.position.y + safe.y * distanceBoost, this.player.radius, this.height - this.player.radius);
     this.player.invuln = Math.max(this.player.invuln, 0.35);
+    this.addPlayerAfterimage(this.player.position, "#9cffd0", this.effectivePlayerRadius(), 0.16, dashAngle, 1.18);
     this.addBurst(this.player.position, "#9cffd0", 12);
   }
 
@@ -3107,6 +3216,9 @@ export class VoiceSurvivorGame {
     this.player.invuln = Math.max(this.player.invuln, 0.38);
     this.addSpellRing(this.player.position, radius * 0.55, "#ff4f6d", "你已急哭");
     if (affected > 0) {
+      this.playSlowMo(0.48, 0.18);
+      this.playZoomPunch(0.032, 0.2);
+      this.addImpactLines(this.player.position, "#ff4f6d", Math.min(18, 8 + affected), 142);
       this.playSpellImpact({ glyph: "急", glyphCount: Math.min(5, Math.max(2, Math.ceil(affected / 2))), glyphSize: 56, color: "#ff4f6d", shake: 7, flash: 0.16, hitStop: 0.04, radius: 138, particles: 18 });
     }
     this.say(affected > 0 ? `你已急哭：${affected} 个敌人红温破防。` : "你已急哭：先稳住，红温留给下一波。");
@@ -3443,6 +3555,9 @@ export class VoiceSurvivorGame {
     this.recordSpell("cannonFire");
     this.addBurst(this.player.position, "#ffe27a", 40);
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
+    this.playSlowMo(0.34, 0.26);
+    this.playZoomPunch(0.044 + charge * 0.006, 0.24);
+    this.addImpactLines(this.player.position, "#ffe27a", 16 + charge * 4, 150 + charge * 26);
     this.playSpellImpact({ glyph: "发射", glyphSize: 128 + charge * 16, color: "#ffe27a", shake: 12 + charge * 2, flash: 0.26, hitStop: 0.08, radius: 118 + charge * 18, particles: 28 + charge * 8 });
     this.say(`发射！${charge} 层充能，${charge} 次弹射。`);
     return true;
@@ -3472,6 +3587,9 @@ export class VoiceSurvivorGame {
     this.clearEnemyShotsNear(this.player.position, radius + 70);
     this.cannonDamage = 0;
     this.cannonLaunchCharge = 0;
+    this.playSlowMo(0.28, 0.28);
+    this.playZoomPunch(0.065 + charge * 0.006, 0.3);
+    this.addImpactLines(this.player.position, "#ff9b4a", 22 + charge * 4, 190 + charge * 34);
     this.playSpellImpact({ glyph: "轰", glyphSize: 168 + charge * 18, color: "#ff9b4a", shake: 14 + charge * 2, flash: 0.24, hitStop: 0.065, radius: 145 + charge * 24, particles: 38 + charge * 10 });
     this.say(`落地冲击！清场半径 ${Math.round(radius)}，短暂无敌。`);
   }
@@ -3556,11 +3674,15 @@ export class VoiceSurvivorGame {
     }
     const safe = this.safeDirection();
     const distanceBoost = spell === "scramble" ? 160 : spell === "calm" ? 112 : 126;
+    const from = { ...this.player.position };
+    const dashAngle = Math.atan2(safe.y, safe.x);
+    this.addPlayerAfterimage(from, spell === "calm" ? "#9cffd0" : "#66e0ff", this.effectivePlayerRadius(), 0.25, dashAngle, 1.42);
     this.player.position.x = clamp(this.player.position.x + safe.x * distanceBoost, this.player.radius, this.width - this.player.radius);
     this.player.position.y = clamp(this.player.position.y + safe.y * distanceBoost, this.player.radius, this.height - this.player.radius);
     this.player.invuln = Math.max(this.player.invuln, spell === "scramble" ? 0.75 : 0.45);
     this.player.dodgeCooldown = spell === "scramble" ? 5.4 : 3.2;
     if (spell === "scramble") this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 2.5);
+    this.addPlayerAfterimage(this.player.position, spell === "calm" ? "#9cffd0" : "#66e0ff", this.effectivePlayerRadius(), 0.18, dashAngle, 1.22);
     this.addBurst(this.player.position, spell === "calm" ? "#9cffd0" : "#66e0ff", 18);
     this.say(spell === "scramble" ? "连滚带爬，但是有效。" : spell === "calm" ? "从容闪过。" : "闪避。");
   }
@@ -3587,6 +3709,9 @@ export class VoiceSurvivorGame {
       this.energy = clamp(this.energy + hits * 5, 0, this.maxEnergy);
       this.cannonMeter = clamp(this.cannonMeter + hits * 4, 0, 100);
       this.addSpellRing(this.player.position, 120, "#ffcf5a", `梆 x${hits}`);
+      this.playSlowMo(hits >= 2 ? 0.44 : 0.52, 0.16 + hits * 0.025);
+      this.playZoomPunch(hits >= 2 ? 0.038 : 0.03, 0.18);
+      this.addImpactLines(this.player.position, "#ffcf5a", 8 + hits * 3, 108 + hits * 18);
       this.playSpellImpact({ glyph: "梆", glyphCount: hits > 1 ? Math.min(3, hits) : 1, glyphSize: hits > 1 ? 76 : 128, color: "#ffcf5a", shake: 5 + hits, flash: 0.1, hitStop: 0.035, radius: 92 + hits * 12, particles: 8 + hits * 4 });
       this.say(hits >= 2 ? "很梆，梆梆两下。" : "梆了一下。");
     }
@@ -3891,6 +4016,12 @@ export class VoiceSurvivorGame {
     shake?: number;
     flash?: number;
     hitStop?: number;
+    slowMo?: number;
+    slowMoDuration?: number;
+    zoom?: number;
+    zoomDuration?: number;
+    impactLines?: number;
+    impactLineRadius?: number;
     radius?: number;
     particles?: number;
   }): void {
@@ -3903,6 +4034,15 @@ export class VoiceSurvivorGame {
     }
     if (options.hitStop) {
       this.hitStopTime = Math.max(this.hitStopTime, options.hitStop);
+    }
+    if (options.slowMo) {
+      this.playSlowMo(options.slowMo, options.slowMoDuration ?? 0.22);
+    }
+    if (options.zoom) {
+      this.playZoomPunch(options.zoom, options.zoomDuration ?? 0.22);
+    }
+    if (options.impactLines) {
+      this.addImpactLines(position, options.color, options.impactLines, options.impactLineRadius ?? options.radius ?? 120);
     }
     if (options.glyph) {
       const glyphCount = Math.max(1, Math.floor(options.glyphCount ?? 1));
@@ -3939,6 +4079,12 @@ export class VoiceSurvivorGame {
       shake?: number;
       flash?: number;
       hitStop?: number;
+      slowMo?: number;
+      slowMoDuration?: number;
+      zoom?: number;
+      zoomDuration?: number;
+      impactLines?: number;
+      impactLineRadius?: number;
       radius?: number;
       particles?: number;
     } = {},
@@ -3950,6 +4096,12 @@ export class VoiceSurvivorGame {
       shake: options.shake ?? 11,
       flash: options.flash ?? 0.26,
       hitStop: options.hitStop ?? 0.075,
+      slowMo: options.slowMo,
+      slowMoDuration: options.slowMoDuration,
+      zoom: options.zoom,
+      zoomDuration: options.zoomDuration,
+      impactLines: options.impactLines,
+      impactLineRadius: options.impactLineRadius,
       radius: options.radius ?? 132,
       particles: options.particles ?? 34,
       glyphCount: options.glyphCount,
@@ -3971,6 +4123,88 @@ export class VoiceSurvivorGame {
     this.screenFlashDuration = active ? Math.max(this.screenFlashDuration, duration) : duration;
     this.screenFlashTime = Math.max(this.screenFlashTime, duration);
     this.screenFlashAlpha = active ? Math.max(this.screenFlashAlpha, alpha) : alpha;
+  }
+
+  private playSlowMo(scale: number, duration: number): void {
+    const nextScale = clamp(scale, 0.12, 1);
+    if (duration <= 0 || nextScale >= 1) return;
+    const active = this.slowMoTime > 0;
+    this.slowMoScale = active ? Math.min(this.slowMoScale, nextScale) : nextScale;
+    this.slowMoDuration = active ? Math.max(this.slowMoDuration, duration) : duration;
+    this.slowMoTime = Math.max(this.slowMoTime, duration);
+  }
+
+  private currentTimeScale(): number {
+    if (this.slowMoTime <= 0 || this.slowMoDuration <= 0) return 1;
+    const fade = clamp(this.slowMoTime / this.slowMoDuration, 0, 1);
+    return 1 - (1 - this.slowMoScale) * fade * fade;
+  }
+
+  private playZoomPunch(strength: number, duration: number): void {
+    if (duration <= 0 || strength <= 0) return;
+    const nextStrength = clamp(strength, 0, 0.16);
+    const active = this.zoomPunchTime > 0;
+    this.zoomPunchStrength = active ? Math.max(this.zoomPunchStrength, nextStrength) : nextStrength;
+    this.zoomPunchDuration = active ? Math.max(this.zoomPunchDuration, duration) : duration;
+    this.zoomPunchTime = Math.max(this.zoomPunchTime, duration);
+  }
+
+  private currentZoomScale(): number {
+    if (this.zoomPunchTime <= 0 || this.zoomPunchDuration <= 0) return 1;
+    const fade = clamp(this.zoomPunchTime / this.zoomPunchDuration, 0, 1);
+    return 1 + this.zoomPunchStrength * fade * fade;
+  }
+
+  private addImpactLines(position: Vec2, color: string, count: number, radius: number, life = 0.28): void {
+    const safeCount = Math.max(1, Math.floor(count));
+    const safeRadius = Math.max(48, radius);
+    for (let i = 0; i < safeCount; i += 1) {
+      const angle = (Math.PI * 2 * i) / safeCount + (Math.random() - 0.5) * 0.22;
+      const lineLife = life + Math.random() * 0.08;
+      this.impactLines.push({
+        position: { ...position },
+        angle,
+        innerRadius: safeRadius * (0.22 + Math.random() * 0.16),
+        outerRadius: safeRadius * (0.82 + Math.random() * 0.32),
+        drift: safeRadius * (0.16 + Math.random() * 0.2),
+        color,
+        width: 1.8 + Math.random() * 2.8,
+        life: lineLife,
+        maxLife: lineLife,
+      });
+    }
+    if (this.impactLines.length > 120) {
+      this.impactLines.splice(0, this.impactLines.length - 120);
+    }
+  }
+
+  private addPlayerAfterimage(
+    position: Vec2,
+    color = "#8ee8ff",
+    radius = this.effectivePlayerRadius(),
+    life = 0.24,
+    angle?: number,
+    stretch = 1.24,
+  ): void {
+    const cannonSpeed = Math.hypot(this.player.cannonVelocity.x, this.player.cannonVelocity.y);
+    const moveSpeed = Math.hypot(this.player.velocity.x, this.player.velocity.y);
+    const inferredAngle = cannonSpeed > 1
+      ? Math.atan2(this.player.cannonVelocity.y, this.player.cannonVelocity.x)
+      : moveSpeed > 1
+        ? Math.atan2(this.player.velocity.y, this.player.velocity.x)
+        : 0;
+    this.playerAfterimages.push({
+      position: { ...position },
+      radius,
+      color,
+      angle: angle ?? inferredAngle,
+      stretch,
+      life,
+      maxLife: life,
+    });
+    if (this.playerAfterimages.length > 36) {
+      this.playerAfterimages.splice(0, this.playerAfterimages.length - 36);
+    }
   }
 
   private colorToRgb(color: string): string {
@@ -4440,9 +4674,16 @@ export class VoiceSurvivorGame {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
     const shake = this.currentShakeOffset();
+    const zoom = this.currentZoomScale();
     ctx.save();
     ctx.translate(shake.x, shake.y);
+    if (zoom !== 1) {
+      ctx.translate(this.width / 2, this.height / 2);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-this.width / 2, -this.height / 2);
+    }
     this.renderer.render(ctx, this.getRenderState());
+    this.renderImpactLines(ctx);
     this.renderSpellCues(ctx);
     ctx.restore();
     this.renderComboFlash(ctx);
@@ -4461,6 +4702,29 @@ export class VoiceSurvivorGame {
       x: (Math.random() * 2 - 1) * strength,
       y: (Math.random() * 2 - 1) * strength,
     };
+  }
+
+  private renderImpactLines(ctx: CanvasRenderingContext2D): void {
+    if (this.impactLines.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    for (const line of this.impactLines) {
+      const alpha = clamp(line.life / line.maxLife, 0, 1);
+      const progress = 1 - alpha;
+      const inner = line.innerRadius + line.drift * progress;
+      const outer = line.outerRadius + line.drift * (0.25 + progress);
+      ctx.globalAlpha = alpha * alpha * 0.85;
+      ctx.strokeStyle = line.color;
+      ctx.shadowColor = line.color;
+      ctx.shadowBlur = 18 * alpha;
+      ctx.lineWidth = line.width * (0.7 + alpha * 0.6);
+      ctx.beginPath();
+      ctx.moveTo(line.position.x + Math.cos(line.angle) * inner, line.position.y + Math.sin(line.angle) * inner);
+      ctx.lineTo(line.position.x + Math.cos(line.angle) * outer, line.position.y + Math.sin(line.angle) * outer);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private renderScreenFlash(ctx: CanvasRenderingContext2D): void {
@@ -4486,6 +4750,7 @@ export class VoiceSurvivorGame {
       enemyShots: this.enemyShots,
       drops: this.drops,
       particles: this.particles,
+      afterimages: this.playerAfterimages,
       turrets: this.turrets,
       activeMods: this.activeMods,
       cannonTarget: this.cannonTarget,
