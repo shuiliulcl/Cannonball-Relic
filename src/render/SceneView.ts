@@ -80,10 +80,20 @@ export class SceneView {
 
   // Shared geometry/material for health bars — all monster instances reuse these
   // so the GPU only uploads VBOs and compiles shaders once.
-  private readonly _hpBackGeo = new THREE.PlaneGeometry(0.82, 0.1);
-  private readonly _hpFillGeo = new THREE.PlaneGeometry(0.78, 0.06);
-  private readonly _hpBackMat = new THREE.MeshBasicMaterial({ color: 0x2a1110, side: THREE.DoubleSide });
-  private readonly _hpFillMat = new THREE.MeshBasicMaterial({ color: 0xe33b2f, side: THREE.DoubleSide });
+  private readonly _hpBackGeo = new THREE.PlaneGeometry(this.skin.id === "toem" ? 0.5 : 0.82, this.skin.id === "toem" ? 0.07 : 0.1);
+  private readonly _hpFillGeo = new THREE.PlaneGeometry(this.skin.id === "toem" ? 0.44 : 0.78, this.skin.id === "toem" ? 0.035 : 0.06);
+  private readonly _hpBackMat = new THREE.MeshBasicMaterial({
+    color: this.skin.id === "toem" ? 0xf7f7f2 : 0x2a1110,
+    side: THREE.DoubleSide,
+    transparent: this.skin.id === "toem",
+    opacity: this.skin.id === "toem" ? 0.82 : 1,
+  });
+  private readonly _hpFillMat = new THREE.MeshBasicMaterial({
+    color: this.skin.id === "toem" ? 0x111111 : 0xe33b2f,
+    side: THREE.DoubleSide,
+    transparent: this.skin.id === "toem",
+    opacity: this.skin.id === "toem" ? 0.72 : 1,
+  });
   // Cache SpriteMaterial by "url|tint" key — avoids per-spawn texture/shader upload stall.
   private readonly _spriteMatCache = new Map<string, THREE.SpriteMaterial>();
   // Cache no-map SpriteMaterial by color — glow/projectile sprites share the same program.
@@ -105,8 +115,8 @@ export class SceneView {
 
     this.scene.background = new THREE.Color(this.theme.clearColor);
     this.scene.add(this.worldGroup);
-    this.effects = new Effects(this.worldGroup);
-    this.trajectory = new TrajectoryView(this.worldGroup);
+    this.effects = new Effects(this.worldGroup, this.skin.id);
+    this.trajectory = new TrajectoryView(this.worldGroup, this.skin.id);
     this.worldGroup.add(this.arenaGroup);
 
     this.setupCamera();
@@ -263,10 +273,14 @@ export class SceneView {
       const healthScale = Math.max(0.35, monster.hp / monster.maxHp);
       group.scale.setScalar(0.85 + healthScale * 0.25);
       const hpFill = group.getObjectByName("hp-fill");
+      const hpBar = group.getObjectByName("hp-bar");
       if (hpFill) {
         const hpRatio = Math.max(0, monster.hp / monster.maxHp);
         hpFill.scale.x = hpRatio;
-        hpFill.position.x = -0.39 * (1 - hpRatio);
+        hpFill.position.x = (this.skin.id === "toem" ? -0.22 : -0.39) * (1 - hpRatio);
+        if (hpBar) {
+          hpBar.visible = this.skin.id !== "toem" || hpRatio < 0.98;
+        }
       }
     }
   }
@@ -467,10 +481,10 @@ export class SceneView {
     const floorTexture = this.loadTexture(this.skin.floor);
     floorTexture.wrapS = THREE.RepeatWrapping;
     floorTexture.wrapT = THREE.RepeatWrapping;
-    floorTexture.repeat.set(5, 4);
+    this.applyArenaFloorRepeat(floorTexture, 5, 4);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(hw * 2, hd * 2),
-      new THREE.MeshBasicMaterial({ map: floorTexture, color: this.theme.floorTint, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ map: floorTexture, color: this.arenaFloorTint, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
@@ -517,10 +531,10 @@ export class SceneView {
     const floorTexture = this.loadTexture(this.skin.floor);
     floorTexture.wrapS = THREE.RepeatWrapping;
     floorTexture.wrapT = THREE.RepeatWrapping;
-    floorTexture.repeat.set(9, 7);
+    this.applyArenaFloorRepeat(floorTexture, 9, 7);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(hw * 2, hd * 2),
-      new THREE.MeshBasicMaterial({ map: floorTexture, color: this.theme.floorTint, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ map: floorTexture, color: this.arenaFloorTint, side: THREE.DoubleSide }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.04;
@@ -610,6 +624,14 @@ export class SceneView {
       this.arenaGroup.add(mesh);
     }
     this.applyVoidCells(originX, originZ, cellSize);
+  }
+
+  private applyArenaFloorRepeat(texture: THREE.Texture, fallbackX: number, fallbackY: number): void {
+    if (!this.runtimeLevel) {
+      texture.repeat.set(fallbackX, fallbackY);
+      return;
+    }
+    texture.repeat.set(this.runtimeLevel.grid.width, this.runtimeLevel.grid.height);
   }
 
   private applyVoidCells(originX: number, originZ: number, cellSize: number): void {
@@ -704,8 +726,9 @@ export class SceneView {
     };
     const skinKey = MONSTER_SKIN_KEY[monsterType] ?? "enemyGrunt";
     const spriteUrl = (this.skin[skinKey] as string);
-    const sw = this.viewMode === "2d" ? cfg.size2d : cfg.spriteW;
-    const sh = this.viewMode === "2d" ? cfg.size2d : cfg.spriteH;
+    const skinScale = this.skin.id === "orbit-ruins" ? 1.35 : this.skin.id === "toem" ? 1.28 : 1;
+    const sw = (this.viewMode === "2d" ? cfg.size2d : cfg.spriteW) * skinScale;
+    const sh = (this.viewMode === "2d" ? cfg.size2d : cfg.spriteH) * skinScale;
     // Apply tint when the slot still uses the grunt fallback texture.
     const tint = (monsterType !== "grunt" && spriteUrl === this.skin.enemyGrunt) ? cfg.tint : undefined;
     const mat = this.getSpriteMat(spriteUrl, tint);
@@ -714,18 +737,52 @@ export class SceneView {
     sprite.position.y = this.viewMode === "2d" ? 0.2 : cfg.spriteH * 0.68;
 
     if (shadow) group.add(shadow);
+    if (this.skin.id === "toem" && this.viewMode === "2d") {
+      group.add(this.createToemMonsterReadabilityBase(Math.max(sw, sh)));
+    }
     group.add(sprite);
     group.add(this.createMonsterHealthBar(sh));
     return group;
   }
 
+  private createToemMonsterReadabilityBase(size: number): THREE.Group {
+    const group = new THREE.Group();
+    const radius = THREE.MathUtils.clamp(size * 0.38, 0.28, 0.52);
+
+    const shadow = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius * 1.03, radius * 1.03, 0.014, 28),
+      new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.12 }),
+    );
+    shadow.position.set(0.04, 0.012, 0.04);
+    shadow.scale.z = 0.7;
+
+    const outline = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius, radius, 0.014, 32),
+      new THREE.MeshBasicMaterial({ color: 0x111111 }),
+    );
+    outline.position.y = 0.018;
+    outline.scale.z = 0.74;
+
+    const paper = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius * 0.82, radius * 0.82, 0.014, 32),
+      new THREE.MeshBasicMaterial({ color: 0xf7f7f2 }),
+    );
+    paper.position.y = 0.026;
+    paper.scale.z = 0.68;
+
+    group.add(shadow, outline, paper);
+    return group;
+  }
+
   private createMonsterHealthBar(spriteHeight: number): THREE.Group {
     const group = new THREE.Group();
+    group.name = "hp-bar";
     if (this.viewMode === "2d") {
-      group.position.set(0, 0.36, -spriteHeight * 0.42);
+      group.position.set(0, this.skin.id === "toem" ? 0.32 : 0.36, -spriteHeight * (this.skin.id === "toem" ? 0.3 : 0.42));
     } else {
       group.position.y = spriteHeight + 0.34;
     }
+    group.visible = this.skin.id !== "toem";
 
     const back = new THREE.Mesh(this._hpBackGeo, this._hpBackMat);
     back.position.z = 0.01;
@@ -814,9 +871,51 @@ export class SceneView {
   }
 
   private createTopDownObstacle(material: ObstacleMaterial, obstacle: Obstacle): THREE.Group {
+    if (this.skin.id === "orbit-ruins") {
+      return this.createOrbitRuinsTopDownObstacle(material, obstacle);
+    }
+    if (this.skin.id === "toem") {
+      return this.createToemTopDownObstacle(material, obstacle);
+    }
+
     const group = new THREE.Group();
     const width = obstacle.halfSize.x * 2;
     const depth = obstacle.halfSize.z * 2;
+    const texPath = `/assets/skins/${this.skin.id}/sprites/obstacle-${material.toLowerCase()}.png`;
+
+    // Storybook skins (hozy): flat sprite on floor — no 3D body box leaking through
+    // transparent corners of circular sprites like the mossy boulder.
+    if (this.skin.id === "hozy") {
+      // Stone uses a tiled floor texture — tile it to match the arena floor scale
+      // rather than stretching a single tile (which exposes the parchment top).
+      const isTiledFloor = material === "stone";
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xd4a46a, // warm amber fallback before texture loads
+        side: THREE.DoubleSide,
+        ...(isTiledFloor ? {} : { transparent: true, alphaTest: 0.1 }),
+      });
+      this.textureLoader.load(texPath, (tex) => {
+        preparePixelTexture(tex);
+        if (isTiledFloor) {
+          // Tile at arena floor scale: arena is ~17×12.5 wu tiled 9×7 ≈ 1.89 wu/tile
+          const tileSize = 17 / 9;
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          tex.repeat.set(width / tileSize, depth / tileSize);
+          tex.needsUpdate = true;
+        }
+        this.renderer.initTexture(tex);
+        mat.map = tex;
+        mat.color.setHex(0xffffff);
+        mat.needsUpdate = true;
+      });
+      const flat = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), mat);
+      flat.rotation.x = -Math.PI / 2;
+      flat.position.y = 0.01;
+      group.add(flat);
+      return group;
+    }
+
     const colors = this.topDownObstacleColors(material);
 
     const body = new THREE.Mesh(
@@ -826,8 +925,12 @@ export class SceneView {
     body.position.y = 0.11;
 
     // Top face: start with flat color fallback, load sprite texture async when available.
-    const topMaterial = new THREE.MeshBasicMaterial({ color: colors.top, side: THREE.DoubleSide });
-    const texPath = `/assets/skins/${this.skin.id}/sprites/obstacle-${material.toLowerCase()}.png`;
+    const topMaterial = new THREE.MeshBasicMaterial({
+      color: colors.top,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.08,
+    });
     this.textureLoader.load(
       texPath,
       (tex) => {
@@ -843,11 +946,141 @@ export class SceneView {
     top.rotation.x = -Math.PI / 2;
     top.position.y = 0.225;
 
-    group.add(body, top);
+    group.add(body);
+    group.add(top);
     return group;
   }
 
+  private createToemTopDownObstacle(material: ObstacleMaterial, obstacle: Obstacle): THREE.Group {
+    const group = new THREE.Group();
+    const width = obstacle.halfSize.x * 2;
+    const depth = obstacle.halfSize.z * 2;
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.16, depth),
+      new THREE.MeshBasicMaterial({ color: 0xd8d8d8 }),
+    );
+    body.position.y = 0.08;
+    group.add(body);
+
+    const topMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.08,
+    });
+    this.textureLoader.load(
+      this.toemObstacleTexturePath(material, width, depth),
+      (tex) => {
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.needsUpdate = true;
+        this.renderer.initTexture(tex);
+        topMaterial.map = tex;
+        topMaterial.needsUpdate = true;
+      },
+    );
+
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), topMaterial);
+    top.rotation.x = -Math.PI / 2;
+    top.position.y = 0.185;
+    group.add(top);
+
+    return group;
+  }
+
+  private toemObstacleTexturePath(material: ObstacleMaterial, width: number, depth: number): string {
+    const base = `/assets/skins/${this.skin.id}/textures`;
+    const aspect = width / depth;
+    if (aspect >= 3) {
+      return `${base}/obstacle-long-h.png`;
+    }
+    if (aspect <= 0.25) {
+      return `${base}/obstacle-long-v.png`;
+    }
+    if (aspect >= 1.35) {
+      return `${base}/obstacle-medium-h.png`;
+    }
+    if (aspect <= 0.75) {
+      return `${base}/obstacle-medium-v.png`;
+    }
+    if (material === "reflector" || material === "accelerator" || material === "glass" || material === "oneWay") {
+      return `${base}/obstacle-signal-square.png`;
+    }
+    return `${base}/obstacle-square.png`;
+  }
+
+  private createOrbitRuinsTopDownObstacle(material: ObstacleMaterial, obstacle: Obstacle): THREE.Group {
+    const group = new THREE.Group();
+    const width = obstacle.halfSize.x * 2;
+    const depth = obstacle.halfSize.z * 2;
+    const palette = this.orbitRuinsObstaclePalette(material);
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.18, depth),
+      new THREE.MeshBasicMaterial({ color: palette.side }),
+    );
+    body.position.y = 0.09;
+    group.add(body);
+
+    const topMaterial = new THREE.MeshBasicMaterial({
+      color: palette.top,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.08,
+    });
+    this.textureLoader.load(
+      this.orbitRuinsObstacleTexturePath(material, width, depth),
+      (tex) => {
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.needsUpdate = true;
+        this.renderer.initTexture(tex);
+        topMaterial.map = tex;
+        topMaterial.color.setHex(0xffffff);
+        topMaterial.needsUpdate = true;
+      },
+    );
+
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), topMaterial);
+    top.rotation.x = -Math.PI / 2;
+    top.position.y = 0.205;
+    group.add(top);
+
+    return group;
+  }
+
+  private orbitRuinsObstacleTexturePath(material: ObstacleMaterial, width: number, depth: number): string {
+    const base = `/assets/skins/${this.skin.id}/textures`;
+    const aspect = width / depth;
+    if (aspect >= 3) {
+      return `${base}/obstacle-long-h.png`;
+    }
+    if (aspect <= 0.25) {
+      return `${base}/obstacle-long-v.png`;
+    }
+    if (aspect >= 1.35) {
+      return `${base}/obstacle-medium-h.png`;
+    }
+    if (aspect <= 0.75) {
+      return `${base}/obstacle-medium-v.png`;
+    }
+    if (material === "reflector" || material === "accelerator" || material === "glass") {
+      return `${base}/obstacle-signal-square.png`;
+    }
+    return `${base}/obstacle-square.png`;
+  }
+
   private createInteractableMesh(type: RuntimeLevel["interactables"][number]["type"]): THREE.Object3D {
+    if (this.skin.id === "orbit-ruins") {
+      return this.createOrbitRuinsInteractableMesh(type);
+    }
+    if (this.skin.id === "toem") {
+      return this.createToemInteractableMesh(type);
+    }
+
     const color = this.interactableColor(type);
     const group = new THREE.Group();
     const base = new THREE.Mesh(
@@ -871,6 +1104,88 @@ export class SceneView {
 
     group.add(base, marker);
     return group;
+  }
+
+  private createToemInteractableMesh(type: RuntimeLevel["interactables"][number]["type"]): THREE.Object3D {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.34, 0.12, 18),
+      new THREE.MeshBasicMaterial({ color: 0xf5f5f5 }),
+    );
+    base.position.y = 0.06;
+    const outline = new THREE.Mesh(
+      new THREE.TorusGeometry(0.34, 0.025, 8, 36),
+      new THREE.MeshBasicMaterial({ color: 0x111111 }),
+    );
+    outline.rotation.x = Math.PI / 2;
+    outline.position.y = 0.14;
+    group.add(base, outline);
+
+    const marker =
+      type === "doorSwitch"
+        ? new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.05, 24), new THREE.MeshBasicMaterial({ color: 0x111111 }))
+        : type === "alarmPost"
+        ? new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.46, 16), new THREE.MeshBasicMaterial({ color: 0xeeeeee }))
+        : type === "iceBall"
+        ? new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 1), new THREE.MeshBasicMaterial({ color: 0xeeeeee }))
+        : new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    marker.position.y = type === "alarmPost" ? 0.38 : 0.28;
+    group.add(marker);
+
+    const markerInk = new THREE.Mesh(
+      new THREE.TorusGeometry(type === "doorSwitch" ? 0.18 : 0.21, 0.018, 8, 32),
+      new THREE.MeshBasicMaterial({ color: 0x111111 }),
+    );
+    markerInk.rotation.x = Math.PI / 2;
+    markerInk.position.y = type === "alarmPost" ? 0.62 : 0.29;
+    group.add(markerInk);
+    return group;
+  }
+
+  private createOrbitRuinsInteractableMesh(type: RuntimeLevel["interactables"][number]["type"]): THREE.Object3D {
+    const group = new THREE.Group();
+    const cfg = this.orbitRuinsInteractableSprite(type);
+    const sprite = this.createSprite(cfg.path, cfg.width, cfg.height);
+    sprite.position.y = this.viewMode === "2d" ? 0.36 : 0.58;
+    group.add(sprite);
+
+    const marker = new THREE.Mesh(
+      new THREE.TorusGeometry(cfg.ringRadius, 0.018, 8, 40),
+      new THREE.MeshBasicMaterial({
+        color: cfg.signal,
+        transparent: true,
+        opacity: 0.42,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    marker.rotation.x = Math.PI / 2;
+    marker.position.y = 0.035;
+    group.add(marker);
+    return group;
+  }
+
+  private orbitRuinsInteractableSprite(type: RuntimeLevel["interactables"][number]["type"]): {
+    path: string;
+    width: number;
+    height: number;
+    ringRadius: number;
+    signal: number;
+  } {
+    const base = `/assets/skins/${this.skin.id}/sprites`;
+    if (type === "brazier") {
+      return { path: `${base}/interactable-brazier.png`, width: 0.82, height: 0.9, ringRadius: 0.34, signal: 0xffb766 };
+    }
+    if (type === "pinball") {
+      return { path: `${base}/interactable-pinball.png`, width: 0.78, height: 0.9, ringRadius: 0.32, signal: 0x9ff4ff };
+    }
+    if (type === "iceBall") {
+      return { path: `${base}/interactable-ice-ball.png`, width: 0.98, height: 0.74, ringRadius: 0.34, signal: 0x9de7ff };
+    }
+    if (type === "alarmPost") {
+      return { path: `${base}/interactable-alarm-post.png`, width: 0.62, height: 0.82, ringRadius: 0.3, signal: 0xffcf62 };
+    }
+    return { path: `${base}/interactable-door-switch.png`, width: 0.88, height: 0.72, ringRadius: 0.36, signal: 0x80f2d2 };
   }
 
   private interactableColor(type: RuntimeLevel["interactables"][number]["type"]): number {
@@ -919,6 +1234,41 @@ export class SceneView {
     return { side: 0x5a2c08, top: 0xe07020, edge: 0x5a2c08 };
   }
 
+  private orbitRuinsObstaclePalette(material: ObstacleMaterial): {
+    side: number;
+    edge: number;
+    top: number;
+    brass: number;
+    signal: number;
+    warm: number;
+  } {
+    if (material === "stone") {
+      return { side: 0x242834, edge: 0x4f5666, top: 0x747b86, brass: 0xb2874a, signal: 0x72d9e8, warm: 0xffb45f };
+    }
+    if (material === "metal") {
+      return { side: 0x202f34, edge: 0x56655e, top: 0x7b806d, brass: 0xc2964d, signal: 0x64d7f0, warm: 0xffc16f };
+    }
+    if (material === "glass") {
+      return { side: 0x183846, edge: 0x3c7b88, top: 0x70a7a7, brass: 0x9d8451, signal: 0x9ff4ff, warm: 0xf6b96f };
+    }
+    if (material === "reflector") {
+      return { side: 0x282040, edge: 0x51466d, top: 0x8177a0, brass: 0xb99562, signal: 0xb9eaff, warm: 0xd8a6ff };
+    }
+    if (material === "accelerator") {
+      return { side: 0x3e2c1d, edge: 0x755536, top: 0x9b7646, brass: 0xd9a95a, signal: 0x6fe1dc, warm: 0xffcf62 };
+    }
+    if (material === "thorns") {
+      return { side: 0x3b2428, edge: 0x6a3f3b, top: 0x8d5c50, brass: 0xb1844b, signal: 0x68d1cf, warm: 0xff8768 };
+    }
+    if (material === "oneWay") {
+      return { side: 0x1e3228, edge: 0x49614d, top: 0x6f8464, brass: 0xb39250, signal: 0x80f2d2, warm: 0xffc46f };
+    }
+    if (material === "bomb") {
+      return { side: 0x3e251d, edge: 0x754837, top: 0x936147, brass: 0xbd8d4f, signal: 0x66d6e0, warm: 0xff8e54 };
+    }
+    return { side: 0x302b24, edge: 0x64533d, top: 0x877154, brass: 0xc49751, signal: 0x78d8e5, warm: 0xffb766 };
+  }
+
   private floorTexturePath(material: FloorMaterial): string {
     if (material === "cracked") {
       return this.skin.floorCracked;
@@ -953,6 +1303,18 @@ export class SceneView {
   }
 
   private floorTerrainColor(material: FloorMaterial): number | undefined {
+    if (this.skin.id === "toem") {
+      if (material === "fire" || material === "blood") {
+        return 0x111111;
+      }
+      if (material === "mud") {
+        return 0x777777;
+      }
+      if (material === "ice") {
+        return 0xd8d8d8;
+      }
+      return undefined;
+    }
     // HM2: vivid terrain overlays on dark floor
     if (material === "fire") {
       return 0xff3010;
@@ -975,6 +1337,10 @@ export class SceneView {
 
   private get arenaHD(): number {
     return this.runtimeLevel?.arenaHalfDepth ?? ARENA.halfDepth;
+  }
+
+  private get arenaFloorTint(): number {
+    return this.skin.id === "toem" ? 0xffffff : this.theme.floorTint;
   }
 
   private resize(): void {

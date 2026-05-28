@@ -1,0 +1,16 @@
+{
+  "family": "pouncer",
+  "version": "v6.4-pouncer-rebody",
+  "role": "movement-aligned leap enemy",
+  "notes": [
+    "Transparent procedural PNGs generated from Canvas for stable runtime alpha.",
+    "Body language is broad, crouched, and compressed rather than triangular or arrow-like.",
+    "Designed to rotate with movement in LineglowSurvivorRenderer while the cue stays behind the body."
+  ],
+  "files": [
+    "pouncer_01.png",
+    "pouncer_02.png",
+    "pouncer_03.png",
+    "pouncer_04.png"
+  ]
+}

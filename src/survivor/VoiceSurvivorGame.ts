@@ -1,6 +1,8 @@
 import { VoiceInput } from "../game/voice";
+import { LineglowSurvivorRenderer, type SurvivorRenderState } from "./render/LineglowSurvivorRenderer";
+import { getLineglowSpellArt } from "./render/lineglowTheme";
 
-type Vec2 = {
+export type Vec2 = {
   x: number;
   y: number;
 };
@@ -8,10 +10,12 @@ type Vec2 = {
 type SpellConfig = {
   name: string;
   cost: number;
-  category: "持续战斗 Buff" | "通用操作/救场" | "强力/乐子技能" | "人间大炮核心";
+  category: "持续战斗 Buff" | "通用操作/救场" | "强力/乐子技能" | "技能碎片" | "隐藏 Combo" | "人间大炮核心";
   stage: string;
   effect: string;
   links?: readonly string[];
+  hidden?: boolean;
+  fragments?: readonly string[];
   aliases: readonly string[];
 };
 
@@ -128,12 +132,13 @@ const SPELL_CONFIG = {
     aliases: ["发射", "开火", "开炮", "发社", "发设", "发涉", "发誓", "法射", "射击", "设计", "开伙", "开活", "开跑", "发", "开", "射", "打", "放", "fire", "shoot"],
   },
   bang: {
-    name: "梆梆不梆梆",
-    cost: 28,
-    category: "强力/乐子技能",
-    stage: "后期强力咒语",
-    effect: "对附近敌人打冲击拳，命中返声能和大炮槽。",
-    aliases: ["梆梆不梆梆", "梆梆两拳", "你就说梆不梆", "梆不梆", "邦邦不邦邦", "棒棒不棒棒", "邦邦", "棒棒", "帮帮", "梆梆", "梆", "邦", "棒"],
+    name: "梆梆",
+    cost: 18,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "对最近敌人打一次冲击拳，命中返声能和大炮槽。",
+    links: ["你就说梆梆不梆梆", "梆梆两拳"],
+    aliases: ["梆梆", "邦邦", "棒棒", "帮帮", "梆", "邦", "棒"],
   },
   skillGo: {
     name: "技能五子棋",
@@ -183,20 +188,290 @@ const SPELL_CONFIG = {
     effect: "残血逃生，获得更强位移和生存窗口。",
     aliases: ["连滚带爬", "救命", "跑路", "快跑", "逃命", "溜了", "快逃", "保命", "救", "跑", "逃", "爬", "溜"],
   },
+  cardCheck: {
+    name: "验牌",
+    cost: 16,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "标记当前最危险敌人，使其短时间受到更高伤害。",
+    links: ["我要验牌"],
+    aliases: ["验牌", "查牌", "看牌", "验一下", "查一下", "验"],
+  },
+  woqu: {
+    name: "我去",
+    cost: 12,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "短促闪避，获得极短无敌。",
+    links: ["我去不早说"],
+    aliases: ["我去", "我靠", "我超", "卧去", "卧槽"],
+  },
+  tooLate: {
+    name: "不早说",
+    cost: 16,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "返还最近一次普通咒语的部分声能。",
+    links: ["我去不早说"],
+    aliases: ["不早说", "你不早说", "咋不早说", "怎么不早说", "早说啊", "早说"],
+  },
+  noTalk: {
+    name: "不讲",
+    cost: 16,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "打断最近一个蓄力敌人，并短暂沉默小范围敌人。",
+    links: ["不讲不讲"],
+    aliases: ["不讲", "别讲", "不听", "闭嘴", "住口"],
+  },
+  urgentCry: {
+    name: "你已急哭",
+    cost: 34,
+    category: "强力/乐子技能",
+    stage: "中后期强力咒语",
+    effect: "让附近敌人集体红温混乱，受到反伤，远程火力被干扰。",
+    aliases: ["你已急哭", "你已经急哭", "急哭", "你急了", "你已破防", "破防了"],
+  },
+  received: {
+    name: "收到",
+    cost: 14,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "复制上一个普通咒语的一小部分效果；没有上一咒语时回复声能。",
+    links: ["收到，收到"],
+    aliases: ["收到", "收到收到", "收到啊", "收到了", "明白"],
+  },
+  unknown: {
+    name: "不知道",
+    cost: 10,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "敌人短暂丢失锁定，玩家获得一点无敌。",
+    links: ["不知道，我的身材很曼妙"],
+    aliases: ["不知道", "不晓得", "不清楚", "我不知道", "不知"],
+  },
+  bodyShape: {
+    name: "身材",
+    cost: 10,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "短时间缩小玩家受击判定。",
+    links: ["不知道，我的身材很曼妙"],
+    aliases: ["身材", "体型", "身形", "我的身材"],
+  },
+  graceful: {
+    name: "曼妙",
+    cost: 10,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "优雅侧滑，短时间擦弹回复声能。",
+    links: ["不知道，我的身材很曼妙"],
+    aliases: ["曼妙", "很曼妙", "优雅", "妙"],
+  },
+  internalDrain: {
+    name: "内耗",
+    cost: 14,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "消耗一点 HP 或护盾，换取声能和短暂伤害提升。",
+    links: ["与其内耗，不如外耗"],
+    aliases: ["内耗", "我内耗", "开始内耗", "耗自己"],
+  },
+  externalDrain: {
+    name: "外耗",
+    cost: 16,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "诱导附近敌人互相碰撞，造成少量伤害。",
+    links: ["与其内耗，不如外耗"],
+    aliases: ["外耗", "出去耗", "耗别人", "外面耗"],
+  },
+  oldSelf: {
+    name: "老己",
+    cost: 12,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "回复少量 HP，获得一点护盾。",
+    links: ["爱你老己，明天见"],
+    aliases: ["老己", "爱你老己", "自己", "老几"],
+  },
+  seeTomorrow: {
+    name: "明天见",
+    cost: 14,
+    category: "技能碎片",
+    stage: "早期技能碎片",
+    effect: "给自己挂一个延迟回复，数秒后生效。",
+    links: ["爱你老己，明天见"],
+    aliases: ["明天见", "明天再见", "明天", "再见"],
+  },
+  comboBangFull: {
+    name: "你就说梆梆不梆梆",
+    cost: 36,
+    category: "隐藏 Combo",
+    stage: "隐藏单碎片 Combo",
+    effect: "需要碎片 梆梆。多段冲击拳清近身怪，命中返声能和大炮槽。",
+    hidden: true,
+    fragments: ["bang"],
+    aliases: ["你就说梆梆不梆梆", "你就说梆不梆", "梆梆不梆梆", "梆不梆"],
+  },
+  comboBangTwoFists: {
+    name: "梆梆两拳",
+    cost: 30,
+    category: "隐藏 Combo",
+    stage: "隐藏单碎片 Combo",
+    effect: "需要碎片 梆梆。两段强打断，第二拳优先处理危险目标。",
+    hidden: true,
+    fragments: ["bang"],
+    aliases: ["梆梆两拳", "邦邦两拳", "棒棒两拳", "两拳"],
+  },
+  comboCardCheck: {
+    name: "我要验牌",
+    cost: 36,
+    category: "隐藏 Combo",
+    stage: "隐藏单碎片 Combo",
+    effect: "需要碎片 验牌。全场危险敌人破甲并爆出作弊牌。",
+    hidden: true,
+    fragments: ["cardCheck"],
+    aliases: ["我要验牌", "我想验牌", "给我验牌", "验牌验牌"],
+  },
+  comboTooLate: {
+    name: "我去不早说",
+    cost: 44,
+    category: "隐藏 Combo",
+    stage: "隐藏双碎片 Combo",
+    effect: "需要碎片 我去 + 不早说。回溯玩家位置和 HP，并保留敌人已受伤害。",
+    hidden: true,
+    fragments: ["woqu", "tooLate"],
+    aliases: ["我去不早说", "我靠不早说", "我超不早说", "我去你不早说"],
+  },
+  comboNoTalk: {
+    name: "不讲不讲",
+    cost: 34,
+    category: "隐藏 Combo",
+    stage: "隐藏单碎片 Combo",
+    effect: "需要碎片 不讲。展开拒绝沟通领域，沉默敌人并清除弹幕。",
+    hidden: true,
+    fragments: ["noTalk"],
+    aliases: ["不讲不讲", "不讲了不讲了", "别讲别讲", "不听不听"],
+  },
+  comboReceived: {
+    name: "收到，收到",
+    cost: 36,
+    category: "隐藏 Combo",
+    stage: "隐藏单碎片 Combo",
+    effect: "需要碎片 收到。复读最近两个普通咒语，并附加小爆破。",
+    hidden: true,
+    fragments: ["received"],
+    aliases: ["收到收到", "收到，收到", "收到 收到", "收到收到收到"],
+  },
+  comboGracefulBody: {
+    name: "不知道，我的身材很曼妙",
+    cost: 58,
+    category: "隐藏 Combo",
+    stage: "隐藏三碎片 Combo",
+    effect: "需要碎片 不知道 + 身材 + 曼妙。进入曼妙判定，擦弹回能并积攒自信光环。",
+    hidden: true,
+    fragments: ["unknown", "bodyShape", "graceful"],
+    aliases: ["不知道我的身材很曼妙", "不知道，我的身材很曼妙", "我不知道我的身材很曼妙", "不知道身材很曼妙"],
+  },
+  comboExternalize: {
+    name: "与其内耗，不如外耗",
+    cost: 46,
+    category: "隐藏 Combo",
+    stage: "隐藏双碎片 Combo",
+    effect: "需要碎片 内耗 + 外耗。把玩家压力转嫁给怪群，敌人互相拉扯反伤。",
+    hidden: true,
+    fragments: ["internalDrain", "externalDrain"],
+    aliases: ["与其内耗不如外耗", "与其内耗，不如外耗", "内耗不如外耗", "别内耗去外耗"],
+  },
+  comboSeeTomorrow: {
+    name: "爱你老己，明天见",
+    cost: 48,
+    category: "隐藏 Combo",
+    stage: "隐藏双碎片 Combo",
+    effect: "需要碎片 老己 + 明天见。获得一次今晚不死保险，触发后回复并免下一次普通咒语费用。",
+    hidden: true,
+    fragments: ["oldSelf", "seeTomorrow"],
+    aliases: ["爱你老己明天见", "爱你老己，明天见", "老己明天见", "爱你老几明天见"],
+  },
 } as const satisfies Record<string, SpellConfig>;
 
-type SpellKey = keyof typeof SPELL_CONFIG;
+export type SpellKey = keyof typeof SPELL_CONFIG;
+
+const VOICE_COMBO_CONFIG = {
+  stormBloom: {
+    name: "雷爆跳弹",
+    spells: ["lightning", "explode", "ricochet"],
+    aliases: ["雷爆跳弹", "雷电爆炸弹射", "雷电弹射爆炸", "爆炸雷电弹射", "雷爆弹射", "闪电爆炸跳弹"],
+    effect: "雷电、爆炸、弹射同时接上时，额外触发多点雷爆和跳弹强化。",
+  },
+  iceBomb: {
+    name: "冻结爆炸",
+    spells: ["freeze", "explode"],
+    aliases: ["冻结爆炸", "冰冻爆炸", "冰爆", "冻爆", "先冻再炸", "冰封爆破"],
+    effect: "冻结和爆炸同时接上时，对近身怪潮造成冰爆冲击。",
+  },
+  thunderRicochet: {
+    name: "跳弹导电",
+    spells: ["lightning", "ricochet"],
+    aliases: ["跳弹导电", "雷电弹射", "弹射雷电", "电弧跳弹", "连电跳弹"],
+    effect: "雷电和弹射同时接上时，雷链跳跃更远，弹射更容易滚起来。",
+  },
+  scatterRicochet: {
+    name: "散射跳弹",
+    spells: ["split", "ricochet"],
+    aliases: ["散射跳弹", "分裂弹射", "分裂跳弹", "散开弹射", "裂开跳弹"],
+    effect: "分裂和弹射同时接上时，追加一圈会跳的散射弹。",
+  },
+  pierceRicochet: {
+    name: "折线贯穿",
+    spells: ["pierce", "ricochet"],
+    aliases: ["折线贯穿", "穿透弹射", "贯穿弹射", "穿透跳弹", "折返穿透"],
+    effect: "穿透和弹射同时接上时，发射贯穿折返弹处理密集怪潮。",
+  },
+  bloomRicochet: {
+    name: "弹跳开花",
+    spells: ["explode", "ricochet"],
+    aliases: ["弹跳开花", "爆炸弹射", "弹射爆炸", "跳弹爆炸", "弹跳爆破"],
+    effect: "爆炸和弹射同时接上时，在多个敌人身上连续开花。",
+  },
+  frostBlades: {
+    name: "冰刀护身",
+    spells: ["freeze"],
+    aliases: ["冰刀护身", "冻结刀刃", "冰霜刀刃", "冰刀", "刀刃冻结"],
+    effect: "有刀刃成长时，冻结咒语会让近身刀圈更强；没有刀刃时也能触发一次冰环。",
+  },
+  boomBlades: {
+    name: "爆裂刀盘",
+    spells: ["explode"],
+    aliases: ["爆裂刀盘", "爆炸刀刃", "刀刃爆炸", "爆裂刀刃", "刀盘爆破"],
+    effect: "有刀刃成长时，爆炸咒语会让刀圈喷出爆裂弹；没有刀刃时触发一次小爆破。",
+  },
+  cannonBloom: {
+    name: "炮弹开花",
+    spells: ["cannonPrep", "ricochet", "cannon", "cannonFire"],
+    aliases: ["炮弹开花", "人间大炮弹射发射", "弹射人间大炮发射", "大炮弹射发射", "弹射发射", "人间大炮开花"],
+    effect: "在人间大炮发射时接上弹射，额外喷出弹片并延长飞行冲击。",
+  },
+} as const satisfies Record<
+  string,
+  { name: string; spells: readonly SpellKey[]; aliases: readonly string[]; effect: string }
+>;
 
 type VoiceControlAction = {
   type: "voice";
   command: "start" | "stop";
 };
 
-type SurvivorVoiceAction = SpellKey | VoiceControlAction;
+type VoiceComboKey = keyof typeof VOICE_COMBO_CONFIG;
+type SurvivorVoiceAction =
+  | VoiceControlAction
+  | { type: "spell"; spell: SpellKey }
+  | { type: "combo"; combo: VoiceComboKey; spells: readonly SpellKey[] };
 
-type EnemyType = "runner" | "brute" | "pouncer" | "ranged" | "repeater" | "silencer" | "target";
+export type EnemyType = "runner" | "brute" | "pouncer" | "ranged" | "repeater" | "silencer" | "target";
 
-type Enemy = {
+export type Enemy = {
   id: number;
   type: EnemyType;
   position: Vec2;
@@ -211,7 +486,7 @@ type Enemy = {
   lastSpellHit?: SpellKey;
 };
 
-type Projectile = {
+export type Projectile = {
   id: number;
   position: Vec2;
   velocity: Vec2;
@@ -226,22 +501,29 @@ type Projectile = {
   lightning: boolean;
 };
 
-type EnemyShot = {
+export type EnemyShot = {
   position: Vec2;
   velocity: Vec2;
   radius: number;
   damage: number;
   life: number;
+  grazed?: boolean;
 };
 
-type Drop = {
+export type Drop = {
   position: Vec2;
   value: number;
   radius: number;
   magnet: number;
 };
 
-type Particle = {
+type PlayerSnapshot = {
+  time: number;
+  position: Vec2;
+  hp: number;
+};
+
+export type Particle = {
   position: Vec2;
   velocity: Vec2;
   radius: number;
@@ -250,7 +532,20 @@ type Particle = {
   maxLife: number;
 };
 
-type Turret = {
+type SpellCue = {
+  kind: "ring" | "fan";
+  position: Vec2;
+  radius: number;
+  color: string;
+  life: number;
+  maxLife: number;
+  label?: string;
+  angle?: number;
+  spread?: number;
+  lines?: number;
+};
+
+export type Turret = {
   position: Vec2;
   cooldown: number;
   life: number;
@@ -267,6 +562,14 @@ type Buff = {
   apply: () => void;
 };
 
+type CommandButtonState = {
+  label: string;
+  meta: string;
+  title: string;
+  badge: string;
+  state: "ready" | "empty" | "blocked";
+};
+
 const SPELL_NAMES = Object.fromEntries(
   Object.entries(SPELL_CONFIG).map(([key, config]) => [key, config.name]),
 ) as Record<SpellKey, string>;
@@ -278,6 +581,7 @@ const SPELL_COSTS = Object.fromEntries(
 const SPELL_COMMAND_ALIASES = Object.entries(SPELL_CONFIG).map(([key, config]) => ({
   key: key as SpellKey,
   aliases: config.aliases,
+  priority: (config as SpellConfig).hidden ? 10 : 0,
 }));
 
 const VOICE_CONTROL_ALIASES: Array<{ command: VoiceControlAction["command"]; aliases: readonly string[] }> = [
@@ -293,6 +597,7 @@ const VOICE_CONTROL_ALIASES: Array<{ command: VoiceControlAction["command"]; ali
 
 const BASE_ENERGY_REGEN = 5.4;
 const CANNON_PREP_COSTS = [34, 48, 62] as const;
+const INITIAL_XP_GOAL = 10;
 
 const ENEMY_CONFIG: Record<EnemyType, { hp: number; speed: number; radius: number; color: string; label: string; xp: number }> = {
   runner: { hp: 12, speed: 68, radius: 13, color: "#ffbd4a", label: "跑", xp: 5 },
@@ -335,18 +640,19 @@ function normalizeVoiceText(text: string): string {
 function matchSpells(text: string): SpellKey[] {
   const normalized = normalizeVoiceText(text);
   if (!normalized) return [];
-  const matches: Array<{ key: SpellKey; position: number; length: number }> = [];
+  const matches: Array<{ key: SpellKey; position: number; length: number; priority: number }> = [];
   for (const command of SPELL_COMMAND_ALIASES) {
-    let bestMatch: { key: SpellKey; position: number; length: number } | undefined;
+    let bestMatch: { key: SpellKey; position: number; length: number; priority: number } | undefined;
     for (const alias of command.aliases) {
       const aliasForm = normalizeVoiceText(alias);
       const position = normalized.indexOf(aliasForm);
       if (position >= 0) {
-        const match = { key: command.key, position, length: aliasForm.length };
+        const match = { key: command.key, position, length: aliasForm.length, priority: command.priority };
         if (
           !bestMatch ||
           match.position < bestMatch.position ||
-          (match.position === bestMatch.position && match.length > bestMatch.length)
+          (match.position === bestMatch.position && match.priority > bestMatch.priority) ||
+          (match.position === bestMatch.position && match.priority === bestMatch.priority && match.length > bestMatch.length)
         ) {
           bestMatch = match;
         }
@@ -356,8 +662,8 @@ function matchSpells(text: string): SpellKey[] {
       matches.push(bestMatch);
     }
   }
-  const selected: Array<{ key: SpellKey; position: number; length: number }> = [];
-  for (const match of matches.sort((a, b) => a.position - b.position || b.length - a.length)) {
+  const selected: Array<{ key: SpellKey; position: number; length: number; priority: number }> = [];
+  for (const match of matches.sort((a, b) => a.position - b.position || b.priority - a.priority || b.length - a.length)) {
     const end = match.position + match.length;
     const overlaps = selected.some((item) => match.position < item.position + item.length && end > item.position);
     if (!overlaps && !selected.some((item) => item.key === match.key)) {
@@ -386,13 +692,56 @@ function matchVoiceControl(text: string): VoiceControlAction[] {
   return best ? [{ type: "voice", command: best.command }] : [];
 }
 
-function survivorVoiceActionKey(action: SurvivorVoiceAction): string {
-  return typeof action === "string" ? action : `voice:${action.command}`;
+function hasSpellSequence(spells: readonly SpellKey[], sequence: readonly SpellKey[]): boolean {
+  let index = 0;
+  for (const spell of spells) {
+    if (spell === sequence[index]) {
+      index += 1;
+      if (index >= sequence.length) return true;
+    }
+  }
+  return false;
+}
+
+function matchVoiceCombo(text: string, spells: readonly SpellKey[]): VoiceComboKey | null {
+  const normalized = normalizeVoiceText(text);
+  const candidates = Object.entries(VOICE_COMBO_CONFIG) as Array<[VoiceComboKey, (typeof VOICE_COMBO_CONFIG)[VoiceComboKey]]>;
+  const aliasMatch = candidates
+    .filter(([, combo]) => combo.aliases.some((alias) => normalized.includes(normalizeVoiceText(alias))))
+    .sort(([, a], [, b]) => b.spells.length - a.spells.length)[0];
+  if (aliasMatch) return aliasMatch[0];
+
+  const sequenceMatch = candidates
+    .filter(([, combo]) => combo.spells.length > 1 && hasSpellSequence(spells, combo.spells))
+    .sort(([, a], [, b]) => b.spells.length - a.spells.length)[0];
+  return sequenceMatch?.[0] ?? null;
+}
+
+function matchSurvivorVoiceActions(text: string): SurvivorVoiceAction[] {
+  const spells = matchSpells(text);
+  const combo = matchVoiceCombo(text, spells);
+  if (!combo) {
+    return spells.map((spell) => ({ type: "spell", spell }));
+  }
+  const comboSpells = VOICE_COMBO_CONFIG[combo].spells;
+  const used = new Set<SpellKey>(comboSpells);
+  return [
+    { type: "combo", combo, spells: comboSpells },
+    ...spells.filter((spell) => !used.has(spell)).map((spell) => ({ type: "spell" as const, spell })),
+  ];
+}
+
+function voiceActionLabel(action: SurvivorVoiceAction): string {
+  if (action.type === "voice") {
+    return action.command === "start" ? "开启语音" : "关闭语音";
+  }
+  return action.type === "combo" ? `组合：${VOICE_COMBO_CONFIG[action.combo].name}` : SPELL_NAMES[action.spell];
 }
 
 export class VoiceSurvivorGame {
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;
+  private readonly renderer = new LineglowSurvivorRenderer();
   private statusLine!: HTMLElement;
   private statLine!: HTMLElement;
   private chainLine!: HTMLElement;
@@ -443,10 +792,12 @@ export class VoiceSurvivorGame {
   private enemyShots: EnemyShot[] = [];
   private drops: Drop[] = [];
   private particles: Particle[] = [];
+  private spellCues: SpellCue[] = [];
   private turrets: Turret[] = [];
   private unlockedSpells = new Set<SpellKey>(["cannon", "cannonPrep", "cannonFire"]);
   private ownedBuffs = new Map<string, number>();
   private spellChain: SpellKey[] = [];
+  private repeatableSpellChain: SpellKey[] = [];
   private spellFatigue = new Map<SpellKey, { count: number; lastAt: number }>();
   private chainEnergyBonus = 0;
   private lastSpell: SpellKey | null = null;
@@ -460,12 +811,23 @@ export class VoiceSurvivorGame {
     focusTime: 0,
     seriousTime: 0,
     damageBoost: 0,
+    refusalTime: 0,
+    slimTime: 0,
+    gracefulTime: 0,
   };
+  private playerHistory: PlayerSnapshot[] = [];
+  private markedEnemyId: number | null = null;
+  private cardMarkTime = 0;
+  private gracefulConfidence = 0;
+  private fatalInsuranceTime = 0;
+  private delayedHealTime = 0;
+  private delayedHealAmount = 0;
+  private nextSpellFree = false;
   private score = 0;
   private kills = 0;
   private level = 1;
   private xp = 0;
-  private xpGoal = 14;
+  private xpGoal = INITIAL_XP_GOAL;
   private elapsed = 0;
   private spawnTimer = 1.2;
   private spawnBudget = 0.45;
@@ -537,10 +899,10 @@ export class VoiceSurvivorGame {
             <span id="survivorChain"></span>
           </div>
           <div class="survivor-voice">
-            <button id="survivorVoiceButton" type="button">开启语音</button>
-            <span id="survivorStatus">WASD 移动，自动攻击会成长；咒语负责救场和爆发。</span>
+            <button id="survivorVoiceButton" type="button">语音施法</button>
+            <span id="survivorStatus">手动施法就绪；语音可选。</span>
           </div>
-          <div id="survivorActiveSpells" class="survivor-active-spells" aria-label="持续咒语倒计时"></div>
+          <div id="survivorActiveSpells" class="survivor-active-spells" aria-label="持续效果状态"></div>
           <div class="survivor-detail-panel" aria-label="角色数值">
             <span id="survivorStats"></span>
           </div>
@@ -562,11 +924,11 @@ export class VoiceSurvivorGame {
             <strong id="survivorXpText">差 14</strong>
           </div>
         </section>
-        <section id="survivorCommandDock" class="survivor-command-dock" aria-label="可用咒语"></section>
+        <section id="survivorCommandDock" class="survivor-command-dock" aria-label="手动施法栏"></section>
         <div id="survivorStart" class="survivor-overlay">
           <span class="survivor-kicker">语音幸存者肉鸽</span>
           <h1>人间大炮一级准备</h1>
-          <p>自动攻击怪潮，升级既能强化武器和生存，也能抽取咒语 Buff。喊“爆炸”“冻结”“梆梆不梆梆”“人间大炮 一级准备 发射”，把自己也变成弹药。</p>
+          <p>自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。</p>
           <button type="button" data-action="start">开始整活</button>
         </div>
         <div id="survivorUpgrade" class="survivor-overlay survivor-upgrade" hidden>
@@ -611,6 +973,10 @@ export class VoiceSurvivorGame {
   private installEvents(): void {
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("keydown", (event) => {
+      if (this.castManualShortcut(event)) {
+        event.preventDefault();
+        return;
+      }
       this.keys.add(event.key.toLowerCase());
       if (event.code === "Space") {
         event.preventDefault();
@@ -635,6 +1001,23 @@ export class VoiceSurvivorGame {
     });
   }
 
+  private castManualShortcut(event: KeyboardEvent): boolean {
+    const shortcut = event.key.toLowerCase();
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || !/^[1-9qer]$/.test(shortcut)) {
+      return false;
+    }
+    if (!this.running || this.selectingBuff || this.gameOver) {
+      return false;
+    }
+    const button = this.commandDock.querySelector<HTMLButtonElement>(`button[data-shortcut="${shortcut}"]`);
+    const spell = button?.dataset.spell as SpellKey | undefined;
+    if (!spell) {
+      return false;
+    }
+    this.castSpell(spell);
+    return true;
+  }
+
   private resize(): void {
     const rect = this.canvas.getBoundingClientRect();
     const scale = window.devicePixelRatio || 1;
@@ -649,18 +1032,15 @@ export class VoiceSurvivorGame {
 
   private setupVoice(): void {
     this.voiceInput = new VoiceInput<SurvivorVoiceAction>(
-      (actions) => {
-        for (const action of actions) {
-          this.handleVoiceAction(action);
-        }
-      },
+      (actions) => this.handleVoiceActions(actions),
       (text) => this.matchSurvivorVoiceActions(text),
-      survivorVoiceActionKey,
+      (action) => action.type === "voice" ? `voice:${action.command}` : action.type === "combo" ? `combo:${action.combo}` : `spell:${action.spell}`,
     );
 
     if (!this.voiceInput.isSupported()) {
       this.voiceButton.disabled = true;
       this.voiceButton.textContent = "语音不可用";
+      this.say("语音不可用，手动施法栏仍可完整游玩。");
       return;
     }
 
@@ -669,17 +1049,18 @@ export class VoiceSurvivorGame {
         this.voiceButton.disabled = true;
         this.voiceButton.textContent = "语音不可用";
         this.voiceActive = false;
+        this.say("语音不可用，手动施法栏仍可完整游玩。");
         return;
       }
       if (status === "error") {
         this.voiceActive = false;
-        this.voiceButton.textContent = "开启语音";
+        this.voiceButton.textContent = "语音施法";
         this.say(`语音出错：${error ?? "unknown"}`);
         return;
       }
       if (status === "idle") {
         this.voiceActive = false;
-        this.voiceButton.textContent = "开启语音";
+        this.voiceButton.textContent = "语音施法";
         return;
       }
 
@@ -701,14 +1082,10 @@ export class VoiceSurvivorGame {
     if (!this.voiceCommandsEnabled) {
       return controls.filter((action) => action.command === "start");
     }
-    return controls.length > 0 ? controls : matchSpells(text);
+    return controls.length > 0 ? controls : matchSurvivorVoiceActions(text);
   }
 
-  private handleVoiceAction(action: SurvivorVoiceAction): void {
-    if (typeof action === "string") {
-      this.castSpell(action);
-      return;
-    }
+  private handleVoiceControl(action: VoiceControlAction): void {
     if (action.command === "stop") {
       this.voiceCommandsEnabled = false;
       this.voiceButton.textContent = "语音待机";
@@ -716,7 +1093,7 @@ export class VoiceSurvivorGame {
       return;
     }
     this.voiceCommandsEnabled = true;
-    this.voiceButton.textContent = this.voiceActive ? "语音中" : "开启语音";
+    this.voiceButton.textContent = this.voiceActive ? "语音中" : "语音施法";
     this.say("语音指令已开启。");
   }
 
@@ -735,8 +1112,9 @@ export class VoiceSurvivorGame {
     this.voicePausedForUpgrade = false;
     this.voiceCommandsEnabled = true;
     this.voiceActive = false;
-    this.voiceButton.textContent = "开启语音";
+    this.voiceButton.textContent = "语音施法";
     this.voiceInput.stop();
+    this.say("已切回手动施法栏。");
   }
 
   private pauseVoiceForUpgrade(): void {
@@ -793,10 +1171,12 @@ export class VoiceSurvivorGame {
     this.enemyShots = [];
     this.drops = [];
     this.particles = [];
+    this.spellCues = [];
     this.turrets = [];
     this.unlockedSpells = new Set(["cannon", "cannonPrep", "cannonFire"]);
     this.ownedBuffs.clear();
     this.spellChain = [];
+    this.repeatableSpellChain = [];
     this.spellFatigue.clear();
     this.chainEnergyBonus = 0;
     this.lastSpell = null;
@@ -810,15 +1190,26 @@ export class VoiceSurvivorGame {
       focusTime: 0,
       seriousTime: 0,
       damageBoost: 0,
+      refusalTime: 0,
+      slimTime: 0,
+      gracefulTime: 0,
     };
+    this.playerHistory = [];
+    this.markedEnemyId = null;
+    this.cardMarkTime = 0;
+    this.gracefulConfidence = 0;
+    this.fatalInsuranceTime = 0;
+    this.delayedHealTime = 0;
+    this.delayedHealAmount = 0;
+    this.nextSpellFree = false;
     this.score = 0;
     this.kills = 0;
     this.level = 1;
     this.xp = 0;
-    this.xpGoal = 14;
+    this.xpGoal = INITIAL_XP_GOAL;
     this.elapsed = 0;
-    this.spawnTimer = 1.2;
-    this.spawnBudget = 0.45;
+    this.spawnTimer = 0.72;
+    this.spawnBudget = 1.15;
     this.surgeTimer = 34;
     this.energy = 100;
     this.maxEnergy = 100;
@@ -861,7 +1252,7 @@ export class VoiceSurvivorGame {
     this.bladeRadius = 54;
     this.bladeSpinSpeed = 3.2;
     this.moveSpeed = 210;
-    this.magnetRadius = 70;
+    this.magnetRadius = 92;
     this.explosionRadius = 82;
     this.explosionDamageScale = 0.48;
     this.explosionDurationBonus = 0;
@@ -872,7 +1263,7 @@ export class VoiceSurvivorGame {
     this.bangLevel = 1;
     this.skillGoLevel = 1;
     this.renderCommandDock();
-    this.say("开局：先活下来，升级后抽咒语。");
+    this.say("开局：按 Q 一级准备，按 E 人间大炮瞄准，按 R 发射；普通咒语从 1 开始。");
   }
 
   private loop(time: number): void {
@@ -887,6 +1278,7 @@ export class VoiceSurvivorGame {
 
   private update(dt: number): void {
     this.elapsed += dt;
+    this.recordPlayerSnapshot();
     const pressure = this.enemyPressure();
     const ramp = this.elapsed < 20 ? 1.45 : this.elapsed < 70 ? 1 : 0.72;
     this.spawnBudget += dt * 0.085 * ramp * (1 - pressure * 0.62);
@@ -904,6 +1296,23 @@ export class VoiceSurvivorGame {
     this.activeMods.focusTime = Math.max(0, this.activeMods.focusTime - dt);
     this.activeMods.seriousTime = Math.max(0, this.activeMods.seriousTime - dt);
     this.activeMods.damageBoost = Math.max(0, this.activeMods.damageBoost - dt);
+    this.activeMods.refusalTime = Math.max(0, this.activeMods.refusalTime - dt);
+    this.activeMods.slimTime = Math.max(0, this.activeMods.slimTime - dt);
+    this.activeMods.gracefulTime = Math.max(0, this.activeMods.gracefulTime - dt);
+    this.cardMarkTime = Math.max(0, this.cardMarkTime - dt);
+    if (this.cardMarkTime <= 0) this.markedEnemyId = null;
+    this.fatalInsuranceTime = Math.max(0, this.fatalInsuranceTime - dt);
+    if (this.delayedHealTime > 0) {
+      this.delayedHealTime = Math.max(0, this.delayedHealTime - dt);
+      if (this.delayedHealTime <= 0 && this.delayedHealAmount > 0) {
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.delayedHealAmount);
+        this.addSpellRing(this.player.position, 110, "#f8f1d1", "明天回信");
+        this.delayedHealAmount = 0;
+      }
+    }
+    if (this.activeMods.gracefulTime <= 0 && this.gracefulConfidence > 0) {
+      this.releaseGracefulConfidence();
+    }
     if (this.hpRegen > 0 && this.player.hp < this.player.maxHp) {
       this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.hpRegen * dt);
     }
@@ -918,15 +1327,25 @@ export class VoiceSurvivorGame {
     this.updateDrops(dt);
     this.updateTurrets(dt);
     this.updateParticles(dt);
+    this.updateSpellCues(dt);
     this.updateSurges(dt);
     this.spawnEnemies(dt);
     this.checkLevelUp();
+  }
+
+  private effectivePlayerRadius(): number {
+    const slim = this.activeMods.slimTime > 0 ? 0.68 : 1;
+    const graceful = this.activeMods.gracefulTime > 0 ? 0.86 : 1;
+    return Math.max(7, this.player.radius * slim * graceful);
   }
 
   private updatePlayer(dt: number): void {
     if (this.player.cannonTime > 0) {
       this.player.cannonTime -= dt;
       this.player.invuln = Math.max(this.player.invuln, 0.12);
+      if (Math.random() < 0.55) {
+        this.addBurst(this.player.position, "#ffe27a", 2);
+      }
       this.player.position.x += this.player.cannonVelocity.x * dt;
       this.player.position.y += this.player.cannonVelocity.y * dt;
       if (this.player.position.x < this.player.radius || this.player.position.x > this.width - this.player.radius) {
@@ -960,9 +1379,10 @@ export class VoiceSurvivorGame {
       y: (this.keys.has("s") || this.keys.has("arrowdown") ? 1 : 0) - (this.keys.has("w") || this.keys.has("arrowup") ? 1 : 0),
     };
     const move = normalize(input);
+    const playerRadius = this.effectivePlayerRadius();
     this.player.velocity = { x: move.x * this.moveSpeed, y: move.y * this.moveSpeed };
-    this.player.position.x = clamp(this.player.position.x + this.player.velocity.x * dt, this.player.radius, this.width - this.player.radius);
-    this.player.position.y = clamp(this.player.position.y + this.player.velocity.y * dt, this.player.radius, this.height - this.player.radius);
+    this.player.position.x = clamp(this.player.position.x + this.player.velocity.x * dt, playerRadius, this.width - playerRadius);
+    this.player.position.y = clamp(this.player.position.y + this.player.velocity.y * dt, playerRadius, this.height - playerRadius);
   }
 
   private updateAutoFire(dt: number): void {
@@ -1068,6 +1488,8 @@ export class VoiceSurvivorGame {
   }
 
   private updateEnemies(dt: number): void {
+    const playerRadius = this.effectivePlayerRadius();
+    const refusal = this.activeMods.refusalTime > 0;
     for (const enemy of this.enemies) {
       enemy.frozen = Math.max(0, enemy.frozen - dt);
       enemy.cooldown = Math.max(0, enemy.cooldown - dt);
@@ -1076,17 +1498,17 @@ export class VoiceSurvivorGame {
 
       const toPlayer = normalize({ x: this.player.position.x - enemy.position.x, y: this.player.position.y - enemy.position.y });
       if (enemy.type === "pouncer") {
-        if (enemy.cooldown <= 0) {
+        if (!refusal && enemy.cooldown <= 0) {
           enemy.windup = 0.48;
           enemy.cooldown = Math.max(1.65, 2.7 - this.threatTier() * 0.18);
         }
-        const speed = enemy.windup > 0 ? 8 : enemy.speed * 2.8;
+        const speed = refusal ? enemy.speed * 0.22 : enemy.windup > 0 ? 8 : enemy.speed * 2.8;
         enemy.velocity = { x: toPlayer.x * speed, y: toPlayer.y * speed };
       } else if (enemy.type === "ranged") {
         const dist = distance(enemy.position, this.player.position);
         const backing = dist < 170 ? -0.55 : 0.45;
-        enemy.velocity = { x: toPlayer.x * enemy.speed * backing, y: toPlayer.y * enemy.speed * backing };
-        if (enemy.cooldown <= 0 && dist < 520) {
+        enemy.velocity = { x: toPlayer.x * enemy.speed * backing * (refusal ? 0.28 : 1), y: toPlayer.y * enemy.speed * backing * (refusal ? 0.28 : 1) };
+        if (!refusal && enemy.cooldown <= 0 && dist < 520) {
           this.enemyShots.push({
             position: { ...enemy.position },
             velocity: { x: toPlayer.x * (230 + this.threatTier() * 22), y: toPlayer.y * (230 + this.threatTier() * 22) },
@@ -1097,7 +1519,7 @@ export class VoiceSurvivorGame {
           enemy.cooldown = Math.max(0.95, 1.65 - this.threatTier() * 0.12);
         }
       } else {
-        enemy.velocity = { x: toPlayer.x * enemy.speed, y: toPlayer.y * enemy.speed };
+        enemy.velocity = { x: toPlayer.x * enemy.speed * (refusal ? 0.36 : 1), y: toPlayer.y * enemy.speed * (refusal ? 0.36 : 1) };
       }
 
       enemy.position.x += enemy.velocity.x * dt;
@@ -1105,11 +1527,11 @@ export class VoiceSurvivorGame {
       enemy.position.x = clamp(enemy.position.x, enemy.radius, this.width - enemy.radius);
       enemy.position.y = clamp(enemy.position.y, enemy.radius, this.height - enemy.radius);
 
-      if (distance(enemy.position, this.player.position) < enemy.radius + this.player.radius) {
+      if (distance(enemy.position, this.player.position) < enemy.radius + playerRadius) {
         this.hurtPlayer(this.scaledEnemyDamage(enemy.type));
         const away = normalize({ x: this.player.position.x - enemy.position.x, y: this.player.position.y - enemy.position.y });
-        this.player.position.x = clamp(this.player.position.x + away.x * 18, this.player.radius, this.width - this.player.radius);
-        this.player.position.y = clamp(this.player.position.y + away.y * 18, this.player.radius, this.height - this.player.radius);
+        this.player.position.x = clamp(this.player.position.x + away.x * 18, playerRadius, this.width - playerRadius);
+        this.player.position.y = clamp(this.player.position.y + away.y * 18, playerRadius, this.height - playerRadius);
       }
     }
     this.enemies = this.enemies.filter((enemy) => enemy.hp > 0);
@@ -1178,22 +1600,30 @@ export class VoiceSurvivorGame {
   }
 
   private updateEnemyShots(dt: number): void {
+    const playerRadius = this.effectivePlayerRadius();
     for (const shot of this.enemyShots) {
       shot.life -= dt;
       shot.position.x += shot.velocity.x * dt;
       shot.position.y += shot.velocity.y * dt;
-      if (distance(shot.position, this.player.position) < shot.radius + this.player.radius) {
+      const dist = distance(shot.position, this.player.position);
+      if (dist < shot.radius + playerRadius) {
         this.hurtPlayer(shot.damage);
         shot.life = 0;
+      } else if (!shot.grazed && this.activeMods.gracefulTime > 0 && dist < shot.radius + this.player.radius + 18) {
+        shot.grazed = true;
+        this.energy = clamp(this.energy + 2.6, 0, this.maxEnergy);
+        this.gracefulConfidence = clamp(this.gracefulConfidence + 0.16, 0, 3);
+        this.addParticle(this.player.position, shot.position, "#9cffd0");
       }
     }
     this.enemyShots = this.enemyShots.filter((shot) => shot.life > 0);
   }
 
   private updateDrops(dt: number): void {
+    const playerRadius = this.effectivePlayerRadius();
     for (const drop of this.drops) {
       const dist = distance(drop.position, this.player.position);
-      if (dist < this.player.radius + drop.radius) {
+      if (dist < playerRadius + drop.radius) {
         this.xp += drop.value;
         this.restoreEnergyFromDrop(drop.value);
         drop.value = 0;
@@ -1255,6 +1685,13 @@ export class VoiceSurvivorGame {
     this.particles = this.particles.filter((particle) => particle.life > 0);
   }
 
+  private updateSpellCues(dt: number): void {
+    for (const cue of this.spellCues) {
+      cue.life -= dt;
+    }
+    this.spellCues = this.spellCues.filter((cue) => cue.life > 0);
+  }
+
   private updateSurges(dt: number): void {
     if (this.threatTier() < 2) {
       return;
@@ -1298,19 +1735,19 @@ export class VoiceSurvivorGame {
       return;
     }
     const earlyRush = this.elapsed < 20;
-    const maxBatch = earlyRush ? 3 : this.elapsed < 80 ? 6 + tier : 5 + tier;
+    const maxBatch = earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 5 + tier;
     const roomLeft = Math.max(0, targetCount - this.enemies.length);
     const count = Math.min(maxBatch, roomLeft, (earlyRush ? 2 : 1) + Math.floor(this.spawnBudget));
     for (let i = 0; i < count; i += 1) {
       this.spawnEnemy(this.pickEnemyType(wave));
     }
-    this.spawnBudget = Math.max(earlyRush ? 0.85 : 0.7, this.spawnBudget - count * 0.62);
+    this.spawnBudget = Math.max(earlyRush ? 1.05 : 0.7, this.spawnBudget - count * 0.62);
     this.spawnTimer = this.nextSpawnInterval(pressure);
   }
 
   private targetEnemyCount(): number {
     const tier = this.threatTier();
-    if (this.elapsed < 20) return 16;
+    if (this.elapsed < 20) return 20;
     if (this.elapsed < 55) return 24 + tier * 2;
     if (this.elapsed < 100) return 30 + tier * 3;
     return 34 + tier * 4;
@@ -1390,34 +1827,281 @@ export class VoiceSurvivorGame {
     return Math.round(ENEMY_DAMAGE[type] * scaling.damageMultiplier);
   }
 
-  private castSpell(spell: SpellKey): void {
-    if (!this.running || this.selectingBuff || this.gameOver) return;
+  private handleVoiceActions(actions: SurvivorVoiceAction[]): void {
+    for (const action of actions) {
+      if (action.type === "voice") {
+        this.handleVoiceControl(action);
+      } else if (action.type === "combo") {
+        this.castVoiceCombo(action.combo);
+      } else {
+        this.castSpell(action.spell);
+      }
+    }
+  }
+
+  private castVoiceCombo(comboKey: VoiceComboKey): boolean {
+    if (!this.running || this.selectingBuff || this.gameOver) return false;
+    const combo = VOICE_COMBO_CONFIG[comboKey];
+    let successfulCasts = 0;
+    for (const spell of combo.spells) {
+      if (this.castSpell(spell)) successfulCasts += 1;
+    }
+
+    if (successfulCasts <= 0 || !this.isVoiceComboArmed(comboKey)) {
+      this.say(`组合咒语「${combo.name}」没接上：需要 ${combo.spells.map((spell) => SPELL_NAMES[spell]).join(" + ")} 同时生效。`);
+      return false;
+    }
+
+    this.triggerVoiceCombo(comboKey);
+    return true;
+  }
+
+  private isVoiceComboArmed(comboKey: VoiceComboKey): boolean {
+    switch (comboKey) {
+      case "stormBloom":
+        return this.activeMods.lightningTime > 0 && this.activeMods.explosionTime > 0 && this.activeMods.ricochetTime > 0;
+      case "iceBomb":
+        return this.activeMods.freezeTime > 0 && this.activeMods.explosionTime > 0;
+      case "thunderRicochet":
+        return this.activeMods.lightningTime > 0 && this.activeMods.ricochetTime > 0;
+      case "scatterRicochet":
+        return this.activeMods.splitTime > 0 && this.activeMods.ricochetTime > 0;
+      case "pierceRicochet":
+        return this.activeMods.pierceTime > 0 && this.activeMods.ricochetTime > 0;
+      case "bloomRicochet":
+        return this.activeMods.explosionTime > 0 && this.activeMods.ricochetTime > 0;
+      case "frostBlades":
+        return this.activeMods.freezeTime > 0;
+      case "boomBlades":
+        return this.activeMods.explosionTime > 0;
+      case "cannonBloom":
+        return this.player.cannonTime > 0 && this.activeMods.ricochetTime > 0;
+      default:
+        return false;
+    }
+  }
+
+  private voiceComboPower(comboKey: VoiceComboKey): number {
+    const buffLinks: Record<VoiceComboKey, string[]> = {
+      stormBloom: ["stat-ricochet-spark", "stat-ricochet-bloom", "combo-lightning-burst"],
+      iceBomb: ["stat-freeze-brittle", "combo-frozen-shatter"],
+      thunderRicochet: ["stat-ricochet-spark"],
+      scatterRicochet: ["combo-split-ricochet"],
+      pierceRicochet: ["combo-pierce-ricochet"],
+      bloomRicochet: ["stat-ricochet-bloom"],
+      frostBlades: ["weapon-blade", "weapon-blade-count", "combo-blade-freeze"],
+      boomBlades: ["weapon-blade", "weapon-blade-count", "combo-blade-boom"],
+      cannonBloom: ["combo-cannon-shards"],
+    };
+    const stackPower = buffLinks[comboKey].reduce((total, id) => total + (this.ownedBuffs.get(id) ?? 0) * 0.18, 0);
+    return 1 + stackPower + Math.min(0.45, new Set(this.spellChain).size * 0.06);
+  }
+
+  private triggerVoiceCombo(comboKey: VoiceComboKey): void {
+    const combo = VOICE_COMBO_CONFIG[comboKey];
+    const power = this.voiceComboPower(comboKey);
+    this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 2.8 + power);
+
+    switch (comboKey) {
+      case "stormBloom": {
+        this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.5 * power);
+        this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.5 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.5 * power);
+        this.chainLightning(this.player.position, (18 + this.level * 1.2) * power);
+        for (const enemy of this.nearbyEnemies(this.player.position, this.ricochetRange + 220, 4)) {
+          this.explode(enemy.position, this.explosionRadius * 0.9, (14 + this.attackDamage) * power, false);
+        }
+        this.addVoiceComboBurst("#e5ff66", "#ff9b4a", 58);
+        this.say(`组合咒语：${combo.name}！雷链引爆，跳弹扩散。`);
+        break;
+      }
+      case "iceBomb": {
+        const radius = this.freezePulseRadius + 52;
+        this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 3.8 * power);
+        this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.2 * power);
+        this.freezeAround(this.player.position, radius, this.freezeDuration * (1.1 + power * 0.18));
+        this.explode(this.player.position, this.explosionRadius + 46, (18 + this.attackDamage) * power, true);
+        this.addVoiceComboBurst("#9be7ff", "#ff9b4a", 54);
+        this.say(`组合咒语：${combo.name}！先冻住，再炸开。`);
+        break;
+      }
+      case "thunderRicochet": {
+        this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.2 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
+        this.chainLightning(this.player.position, (20 + this.lightningJumps * 2) * power);
+        this.fireComboFan(4 + Math.min(5, this.currentRicochetBounces()), 12 * power, {
+          lightning: true,
+          ricochet: true,
+          color: "#e5ff66",
+        });
+        this.addVoiceComboBurst("#e5ff66", "#fff06a", 46);
+        this.say(`组合咒语：${combo.name}！弹出去的每一下都带电。`);
+        break;
+      }
+      case "scatterRicochet": {
+        this.activeMods.splitTime = Math.max(this.activeMods.splitTime, 3.6 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.6 * power);
+        this.fireComboFan(8 + this.splitExtraPairs * 2, (9 + this.splitDamageBonus) * power, {
+          ricochet: true,
+          color: "#8ee8ff",
+        });
+        this.addVoiceComboBurst("#8ee8ff", "#fff06a", 48);
+        this.say(`组合咒语：${combo.name}！散开以后继续跳。`);
+        break;
+      }
+      case "pierceRicochet": {
+        this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 3.6 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.2 * power);
+        this.fireComboFan(6, (14 + this.attackDamage * 0.6) * power, {
+          pierce: 3 + this.ricochetPierceBonus,
+          ricochet: true,
+          color: "#ffffff",
+        });
+        this.addVoiceComboBurst("#ffffff", "#fff06a", 44);
+        this.say(`组合咒语：${combo.name}！穿过去，还会折回来。`);
+        break;
+      }
+      case "bloomRicochet": {
+        this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.4 * power);
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3.4 * power);
+        for (const enemy of this.nearbyEnemies(this.player.position, this.ricochetRange + 180, 5)) {
+          this.explode(enemy.position, this.explosionRadius * 0.85, (13 + this.attackDamage * 0.7) * power, false);
+          this.addParticle(this.player.position, enemy.position, "#ffcf5a");
+        }
+        this.addVoiceComboBurst("#ff9b4a", "#fff06a", 50);
+        this.say(`组合咒语：${combo.name}！跳到哪，花开到哪。`);
+        break;
+      }
+      case "frostBlades": {
+        const hasBlades = this.bladeCount > 0;
+        this.freezeAround(this.player.position, this.bladeRadius + (hasBlades ? 92 : 54), this.freezeDuration * power);
+        if (hasBlades) {
+          this.fireComboFan(this.bladeCount + 2, (8 + this.bladeDamage) * power, {
+            freeze: true,
+            pierce: 1,
+            color: "#9be7ff",
+          });
+        }
+        this.addVoiceComboBurst("#9be7ff", "#ffffff", hasBlades ? 44 : 28);
+        this.say(hasBlades ? `组合咒语：${combo.name}！刀圈挂霜。` : "冰刀护身接上了；抽到旋转刀刃后会更离谱。");
+        break;
+      }
+      case "boomBlades": {
+        const hasBlades = this.bladeCount > 0;
+        this.explode(this.player.position, this.bladeRadius + (hasBlades ? 104 : 58), (12 + this.bladeDamage) * power, false);
+        if (hasBlades) {
+          this.fireComboFan(this.bladeCount + 3, (10 + this.bladeDamage) * power, {
+            explosion: true,
+            ricochet: this.activeMods.ricochetTime > 0,
+            color: "#ff9b4a",
+          });
+        }
+        this.addVoiceComboBurst("#ff9b4a", "#ffffff", hasBlades ? 46 : 30);
+        this.say(hasBlades ? `组合咒语：${combo.name}！刀盘也会爆。` : "爆裂刀盘接上了；抽到旋转刀刃后反馈会更强。");
+        break;
+      }
+      case "cannonBloom": {
+        const charge = Math.max(1, this.cannonLaunchCharge);
+        this.cannonBouncesLeft += 1 + Math.floor(power);
+        this.cannonDamage += 18 * power;
+        this.fireComboFan(6 + charge * 3, (12 + charge * 7) * power, {
+          explosion: this.activeMods.explosionTime > 0,
+          freeze: this.activeMods.freezeTime > 0,
+          lightning: this.activeMods.lightningTime > 0,
+          ricochet: true,
+          color: "#ffe27a",
+        });
+        this.addVoiceComboBurst("#ffe27a", "#ff9b4a", 62);
+        this.say(`组合咒语：${combo.name}！人先飞，弹片再开花。`);
+        break;
+      }
+      default:
+        break;
+    }
+    this.renderCommandDock();
+  }
+
+  private nearbyEnemies(position: Vec2, radius: number, count: number): Enemy[] {
+    return [...this.enemies]
+      .filter((enemy) => enemy.hp > 0 && distance(enemy.position, position) <= radius)
+      .sort((a, b) => distance(a.position, position) - distance(b.position, position))
+      .slice(0, count);
+  }
+
+  private fireComboFan(
+    count: number,
+    damage: number,
+    options: { explosion?: boolean; freeze?: boolean; lightning?: boolean; ricochet?: boolean; pierce?: number; color: string },
+  ): void {
+    const target = this.nearestEnemy(this.player.position, Infinity)?.position ?? {
+      x: this.player.position.x + Math.cos(this.elapsed) * 120,
+      y: this.player.position.y + Math.sin(this.elapsed) * 120,
+    };
+    const baseAngle = Math.atan2(target.y - this.player.position.y, target.x - this.player.position.x);
+    const spread = Math.min(Math.PI * 1.45, 0.22 * Math.max(1, count - 1));
+    for (let i = 0; i < count; i += 1) {
+      const ratio = count <= 1 ? 0.5 : i / (count - 1);
+      const angle = baseAngle - spread / 2 + spread * ratio;
+      this.projectiles.push({
+        id: this.nextProjectileId,
+        position: { ...this.player.position },
+        velocity: { x: Math.cos(angle) * (this.projectileSpeed + 70), y: Math.sin(angle) * (this.projectileSpeed + 70) },
+        radius: 5.2,
+        damage,
+        life: 1.05,
+        pierce: options.pierce ?? 0,
+        ricochet: options.ricochet ? Math.max(1, this.currentRicochetBounces()) : 0,
+        hitIds: [],
+        explosion: Boolean(options.explosion),
+        freeze: Boolean(options.freeze),
+        lightning: Boolean(options.lightning),
+      });
+      this.nextProjectileId += 1;
+      this.addParticle(this.player.position, {
+        x: this.player.position.x + Math.cos(angle) * 120,
+        y: this.player.position.y + Math.sin(angle) * 120,
+      }, options.color);
+    }
+  }
+
+  private addVoiceComboBurst(colorA: string, colorB: string, count: number): void {
+    this.addBurst(this.player.position, colorA, Math.ceil(count * 0.55));
+    this.addBurst(this.player.position, colorB, Math.ceil(count * 0.45));
+    for (const enemy of this.nearbyEnemies(this.player.position, 520, 6)) {
+      this.addParticle(this.player.position, enemy.position, colorA);
+    }
+  }
+
+  private castSpell(spell: SpellKey): boolean {
+    if (!this.running || this.selectingBuff || this.gameOver) return false;
+    if (this.isHiddenComboSpell(spell)) {
+      return this.castHiddenCombo(spell);
+    }
     if (!this.unlockedSpells.has(spell) && !["cannonPrep", "cannonFire", "cannon"].includes(spell)) {
       this.say(`${SPELL_NAMES[spell]}还没抽到，先升级找它。`);
-      return;
+      return false;
     }
 
     if (spell === "cannonPrep") {
-      this.prepareCannon();
-      return;
+      return this.prepareCannon();
     }
     if (spell === "cannon") {
-      this.lockCannonTarget();
-      return;
+      return this.lockCannonTarget();
     }
     if (spell === "cannonFire") {
-      this.fireCannon();
-      return;
+      return this.fireCannon();
     }
 
     const fatigue = this.spellFatigueMultiplier(spell);
     const silenceCost = this.isPlayerSilenced() ? 1.6 : 1;
-    const cost = Math.round(SPELL_COSTS[spell] * (1 + (1 - fatigue) * 1.1) * silenceCost);
+    const isFreeCast = this.nextSpellFree && !this.isHiddenComboSpell(spell);
+    const cost = isFreeCast ? 0 : Math.round(SPELL_COSTS[spell] * (1 + (1 - fatigue) * 1.1) * silenceCost);
     if (this.energy < cost) {
       this.say(`${SPELL_NAMES[spell]}声能不够，还差 ${cost - Math.floor(this.energy)}。`);
-      return;
+      return false;
     }
     this.energy -= cost;
+    if (isFreeCast) this.nextSpellFree = false;
     this.recordSpell(spell);
 
     const power = fatigue * this.diversityBonus();
@@ -1425,6 +2109,8 @@ export class VoiceSurvivorGame {
       case "explode":
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, (8.5 + this.explosionDurationBonus) * power);
         if (this.recentChainIncludes("freeze")) this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 4.5 * power);
+        this.explode(this.player.position, this.explosionRadius * 0.55, this.attackDamage * this.explosionDamageScale * power, false);
+        this.addBurst(this.player.position, "#ff9b4a", 30);
         this.say(`爆炸 Buff 开启 ${Math.ceil(this.activeMods.explosionTime)} 秒，记得续。`);
         break;
       case "freeze":
@@ -1435,19 +2121,26 @@ export class VoiceSurvivorGame {
       case "lightning":
         this.chainLightning(this.player.position, 10 * power);
         this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 7 * power);
+        this.addBurst(this.player.position, "#e5ff66", 26);
         this.say(`雷电 Buff 开启 ${Math.ceil(this.activeMods.lightningTime)} 秒。`);
         break;
       case "split":
         this.activeMods.splitTime = Math.max(this.activeMods.splitTime, (8.5 + this.splitDurationBonus) * power);
-        this.say(`分裂 Buff 开启 ${Math.ceil(this.activeMods.splitTime)} 秒。`);
+        this.addBurst(this.player.position, "#8ee8ff", 24);
+        this.addSpellFan(this.aimAngleToPrimaryTarget(), this.splitAngle + this.splitExtraPairs * 0.18, 3 + this.splitExtraPairs * 2, 190, "#8ee8ff", "多路弹幕");
+        this.say(`分裂 Buff 开启 ${Math.ceil(this.activeMods.splitTime)} 秒，接下来自动攻击会变多路。`);
         break;
       case "pierce":
         this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 8 * power);
-        this.say(`穿透 Buff 开启 ${Math.ceil(this.activeMods.pierceTime)} 秒。`);
+        this.addBurst(this.player.position, "#ffffff", 20);
+        this.addSpellRing(this.player.position, 150, "#e9fbff", "穿透弹");
+        this.say(`穿透 Buff 开启 ${Math.ceil(this.activeMods.pierceTime)} 秒，接下来子弹会穿怪。`);
         break;
       case "ricochet":
         this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 8 * power);
         if (this.recentChainIncludes("lightning")) this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 3.5 * power);
+        this.addBurst(this.player.position, "#fff06a", 24);
+        this.addSpellRing(this.player.position, this.ricochetRange * 0.62, "#ffcf5a", "跳弹范围");
         this.say(`弹射 Buff 开启 ${Math.ceil(this.activeMods.ricochetTime)} 秒，子弹会跳向附近敌人。`);
         break;
       case "evade":
@@ -1458,19 +2151,32 @@ export class VoiceSurvivorGame {
       case "shield":
         this.player.shield = Math.min(70, this.player.shield + 24 * power);
         this.player.invuln = Math.max(this.player.invuln, 0.3);
+        this.addSpellRing(this.player.position, 76, "#66e0ff", "护盾");
         this.say("护盾展开。");
         break;
       case "gather":
       case "wealth":
-        this.gatherDrops(spell === "wealth" ? 520 : 300);
-        this.say(spell === "wealth" ? "来财，掉落物自己懂事。" : "聚拢资源。");
+        {
+          const radius = spell === "wealth" ? 520 : 300;
+          const pulled = this.gatherDrops(radius);
+          const label = spell === "wealth" ? "来财" : "聚拢";
+          this.addSpellRing(this.player.position, radius * 0.42, "#7cff9b", pulled > 0 ? `${label} x${pulled}` : `${label}空场`);
+          this.say(
+            pulled > 0
+              ? (spell === "wealth" ? `来财，${pulled} 个掉落物正在靠近。` : `聚拢资源，${pulled} 个掉落物正在靠近。`)
+              : (spell === "wealth" ? "来财已展开：附近暂无掉落物，先存住这次吸附节奏。" : "聚拢已展开：附近暂无掉落物。"),
+          );
+        }
+        this.addBurst(this.player.position, "#7cff9b", spell === "wealth" ? 24 : 16);
         break;
       case "focus":
         this.activeMods.focusTime = Math.max(this.activeMods.focusTime, 6 * power);
+        this.addBurst(this.player.position, "#8ee8ff", 14);
+        this.addSpellRing(this.player.position, 130, "#8ee8ff", "锁定");
         this.say("自动攻击开始盯重点目标。");
         break;
       case "bang":
-        this.bangBang(power);
+        this.castBangKeyword(power);
         break;
       case "skillGo":
         this.castSkillGo();
@@ -1481,63 +2187,633 @@ export class VoiceSurvivorGame {
       case "serious":
         this.activeMods.seriousTime = Math.max(this.activeMods.seriousTime, 5.5 * power);
         this.activeMods.focusTime = Math.max(this.activeMods.focusTime, 5.5 * power);
+        this.addBurst(this.player.position, "#fff1a6", 18);
+        this.addSpellRing(this.player.position, 150, "#fff1a6", "认真锁敌");
         this.say("当个事儿办：辅助瞄准上线。");
+        break;
+      case "cardCheck":
+        this.castCardCheck(power);
+        break;
+      case "woqu":
+        this.shortSafeStep(92);
+        this.player.invuln = Math.max(this.player.invuln, 0.35);
+        this.addSpellRing(this.player.position, 92, "#9cffd0", "我去");
+        this.say("我去：先闪开半步。");
+        break;
+      case "tooLate":
+        this.refundRecentSpell(0.36);
+        this.addSpellRing(this.player.position, 100, "#7cff9b", "不早说");
+        this.say("不早说：返还上一句咒语的一点声能。");
+        break;
+      case "noTalk":
+        this.interruptEnemies(3, 170);
+        this.clearEnemyShotsNear(this.player.position, 190);
+        this.addSpellRing(this.player.position, 130, "#e9fbff", "不讲");
+        this.say("不讲：打断附近正在起手的敌人。");
+        break;
+      case "urgentCry":
+        this.castUrgentCry(power);
+        break;
+      case "received":
+        this.castReceivedKeyword(power);
+        break;
+      case "unknown":
+        this.player.invuln = Math.max(this.player.invuln, 0.42);
+        this.clearEnemyShotsNear(this.player.position, 120);
+        this.addSpellRing(this.player.position, 94, "#d28cff", "不知道");
+        this.say("不知道：敌人短暂丢失节奏。");
+        break;
+      case "bodyShape":
+        this.activeMods.slimTime = Math.max(this.activeMods.slimTime, 4 * power);
+        this.addSpellRing(this.player.position, 82, "#d28cff", "身材");
+        this.say("身材：受击判定短暂变窄。");
+        break;
+      case "graceful":
+        this.activeMods.slimTime = Math.max(this.activeMods.slimTime, 2.5 * power);
+        this.activeMods.gracefulTime = Math.max(this.activeMods.gracefulTime, 2.2 * power);
+        this.shortSafeStep(78);
+        this.addSpellRing(this.player.position, 98, "#9cffd0", "曼妙");
+        this.say("曼妙：擦弹会回声能。");
+        break;
+      case "internalDrain":
+        this.castInternalDrain(power);
+        break;
+      case "externalDrain":
+        this.knockEnemiesFrom(this.player.position, 250, 36);
+        this.addSpellRing(this.player.position, 150, "#c491ff", "外耗");
+        this.say("外耗：把压力推回怪群。");
+        break;
+      case "oldSelf":
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + 8 * power);
+        this.player.shield = Math.min(70, this.player.shield + 8 * power);
+        this.addSpellRing(this.player.position, 92, "#f8f1d1", "老己");
+        this.say("老己：先爱自己一口。");
+        break;
+      case "seeTomorrow":
+        this.delayedHealTime = 2.2;
+        this.delayedHealAmount = Math.max(this.delayedHealAmount, 12 * power);
+        this.addSpellRing(this.player.position, 106, "#f8f1d1", "明天见");
+        this.say("明天见：延迟回复已寄出。");
         break;
       default:
         break;
     }
     this.renderCommandDock();
+    return true;
   }
 
-  private prepareCannon(): void {
+  private isHiddenComboSpell(spell: SpellKey): boolean {
+    return (SPELL_CONFIG[spell] as SpellConfig).hidden === true;
+  }
+
+  private comboFragments(spell: SpellKey): SpellKey[] {
+    return ((SPELL_CONFIG[spell] as SpellConfig).fragments ?? []) as SpellKey[];
+  }
+
+  private castHiddenCombo(spell: SpellKey): boolean {
+    const fragments = this.comboFragments(spell);
+    const missing = fragments.filter((fragment) => !this.unlockedSpells.has(fragment));
+    if (missing.length > 0) {
+      this.say(`隐藏 Combo「${SPELL_NAMES[spell]}」还差碎片：${missing.map((fragment) => SPELL_NAMES[fragment]).join("、")}。`);
+      return false;
+    }
+    const cost = this.currentSpellCost(spell);
+    if (this.energy < cost) {
+      this.say(`隐藏 Combo「${SPELL_NAMES[spell]}」声能不够，还差 ${cost - Math.floor(this.energy)}。`);
+      return false;
+    }
+
+    const fatigue = this.spellFatigueMultiplier(spell);
+    const power = fatigue * (1 + fragments.length * 0.22 + Math.min(0.35, this.level * 0.02));
+    this.energy -= cost;
+    this.recordSpell(spell);
+
+    switch (spell) {
+      case "comboBangFull":
+        this.castBangFullCombo(power);
+        break;
+      case "comboBangTwoFists":
+        this.castBangTwoFists(power);
+        break;
+      case "comboCardCheck":
+        this.castCardCheckCombo(power);
+        break;
+      case "comboTooLate":
+        this.castTooLateCombo(power);
+        break;
+      case "comboNoTalk":
+        this.activeMods.refusalTime = Math.max(this.activeMods.refusalTime, 5.5 * power);
+        this.clearEnemyShotsNear(this.player.position, 720);
+        this.interruptEnemies(999, 520);
+        this.addSpellRing(this.player.position, 360, "#e9fbff", "不讲不讲");
+        this.say("隐藏 Combo：不讲不讲，拒绝沟通领域展开。");
+        break;
+      case "comboReceived":
+        this.castReceivedCombo(power);
+        break;
+      case "comboGracefulBody":
+        this.activeMods.slimTime = Math.max(this.activeMods.slimTime, 8 * power);
+        this.activeMods.gracefulTime = Math.max(this.activeMods.gracefulTime, 8 * power);
+        this.player.invuln = Math.max(this.player.invuln, 0.7);
+        this.clearEnemyShotsNear(this.player.position, 160);
+        this.gracefulConfidence = Math.max(this.gracefulConfidence, 1);
+        this.addSpellRing(this.player.position, 260, "#d28cff", "曼妙判定");
+        this.say("隐藏 Combo：不知道，我的身材很曼妙。擦弹会攒自信光环。");
+        break;
+      case "comboExternalize":
+        this.castExternalizeCombo(power);
+        break;
+      case "comboSeeTomorrow":
+        this.fatalInsuranceTime = Math.max(this.fatalInsuranceTime, 14 * power);
+        this.player.shield = Math.min(70, this.player.shield + 22 * power);
+        this.delayedHealTime = 1.2;
+        this.delayedHealAmount = Math.max(this.delayedHealAmount, 24 * power);
+        this.addSpellRing(this.player.position, 240, "#f8f1d1", "明天见");
+        this.say("隐藏 Combo：爱你老己，明天见。今晚不死保险已生效。");
+        break;
+      default:
+        break;
+    }
+    this.renderCommandDock();
+    return true;
+  }
+
+  private fireRadialProjectiles(
+    count: number,
+    damage: number,
+    speed: number,
+    life: number,
+    options: Partial<Pick<Projectile, "pierce" | "ricochet" | "explosion" | "freeze" | "lightning" | "radius">> = {},
+  ): void {
+    for (let i = 0; i < count; i += 1) {
+      const angle = (Math.PI * 2 * i) / count + this.elapsed * 0.45;
+      this.projectiles.push({
+        id: this.nextProjectileId,
+        position: { ...this.player.position },
+        velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+        radius: options.radius ?? 5,
+        damage,
+        life,
+        pierce: options.pierce ?? 0,
+        ricochet: options.ricochet ?? 0,
+        hitIds: [],
+        explosion: options.explosion ?? false,
+        freeze: options.freeze ?? false,
+        lightning: options.lightning ?? false,
+      });
+      this.nextProjectileId += 1;
+    }
+  }
+
+  private freezePriorityTargets(count: number, duration: number): void {
+    const targets = [...this.enemies]
+      .filter((enemy) => enemy.hp > 0)
+      .sort((a, b) => this.targetPriorityScore(b) - this.targetPriorityScore(a))
+      .slice(0, count);
+    for (const enemy of targets) {
+      enemy.frozen = Math.max(enemy.frozen, duration);
+      this.addBurst(enemy.position, "#9be7ff", 8);
+    }
+  }
+
+  private knockEnemiesFrom(origin: Vec2, radius: number, amount: number): void {
+    for (const enemy of this.enemies) {
+      if (enemy.hp <= 0 || distance(enemy.position, origin) > radius) continue;
+      this.knockEnemyAway(enemy, origin, amount);
+      this.damageEnemy(enemy, amount * 0.12, "evade");
+    }
+  }
+
+  private extendCombatMods(duration: number): void {
+    this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, this.activeMods.explosionTime + duration);
+    this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, this.activeMods.freezeTime + duration * 0.72);
+    this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, this.activeMods.lightningTime + duration * 0.72);
+    this.activeMods.splitTime = Math.max(this.activeMods.splitTime, this.activeMods.splitTime + duration);
+    this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, this.activeMods.pierceTime + duration * 0.82);
+    this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, this.activeMods.ricochetTime + duration * 0.82);
+  }
+
+  private shortSafeStep(distanceBoost: number): void {
+    const safe = this.safeDirection();
+    this.player.position.x = clamp(this.player.position.x + safe.x * distanceBoost, this.player.radius, this.width - this.player.radius);
+    this.player.position.y = clamp(this.player.position.y + safe.y * distanceBoost, this.player.radius, this.height - this.player.radius);
+    this.player.invuln = Math.max(this.player.invuln, 0.35);
+    this.addBurst(this.player.position, "#9cffd0", 12);
+  }
+
+  private recordPlayerSnapshot(): void {
+    const last = this.playerHistory[this.playerHistory.length - 1];
+    if (last && this.elapsed - last.time < 0.12) return;
+    this.playerHistory.push({
+      time: this.elapsed,
+      position: { ...this.player.position },
+      hp: this.player.hp,
+    });
+    const cutoff = this.elapsed - 4.5;
+    while (this.playerHistory.length > 0 && this.playerHistory[0].time < cutoff) {
+      this.playerHistory.shift();
+    }
+  }
+
+  private releaseGracefulConfidence(): void {
+    const stacks = this.gracefulConfidence;
+    if (stacks <= 0) return;
+    this.gracefulConfidence = 0;
+    const count = 8 + Math.floor(stacks * 6);
+    const damage = (7 + this.attackDamage * 0.42) * (1 + stacks * 0.16);
+    this.fireRadialProjectiles(count, damage, 500, 0.8, {
+      radius: 4,
+      pierce: 1,
+      ricochet: this.activeMods.ricochetTime > 0 ? 1 : 0,
+      freeze: this.activeMods.freezeTime > 0,
+      explosion: this.activeMods.explosionTime > 0,
+    });
+    this.addBurst(this.player.position, "#d28cff", 28);
+    this.addSpellRing(this.player.position, 210, "#d28cff", "自信光环");
+    this.say("曼妙判定结束：擦弹攒出的自信光环爆开。");
+  }
+
+  private castBangKeyword(power: number): void {
+    this.bangBang(power * 0.82);
+  }
+
+  private castCardCheck(power: number): void {
+    const target = this.focusedTarget() ?? [...this.enemies]
+      .filter((enemy) => enemy.hp > 0)
+      .sort((a, b) => this.targetPriorityScore(b) - this.targetPriorityScore(a))[0];
+    if (!target) {
+      this.energy = clamp(this.energy + 5, 0, this.maxEnergy);
+      this.addSpellRing(this.player.position, 96, "#f8f1d1", "空牌");
+      this.say("验牌：场上没牌，返还一点声能。");
+      return;
+    }
+    this.markedEnemyId = target.id;
+    this.cardMarkTime = Math.max(this.cardMarkTime, 4.8 * power);
+    target.frozen = Math.max(target.frozen, 0.18);
+    this.addParticle(this.player.position, target.position, "#f8f1d1");
+    this.addSpellRing(target.position, 68, "#ff4f6d", "验");
+    this.say(`验牌：${ENEMY_CONFIG[target.type].label} 被标记，短时间更脆。`);
+  }
+
+  private refundRecentSpell(ratio: number): void {
+    const spell = this.repeatableSpellChain[this.repeatableSpellChain.length - 1];
+    if (!spell) {
+      this.energy = clamp(this.energy + 6, 0, this.maxEnergy);
+      this.say("不早说：还没有可追溯的普通咒语，先返一点声能。");
+      return;
+    }
+    const refund = Math.max(5, Math.round(SPELL_COSTS[spell] * ratio));
+    this.energy = clamp(this.energy + refund, 0, this.maxEnergy);
+    this.addSpellRing(this.player.position, 104, "#7cff9b", `退 ${refund}`);
+    this.say(`不早说：返还上一句 ${SPELL_NAMES[spell]} 的 ${refund} 声能。`);
+  }
+
+  private interruptEnemies(count: number, radius: number): number {
+    const targets = [...this.enemies]
+      .filter((enemy) => enemy.hp > 0 && distance(enemy.position, this.player.position) <= radius)
+      .sort((a, b) => this.targetPriorityScore(b) - this.targetPriorityScore(a))
+      .slice(0, count);
+    for (const enemy of targets) {
+      enemy.windup = 0;
+      enemy.cooldown = Math.max(enemy.cooldown, 1.15);
+      enemy.frozen = Math.max(enemy.frozen, 0.12);
+      this.addBurst(enemy.position, "#e9fbff", 6);
+    }
+    return targets.length;
+  }
+
+  private castUrgentCry(power: number): void {
+    const radius = 360;
+    let affected = 0;
+    for (const enemy of this.enemies) {
+      if (enemy.hp <= 0 || distance(enemy.position, this.player.position) > radius) continue;
+      affected += 1;
+      const damage = (12 + this.attackDamage * 0.58) * power * (enemy.type === "ranged" || enemy.type === "repeater" ? 1.35 : 1);
+      this.damageEnemy(enemy, damage, "urgentCry");
+      enemy.cooldown = Math.max(enemy.cooldown, 1.8);
+      enemy.windup = 0;
+      this.knockEnemyAway(enemy, this.player.position, 22 * power);
+      this.addBurst(enemy.position, "#ff4f6d", 7);
+    }
+    this.clearEnemyShotsNear(this.player.position, radius + 60);
+    this.player.invuln = Math.max(this.player.invuln, 0.38);
+    this.addSpellRing(this.player.position, radius * 0.55, "#ff4f6d", "你已急哭");
+    this.say(affected > 0 ? `你已急哭：${affected} 个敌人红温破防。` : "你已急哭：先稳住，红温留给下一波。");
+  }
+
+  private castReceivedKeyword(power: number): void {
+    const spell = this.repeatableSpellChain[this.repeatableSpellChain.length - 1];
+    if (!spell) {
+      this.energy = clamp(this.energy + 8, 0, this.maxEnergy);
+      this.addSpellRing(this.player.position, 92, "#7cff9b", "收到");
+      this.say("收到：暂时没有可复读的普通咒语，改为回声能。");
+      return;
+    }
+    this.replaySpellEffect(spell, 0.46 * power);
+    this.addSpellRing(this.player.position, 110, "#7cff9b", `收到：${SPELL_NAMES[spell]}`);
+    this.say(`收到：弱化复读上一句 ${SPELL_NAMES[spell]}。`);
+  }
+
+  private castInternalDrain(power: number): void {
+    const cost = 7;
+    if (this.player.shield >= cost) {
+      this.player.shield -= cost;
+    } else {
+      const shieldUsed = this.player.shield;
+      this.player.shield = 0;
+      this.player.hp = Math.max(1, this.player.hp - (cost - shieldUsed));
+    }
+    this.energy = clamp(this.energy + 14 * power, 0, this.maxEnergy);
+    this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 3.2 * power);
+    this.addSpellRing(this.player.position, 104, "#c491ff", "内耗");
+    this.say("内耗：扣一点状态，换声能和短爆发。");
+  }
+
+  private castBangFullCombo(power: number): void {
+    const waves = 3 + Math.floor(this.bangLevel / 2);
+    let hits = 0;
+    for (let wave = 0; wave < waves; wave += 1) {
+      const radius = 190 + wave * 46;
+      const targets = [...this.enemies]
+        .filter((enemy) => enemy.hp > 0 && distance(enemy.position, this.player.position) <= radius)
+        .sort((a, b) => distance(a.position, this.player.position) - distance(b.position, this.player.position))
+        .slice(0, 4 + wave);
+      for (const enemy of targets) {
+        hits += 1;
+        this.damageEnemy(enemy, (18 + this.attackDamage * 0.62 + this.bangLevel * 4) * power, "bang");
+        this.knockEnemyAway(enemy, this.player.position, 28 + wave * 9);
+        this.addBurst(enemy.position, "#ffcf5a", 9);
+      }
+      this.addSpellRing(this.player.position, radius * 0.6, "#ffcf5a", wave === 0 ? "梆" : undefined, 0.55);
+    }
+    this.energy = clamp(this.energy + hits * 3.2, 0, this.maxEnergy);
+    this.cannonMeter = clamp(this.cannonMeter + 12 + hits * 2.2, 0, 100);
+    this.clearEnemyShotsNear(this.player.position, 240);
+    this.say(`隐藏 Combo：你就说梆梆不梆梆，连打 ${hits} 下。`);
+  }
+
+  private castBangTwoFists(power: number): void {
+    const first = this.nearestEnemy(this.player.position, 260);
+    const second = this.focusedTarget() ?? [...this.enemies]
+      .filter((enemy) => enemy.hp > 0)
+      .sort((a, b) => this.targetPriorityScore(b) - this.targetPriorityScore(a))[0];
+    const punches = [first, second].filter((enemy, index, list): enemy is Enemy => !!enemy && list.indexOf(enemy) === index);
+    if (punches.length === 0) {
+      this.player.shield = Math.min(70, this.player.shield + 18);
+      this.addSpellRing(this.player.position, 140, "#ffe27a", "两拳蓄势");
+      this.say("梆梆两拳：场上没目标，转成护盾蓄势。");
+      return;
+    }
+    punches.forEach((enemy, index) => {
+      enemy.windup = 0;
+      enemy.cooldown = Math.max(enemy.cooldown, 1.6 + index * 0.35);
+      this.damageEnemy(enemy, (32 + this.attackDamage * 0.9 + this.bangLevel * 5) * power * (index === 1 ? 1.18 : 1), "bang");
+      this.knockEnemyAway(enemy, this.player.position, 62 + index * 22);
+      this.addSpellFan(Math.atan2(enemy.position.y - this.player.position.y, enemy.position.x - this.player.position.x), 0.28, 3, 190 + index * 36, "#ffe27a", index === 0 ? "第一拳" : "第二拳");
+      this.addBurst(enemy.position, "#ffe27a", 18);
+    });
+    this.energy = clamp(this.energy + punches.length * 7, 0, this.maxEnergy);
+    this.cannonMeter = clamp(this.cannonMeter + punches.length * 8, 0, 100);
+    this.say("隐藏 Combo：梆梆两拳，先打断再点名。");
+  }
+
+  private castCardCheckCombo(power: number): void {
+    const targets = [...this.enemies]
+      .filter((enemy) => enemy.hp > 0)
+      .sort((a, b) => this.targetPriorityScore(b) - this.targetPriorityScore(a))
+      .slice(0, 7);
+    if (targets.length === 0) {
+      this.energy = clamp(this.energy + 10, 0, this.maxEnergy);
+      this.say("我要验牌：桌上暂时没牌，返还声能。");
+      return;
+    }
+    this.markedEnemyId = targets[0].id;
+    this.cardMarkTime = Math.max(this.cardMarkTime, 8.5 * power);
+    for (const enemy of targets) {
+      enemy.frozen = Math.max(enemy.frozen, 0.35);
+      this.damageEnemy(enemy, (16 + this.attackDamage * 0.72) * power * (enemy.type === "target" ? 1.45 : 1), "cardCheck");
+      this.addParticle(this.player.position, enemy.position, "#f8f1d1");
+      this.addBurst(enemy.position, enemy.type === "target" ? "#ff4f6d" : "#f8f1d1", 11);
+    }
+    this.addSpellRing(this.player.position, 330, "#f8f1d1", "我要验牌");
+    this.say(`隐藏 Combo：我要验牌，翻出 ${targets.length} 张危险牌。`);
+  }
+
+  private castTooLateCombo(power: number): void {
+    const targetTime = this.elapsed - 2.2;
+    const snapshot = [...this.playerHistory].reverse().find((item) => item.time <= targetTime) ?? this.playerHistory[0];
+    if (snapshot) {
+      const from = { ...this.player.position };
+      const radius = this.effectivePlayerRadius();
+      this.player.position = {
+        x: clamp(snapshot.position.x, radius, this.width - radius),
+        y: clamp(snapshot.position.y, radius, this.height - radius),
+      };
+      this.player.hp = Math.min(this.player.maxHp, Math.max(this.player.hp, snapshot.hp));
+      this.addParticle(from, this.player.position, "#9cffd0");
+      this.addBurst(from, "#9cffd0", 20);
+    } else {
+      this.shortSafeStep(140);
+    }
+    this.player.invuln = Math.max(this.player.invuln, 1.05);
+    this.energy = clamp(this.energy + 18 * power, 0, this.maxEnergy);
+    this.clearEnemyShotsNear(this.player.position, 260);
+    this.addSpellRing(this.player.position, 250, "#9cffd0", "我去不早说");
+    this.say("隐藏 Combo：我去不早说，玩家状态回溯，怪物受过的伤不回退。");
+  }
+
+  private castReceivedCombo(power: number): void {
+    const spells = this.repeatableSpellChain.slice(-2);
+    if (spells.length === 0) {
+      this.energy = clamp(this.energy + 14, 0, this.maxEnergy);
+      this.addSpellRing(this.player.position, 140, "#7cff9b", "收到收到");
+      this.say("隐藏 Combo：收到，收到。没有可复读内容，转成声能确认戳。");
+      return;
+    }
+    for (const spell of spells) {
+      this.replaySpellEffect(spell, 0.68 * power);
+    }
+    this.explode(this.player.position, 150, (10 + this.attackDamage * 0.45) * power, false);
+    this.addSpellRing(this.player.position, 180, "#7cff9b", "收到，收到");
+    this.say(`隐藏 Combo：收到，收到。复读 ${spells.map((spell) => SPELL_NAMES[spell]).join(" / ")}。`);
+  }
+
+  private castExternalizeCombo(power: number): void {
+    const center = this.densestEnemyPoint() ?? this.player.position;
+    const missingHpRatio = 1 - this.player.hp / this.player.maxHp;
+    const radius = 390;
+    let affected = 0;
+    for (const enemy of this.enemies) {
+      if (enemy.hp <= 0 || distance(enemy.position, center) > radius) continue;
+      affected += 1;
+      const push = normalize({ x: center.x - enemy.position.x, y: center.y - enemy.position.y });
+      enemy.position.x = clamp(enemy.position.x + push.x * 72 * power, enemy.radius, this.width - enemy.radius);
+      enemy.position.y = clamp(enemy.position.y + push.y * 72 * power, enemy.radius, this.height - enemy.radius);
+      enemy.cooldown = Math.max(enemy.cooldown, 1.25);
+      this.damageEnemy(enemy, (13 + this.attackDamage * 0.55) * power * (1 + missingHpRatio * 0.65), "externalDrain");
+      this.addBurst(enemy.position, "#c491ff", 7);
+    }
+    this.player.shield = Math.min(70, this.player.shield + (10 + missingHpRatio * 22) * power);
+    this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 3.6 * power);
+    this.addParticle(this.player.position, center, "#c491ff");
+    this.addSpellRing(center, radius * 0.48, "#c491ff", "外耗转嫁");
+    this.say(`隐藏 Combo：与其内耗不如外耗，转嫁 ${affected} 个敌人的压力。`);
+  }
+
+  private replaySpellEffect(spell: SpellKey, power: number): boolean {
+    switch (spell) {
+      case "explode":
+        this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.4 * power);
+        this.explode(this.player.position, this.explosionRadius * 0.55, this.attackDamage * this.explosionDamageScale * power, false);
+        return true;
+      case "freeze":
+        this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 3.2 * power);
+        this.freezeAround(this.player.position, this.freezePulseRadius * 0.75, this.freezeDuration * 0.72 * power);
+        return true;
+      case "lightning":
+        this.chainLightning(this.player.position, 8 * power);
+        this.activeMods.lightningTime = Math.max(this.activeMods.lightningTime, 2.8 * power);
+        return true;
+      case "split":
+        this.activeMods.splitTime = Math.max(this.activeMods.splitTime, 3.2 * power);
+        this.fireRadialProjectiles(6, 6 + this.attackDamage * 0.28, 430, 0.65, { radius: 4 });
+        return true;
+      case "pierce":
+        this.activeMods.pierceTime = Math.max(this.activeMods.pierceTime, 3 * power);
+        this.fireRadialProjectiles(4, 8 + this.attackDamage * 0.3, 520, 0.7, { pierce: 2, radius: 4 });
+        return true;
+      case "ricochet":
+        this.activeMods.ricochetTime = Math.max(this.activeMods.ricochetTime, 3 * power);
+        this.fireRadialProjectiles(4, 7 + this.attackDamage * 0.28, 450, 0.75, { ricochet: 1, radius: 4 });
+        return true;
+      case "evade":
+      case "calm":
+        this.shortSafeStep(spell === "calm" ? 68 : 84);
+        return true;
+      case "shield":
+        this.player.shield = Math.min(70, this.player.shield + 10 * power);
+        return true;
+      case "gather":
+      case "wealth":
+        this.gatherDrops(spell === "wealth" ? 360 : 220);
+        return true;
+      case "focus":
+        this.activeMods.focusTime = Math.max(this.activeMods.focusTime, 2.4 * power);
+        return true;
+      case "bang":
+        this.bangBang(power * 0.68);
+        return true;
+      case "serious":
+        this.activeMods.seriousTime = Math.max(this.activeMods.seriousTime, 2.2 * power);
+        this.activeMods.focusTime = Math.max(this.activeMods.focusTime, 2.8 * power);
+        return true;
+      case "scramble":
+        this.shortSafeStep(120);
+        this.player.invuln = Math.max(this.player.invuln, 0.55);
+        return true;
+      case "cardCheck":
+        this.castCardCheck(power * 0.72);
+        return true;
+      case "woqu":
+        this.shortSafeStep(70);
+        return true;
+      case "noTalk":
+        this.interruptEnemies(2, 150);
+        this.clearEnemyShotsNear(this.player.position, 160);
+        return true;
+      case "urgentCry":
+        this.castUrgentCry(power * 0.62);
+        return true;
+      case "unknown":
+        this.player.invuln = Math.max(this.player.invuln, 0.24);
+        this.clearEnemyShotsNear(this.player.position, 90);
+        return true;
+      case "bodyShape":
+        this.activeMods.slimTime = Math.max(this.activeMods.slimTime, 1.8 * power);
+        return true;
+      case "graceful":
+        this.activeMods.gracefulTime = Math.max(this.activeMods.gracefulTime, 1.5 * power);
+        this.activeMods.slimTime = Math.max(this.activeMods.slimTime, 1.6 * power);
+        return true;
+      case "internalDrain":
+        this.energy = clamp(this.energy + 7 * power, 0, this.maxEnergy);
+        this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 1.5 * power);
+        return true;
+      case "externalDrain":
+        this.knockEnemiesFrom(this.player.position, 190, 24 * power);
+        return true;
+      case "oldSelf":
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + 5 * power);
+        this.player.shield = Math.min(70, this.player.shield + 5 * power);
+        return true;
+      case "seeTomorrow":
+        this.delayedHealTime = 1.4;
+        this.delayedHealAmount = Math.max(this.delayedHealAmount, 7 * power);
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private prepareCannon(): boolean {
     if (this.cannonCharge >= 3) {
       this.say("一级准备已经三层，够离谱了。喊人间大炮锁定，再喊发射。");
-      return;
+      return false;
     }
     const cost = this.nextCannonPrepCost();
     if (this.energy < cost) {
       this.say(`第 ${this.cannonCharge + 1} 层一级准备需要 ${cost} 声能，还差 ${Math.ceil(cost - this.energy)}。`);
-      return;
+      return false;
     }
     this.energy -= cost;
     this.cannonCharge += 1;
-    this.cannonMeter = clamp(this.cannonMeter + 18, 0, 100);
+    this.cannonMeter = clamp(this.cannonMeter + 32, 0, 100);
     this.recordSpell("cannonPrep");
+    this.addBurst(this.player.position, "#ffe27a", 16 + this.cannonCharge * 4);
     this.say(`一级准备 x${this.cannonCharge}。充能越高，弹射越多、伤害越高。`);
+    return true;
   }
 
   private nextCannonPrepCost(): number {
     return CANNON_PREP_COSTS[Math.min(this.cannonCharge, CANNON_PREP_COSTS.length - 1)];
   }
 
-  private lockCannonTarget(): void {
+  private lockCannonTarget(): boolean {
+    if (this.cannonCharge <= 0) {
+      this.say("人间大炮还没装填。再喊一级准备先充能。");
+      return false;
+    }
     const target = this.densestEnemyPoint();
     this.cannonAiming = true;
     if (!target) {
       this.cannonTarget = { ...this.pointer };
-      this.say("人间大炮：进入瞄准，移动鼠标调整方向。");
-      return;
+      this.recordSpell("cannon");
+      this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
+      this.addBurst(this.cannonTarget, "#ffe27a", 12);
+      this.say("人间大炮：进入瞄准。移动鼠标调整方向，再按一次发射。");
+      return true;
     }
     this.cannonTarget = { ...target };
     this.recordSpell("cannon");
-    this.say("人间大炮：已对准敌群，也可以移动鼠标改方向。");
+    this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
+    this.addBurst(this.cannonTarget, "#ffe27a", 16);
+    this.say("人间大炮：已对准敌群。可以移动鼠标微调，再按一次发射。");
+    return true;
   }
 
-  private fireCannon(): void {
+  private fireCannon(): boolean {
     if (this.cannonCharge <= 0) {
       this.say("还没一级准备，先充能再发射。");
-      return;
+      return false;
     }
     if (!this.cannonTarget) {
-      this.lockCannonTarget();
-      if (!this.cannonTarget) {
-        return;
-      }
+      this.say("人间大炮还没瞄准。先锁定方向，再发射。");
+      return false;
     }
     const meterCost = this.cannonFireMeterCost();
     if (this.cannonMeter < meterCost) {
       this.say(`大炮槽还差 ${Math.ceil(meterCost - this.cannonMeter)}，再等一下或打靶心怪。`);
-      return;
+      return false;
     }
     const direction = normalize({ x: this.cannonTarget.x - this.player.position.x, y: this.cannonTarget.y - this.player.position.y });
     const charge = this.cannonCharge;
@@ -1557,7 +2833,19 @@ export class VoiceSurvivorGame {
     this.addBurst(this.player.position, "#ffe27a", 40);
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
     this.say(`发射！${charge} 层充能，${charge} 次弹射。`);
+    return true;
   }
+
+  private castCannonStage(): void {
+    if (this.cannonCharge <= 0) {
+      this.prepareCannon();
+      return;
+    }
+    if (!this.cannonTarget) {
+      this.lockCannonTarget();
+      return;
+    }
+    this.fireCannon();  }
 
   private finishCannonLaunch(): void {
     const charge = Math.max(1, this.cannonLaunchCharge);
@@ -1615,10 +2903,19 @@ export class VoiceSurvivorGame {
     this.lastSpell = spell;
     this.spellChain.push(spell);
     this.spellChain = this.spellChain.slice(-5);
+    if (this.isRepeatableNormalSpell(spell)) {
+      this.repeatableSpellChain.push(spell);
+      this.repeatableSpellChain = this.repeatableSpellChain.slice(-4);
+    }
     if (new Set(this.spellChain).size >= 4) {
       this.energy = clamp(this.energy + 3 + this.chainEnergyBonus, 0, this.maxEnergy);
       this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 4);
     }
+  }
+
+  private isRepeatableNormalSpell(spell: SpellKey): boolean {
+    if (this.isHiddenComboSpell(spell)) return false;
+    return !["cannon", "cannonPrep", "cannonFire", "received", "tooLate"].includes(spell);
   }
 
   private diversityBonus(): number {
@@ -1671,10 +2968,12 @@ export class VoiceSurvivorGame {
     }
     if (hits === 0) {
       this.player.shield = Math.min(70, this.player.shield + 8);
+      this.addSpellRing(this.player.position, 108, "#ffcf5a", "没怪也给盾");
       this.say("不太梆，但给了点护盾。");
     } else {
       this.energy = clamp(this.energy + hits * 5, 0, this.maxEnergy);
       this.cannonMeter = clamp(this.cannonMeter + hits * 4, 0, 100);
+      this.addSpellRing(this.player.position, 120, "#ffcf5a", `梆 x${hits}`);
       this.say(hits >= 2 ? "很梆，梆梆两下。" : "梆了一下。");
     }
   }
@@ -1693,6 +2992,7 @@ export class VoiceSurvivorGame {
       });
     }
     this.cannonMeter = clamp(this.cannonMeter + 8 + this.skillGoLevel * 2, 0, 100);
+    this.addSpellRing(this.player.position, 124, "#f8f1d1", "落子");
     this.say("技能五子棋，落子无悔。");
   }
 
@@ -1700,10 +3000,19 @@ export class VoiceSurvivorGame {
     const options = [...this.unlockedSpells].filter((spell) =>
       ["explode", "freeze", "lightning", "split", "pierce", "ricochet", "bang", "skillGo"].includes(spell),
     );
+    if (options.length === 0) {
+      this.player.shield = Math.min(70, this.player.shield + 10);
+      this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 2.2);
+      this.addBurst(this.player.position, "#d28cff", 18);
+      this.addSpellRing(this.player.position, 116, "#d28cff", "邪修护体");
+      this.say("邪修缺少可借用的攻击咒语，先转成护盾和短暂火力。");
+      return;
+    }
     const pick = options[Math.floor(Math.random() * options.length)] ?? "explode";
     this.energy = clamp(this.energy + SPELL_COSTS[pick] * 0.7, 0, this.maxEnergy);
     this.cannonMeter = clamp(this.cannonMeter + 6, 0, 100);
     this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 3.2);
+    this.addSpellRing(this.player.position, 118, "#d28cff", `邪修：${SPELL_NAMES[pick]}`);
     this.castSpell(pick);
     if (Math.random() < 0.28) {
       this.hurtPlayer(4, true);
@@ -1713,8 +3022,12 @@ export class VoiceSurvivorGame {
     }
   }
 
-  private gatherDrops(radius: number): void {
+  private gatherDrops(radius: number): number {
+    let affected = 0;
     for (const drop of this.drops) {
+      if (distance(drop.position, this.player.position) <= this.magnetRadius + radius) {
+        affected += 1;
+      }
       drop.magnet = Math.max(drop.magnet, radius);
     }
     if (this.recentChainIncludes("explode")) {
@@ -1726,6 +3039,7 @@ export class VoiceSurvivorGame {
         }
       }
     }
+    return affected;
   }
 
   private explode(position: Vec2, radius: number, damage: number, freezes: boolean): void {
@@ -1795,22 +3109,39 @@ export class VoiceSurvivorGame {
       amount *= 0.45;
       this.say("复读怪抗住了同一句，换个咒语。");
     }
+    if (this.cardMarkTime > 0 && enemy.id === this.markedEnemyId) {
+      amount *= 1.55;
+    }
     if (spell) enemy.lastSpellHit = spell;
     enemy.hp -= amount;
-    if (enemy.hp > 0) return;
+    if (enemy.hp > 0) {
+      if (spell || amount >= this.attackDamage * 0.85) {
+        this.addImpactBurst(enemy.position, spell === "freeze" ? "#9be7ff" : spell === "lightning" ? "#e5ff66" : spell === "explode" ? "#ff9b4a" : "#8ee8ff", 5);
+      }
+      return;
+    }
     this.kills += 1;
     this.score += Math.round(ENEMY_CONFIG[enemy.type].xp * 10 + this.elapsed);
     this.cannonMeter = clamp(this.cannonMeter + (enemy.type === "target" ? 14 : 3), 0, 100);
+    const xpValue = ENEMY_CONFIG[enemy.type].xp * this.currentXpDropMultiplier();
     this.drops.push({
       position: { ...enemy.position },
-      value: ENEMY_CONFIG[enemy.type].xp,
+      value: xpValue,
       radius: 7,
       magnet: 0,
     });
-    this.addBurst(enemy.position, ENEMY_CONFIG[enemy.type].color, enemy.type === "target" ? 28 : 10);
+    this.addBurst(enemy.position, ENEMY_CONFIG[enemy.type].color, enemy.type === "target" ? 42 : 18);
+    this.addBurst(enemy.position, "#7cff9b", enemy.type === "target" ? 24 : 8);
+    this.addParticle(enemy.position, this.player.position, "#7cff9b");
     if (shatters) {
       this.explode(enemy.position, this.freezeShatterRadius, 8 + this.freezeDuration * 4, true);
     }
+  }
+
+  private currentXpDropMultiplier(): number {
+    if (this.elapsed < 45) return 1.38;
+    if (this.elapsed < 100) return 1.18;
+    return 1;
   }
 
   private hurtPlayer(amount: number, ignoreInvuln = false): void {
@@ -1825,6 +3156,20 @@ export class VoiceSurvivorGame {
       this.player.hp -= remaining;
       this.player.invuln = 0.65;
       this.addBurst(this.player.position, "#ff4f6d", 16);
+    }
+    if (this.player.hp <= 0 && this.fatalInsuranceTime > 0) {
+      this.player.hp = 1;
+      this.fatalInsuranceTime = 0;
+      this.player.invuln = Math.max(this.player.invuln, 1.45);
+      this.player.shield = Math.min(70, this.player.shield + 18);
+      this.delayedHealTime = 1.1;
+      this.delayedHealAmount = Math.max(this.delayedHealAmount, 26);
+      this.nextSpellFree = true;
+      this.clearEnemyShotsNear(this.player.position, 340);
+      this.knockEnemiesFrom(this.player.position, 320, 54);
+      this.addSpellRing(this.player.position, 260, "#f8f1d1", "今晚不死");
+      this.say("爱你老己，明天见：致命伤被留到明天处理，下一个普通咒语免费。");
+      return;
     }
     if (this.player.hp <= 0) {
       this.endRun();
@@ -1844,8 +3189,12 @@ export class VoiceSurvivorGame {
     if (this.xp < this.xpGoal) return;
     this.xp -= this.xpGoal;
     this.level += 1;
-    this.xpGoal = this.level <= 6 ? Math.round(this.xpGoal * 1.12 + 6) : Math.round(this.xpGoal * 1.18 + 12);
+    this.xpGoal = this.level <= 6 ? Math.round(this.xpGoal * 1.08 + 5) : Math.round(this.xpGoal * 1.16 + 11);
     this.applyBaselineLevelReward();
+    this.energy = clamp(this.energy + 10, 0, this.maxEnergy);
+    this.cannonMeter = clamp(this.cannonMeter + 8, 0, 100);
+    this.addBurst(this.player.position, "#7cff9b", 48);
+    this.addBurst(this.player.position, "#8ee8ff", 28);
     this.selectingBuff = true;
     this.showBuffChoices();
   }
@@ -1861,12 +3210,17 @@ export class VoiceSurvivorGame {
     this.pauseVoiceForUpgrade();
     const choices = this.draftBuffs(3);
     this.upgradeChoices.replaceChildren();
+    this.upgradeOverlay.querySelector("h1")!.textContent = "选择强化";
     for (const buff of choices) {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.rarity = buff.rarity;
+      button.dataset.kind = this.buffKind(buff);
       button.innerHTML = `
-        <span>${buff.rarity === "diamond" ? "钻石" : buff.rarity === "gold" ? "黄金" : "青铜"}</span>
+        <span class="survivor-card-tags">
+          <i>${buff.rarity === "diamond" ? "钻石" : buff.rarity === "gold" ? "黄金" : "青铜"}</i>
+          <i>${this.buffKindLabel(buff)}</i>
+        </span>
         <strong>${buff.title}</strong>
         <em>${buff.description}</em>
       `;
@@ -1877,12 +3231,32 @@ export class VoiceSurvivorGame {
         this.selectingBuff = false;
         this.upgradeOverlay.hidden = true;
         this.renderCommandDock();
-        this.say(`获得：${buff.title}`);
+        this.addBuffFeedback(buff);
+        this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏。` : `获得被动强化：${buff.title}，效果已立即生效。`);
         this.resumeVoiceAfterUpgrade();
       });
       this.upgradeChoices.append(button);
     }
     this.upgradeOverlay.hidden = false;
+  }
+
+  private buffKind(buff: Buff): "spell" | "combo" | "passive" {
+    if (buff.spell) return "spell";
+    if (buff.id.startsWith("combo-") || buff.id === "stat-chain") return "combo";
+    return "passive";
+  }
+
+  private buffKindLabel(buff: Buff): string {
+    const kind = this.buffKind(buff);
+    if (kind === "spell") return "解锁咒语";
+    if (kind === "combo") return "组合强化";
+    return "被动生效";
+  }
+
+  private addBuffFeedback(buff: Buff): void {
+    const kind = this.buffKind(buff);
+    const color = kind === "spell" ? "#8ee8ff" : kind === "combo" ? "#ffe27a" : "#7cff9b";
+    this.addBurst(this.player.position, color, kind === "passive" ? 18 : 26);
   }
 
   private draftBuffs(count: number): Buff[] {
@@ -1965,6 +3339,19 @@ export class VoiceSurvivorGame {
       "spell-calm",
       "spell-split",
       "spell-ricochet",
+      "spell-bang",
+      "spell-card-check",
+      "spell-woqu",
+      "spell-too-late",
+      "spell-no-talk",
+      "spell-received",
+      "spell-unknown",
+      "spell-body-shape",
+      "spell-graceful",
+      "spell-internal-drain",
+      "spell-external-drain",
+      "spell-old-self",
+      "spell-see-tomorrow",
     ].includes(buff.id);
   }
 
@@ -1984,13 +3371,26 @@ export class VoiceSurvivorGame {
       { id: "spell-pierce", title: "咒语：穿透", description: "解锁语音“穿透”，短时间贯穿怪潮。", rarity: "gold", spell: "pierce", apply: () => { this.projectileSpeed += 25; } },
       { id: "spell-ricochet", title: "咒语：弹射", description: "解锁语音“弹射”，命中后跳向附近敌人。", rarity: "bronze", spell: "ricochet", apply: () => { this.ricochetRange += 24; } },
       { id: "spell-focus", title: "战术锁定", description: "解锁语音“锁定”，优先处理静音、远程和高血量目标。", rarity: "gold", spell: "focus", apply: () => { this.attackDamage += 1; } },
-      { id: "spell-bang", title: "咒语：梆梆不梆梆", description: "解锁两段冲击拳，命中越多越梆。", rarity: "gold", spell: "bang", apply: () => { this.bangLevel += 1; } },
+      { id: "spell-bang", title: "碎片：梆梆", description: "解锁关键词“梆梆”，单独施放是近身冲击拳；完整喊“你就说梆梆不梆梆”或“梆梆两拳”触发派生大招。", rarity: "bronze", spell: "bang", apply: () => { this.bangLevel += 1; } },
       { id: "spell-skillgo", title: "咒语：技能五子棋", description: "解锁五枚短时棋子炮台，落子无悔。", rarity: "diamond", spell: "skillGo", apply: () => { this.skillGoLevel += 1; } },
       { id: "spell-xiexiu", title: "邪修路线", description: "解锁“邪修”，随机施放已拥有攻击咒语，声能恢复 +1.6。", rarity: "gold", spell: "xiexiu", apply: () => { this.energyRegen += 1.6; } },
       { id: "spell-serious", title: "当个事儿办", description: "解锁辅助锁敌，短时间认真处理危险目标。", rarity: "bronze", spell: "serious", apply: () => { this.attackRate *= 0.96; } },
       { id: "spell-wealth", title: "来财", description: "解锁“来财”，大范围吸取经验，经验返能明显提高。", rarity: "bronze", spell: "wealth", apply: () => { this.magnetRadius += 20; this.dropEnergyRatio += 0.06; } },
       { id: "spell-calm", title: "从容", description: "解锁优雅闪避，位移更短但冷静返能，声能恢复 +2。", rarity: "bronze", spell: "calm", apply: () => { this.energyRegen += 2; } },
       { id: "spell-scramble", title: "连滚带爬", description: "解锁残血逃生咒语，狼狈但很有效。", rarity: "gold", spell: "scramble", apply: () => { this.player.maxHp += 6; this.player.hp += 6; } },
+      { id: "spell-card-check", title: "碎片：验牌", description: "解锁“验牌”，标记危险敌人，标记期间承受更高伤害；完整喊“我要验牌”翻全场危险牌。", rarity: "bronze", spell: "cardCheck", apply: () => { this.attackDamage += 1; } },
+      { id: "spell-woqu", title: "碎片：我去", description: "解锁“我去”，短促安全闪避；可与“不早说”拼出回溯 Combo。", rarity: "bronze", spell: "woqu", apply: () => { this.moveSpeed += 5; } },
+      { id: "spell-too-late", title: "碎片：不早说", description: "解锁“不早说”，返还上一普通咒语部分声能；可与“我去”拼出回溯 Combo。", rarity: "bronze", spell: "tooLate", apply: () => { this.energyRegen += 0.6; } },
+      { id: "spell-no-talk", title: "碎片：不讲", description: "解锁“不讲”，打断敌人蓄力并清近身弹幕；完整喊“不讲不讲”展开拒绝沟通领域。", rarity: "bronze", spell: "noTalk", apply: () => { this.maxEnergy += 4; } },
+      { id: "spell-received", title: "碎片：收到", description: "解锁“收到”，弱化复读上一普通咒语；完整喊“收到，收到”复读最近两句。", rarity: "bronze", spell: "received", apply: () => { this.energyRegen += 0.5; } },
+      { id: "spell-unknown", title: "碎片：不知道", description: "解锁“不知道”，短暂丢锁和清弹；可拼“不知道，我的身材很曼妙”。", rarity: "bronze", spell: "unknown", apply: () => { this.player.maxHp += 2; this.player.hp += 2; } },
+      { id: "spell-body-shape", title: "碎片：身材", description: "解锁“身材”，短时间缩小受击判定；可拼“不知道，我的身材很曼妙”。", rarity: "bronze", spell: "bodyShape", apply: () => { this.moveSpeed += 4; } },
+      { id: "spell-graceful", title: "碎片：曼妙", description: "解锁“曼妙”，优雅侧滑并获得擦弹回能窗口；可拼“不知道，我的身材很曼妙”。", rarity: "bronze", spell: "graceful", apply: () => { this.energyRegen += 0.5; } },
+      { id: "spell-internal-drain", title: "碎片：内耗", description: "解锁“内耗”，消耗少量状态换声能和短爆发；可与“外耗”拼压力转嫁。", rarity: "bronze", spell: "internalDrain", apply: () => { this.maxEnergy += 5; } },
+      { id: "spell-external-drain", title: "碎片：外耗", description: "解锁“外耗”，把近身怪群推开；可与“内耗”拼压力转嫁。", rarity: "bronze", spell: "externalDrain", apply: () => { this.explosionRadius += 5; } },
+      { id: "spell-old-self", title: "碎片：老己", description: "解锁“老己”，回复 HP 并给护盾；可与“明天见”拼今晚不死保险。", rarity: "bronze", spell: "oldSelf", apply: () => { this.player.maxHp += 3; this.player.hp += 3; } },
+      { id: "spell-see-tomorrow", title: "碎片：明天见", description: "解锁“明天见”，挂延迟回复；可与“老己”拼今晚不死保险。", rarity: "bronze", spell: "seeTomorrow", apply: () => { this.hpRegen += 0.12; } },
+      { id: "spell-urgent-cry", title: "你已急哭", description: "解锁独立乐子咒语“你已急哭”，让附近敌人红温破防并干扰远程火力。", rarity: "gold", spell: "urgentCry", apply: () => { this.attackDamage += 2; this.maxEnergy += 4; } },
       { id: "stat-explode-radius", title: "爆炸半径", description: "爆炸范围 +18。", rarity: "bronze", phase: "branch", maxStacks: 6, apply: () => { this.explosionRadius += 18; } },
       { id: "stat-explode-damage", title: "爆炸伤害", description: "爆炸伤害系数提高。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.explosionDamageScale += 0.07; } },
       { id: "stat-explode-duration", title: "爆炸续唱", description: "爆炸 Buff 持续时间 +1.5 秒。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.explosionDurationBonus += 1.5; } },
@@ -2023,17 +3423,17 @@ export class VoiceSurvivorGame {
       { id: "weapon-fan", title: "备用炮口", description: "自动攻击额外发射两枚小角度弹。", rarity: "gold", apply: () => { this.bonusProjectiles = Math.min(2, this.bonusProjectiles + 1); this.attackDamage += 1; } },
       { id: "weapon-speed", title: "弹速校准", description: "自动攻击弹速 +15%，拾取范围 +20，经验返能小幅提高。", rarity: "bronze", apply: () => { this.projectileSpeed += 84; this.magnetRadius += 20; this.dropEnergyRatio += 0.02; } },
       { id: "weapon-guard-turret", title: "护身小炮塔", description: "小炮塔数量 +1，自动向附近敌人开火。", rarity: "bronze", phase: "starter", maxStacks: 4, apply: () => { this.guardTurretCount += 1; this.guardTurretDamage += 1; } },
-      { id: "weapon-guard-damage", title: "炮塔火力", description: "小炮塔子弹伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretCount = Math.max(1, this.guardTurretCount); this.guardTurretDamage += 3; } },
-      { id: "weapon-guard-rate", title: "炮塔连发", description: "小炮塔射速提高。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretCount = Math.max(1, this.guardTurretCount); this.guardTurretRate *= 0.86; } },
-      { id: "weapon-guard-range", title: "炮塔射程", description: "小炮塔索敌范围 +70。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.guardTurretCount = Math.max(1, this.guardTurretCount); this.guardTurretRange += 70; } },
+      { id: "weapon-guard-damage", title: "炮塔火力", description: "小炮塔子弹伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretDamage += 3; } },
+      { id: "weapon-guard-rate", title: "炮塔连发", description: "小炮塔射速提高。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.guardTurretRate *= 0.86; } },
+      { id: "weapon-guard-range", title: "炮塔射程", description: "小炮塔索敌范围 +70。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.guardTurretRange += 70; } },
       { id: "weapon-guard-ricochet", title: "哨戒跳弹", description: "小炮塔数量 +1，弹射范围 +20，开启弹射时炮塔子弹也会跳。", rarity: "gold", phase: "combo", maxStacks: 3, apply: () => { this.guardTurretCount += 1; this.ricochetRange += 20; } },
       { id: "weapon-blade", title: "旋转刀刃", description: "刀刃数量 +2，贴身切开怪潮。", rarity: "bronze", phase: "starter", maxStacks: 3, apply: () => { this.bladeCount += 2; this.bladeDamage += 1; } },
       { id: "weapon-blade-count", title: "刀刃数量", description: "刀刃 +1，近身覆盖更稳定。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.bladeCount += 1; } },
-      { id: "weapon-blade-radius", title: "刀圈外扩", description: "刀刃旋转半径 +10。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeRadius += 10; } },
-      { id: "weapon-blade-damage", title: "刀刃锋利", description: "刀刃伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeDamage += 3; } },
-      { id: "weapon-blade-motor", title: "高速刀盘", description: "刀刃转速提高。", rarity: "gold", phase: "branch", maxStacks: 4, apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeSpinSpeed += 0.9; } },
-      { id: "combo-blade-freeze", title: "冰刀护身", description: "刀刃伤害提高；冻结 Buff 开启时，刀刃会短暂冻住命中的敌人。", rarity: "gold", apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeDamage += 2; this.freezeDuration += 0.15; } },
-      { id: "combo-blade-boom", title: "爆裂刀盘", description: "刀刃伤害提高；爆炸 Buff 开启时，刀刃偶尔触发小爆破。", rarity: "gold", apply: () => { this.bladeCount = Math.max(2, this.bladeCount); this.bladeDamage += 2; this.explosionRadius += 8; } },
+      { id: "weapon-blade-radius", title: "刀圈外扩", description: "刀刃旋转半径 +10。", rarity: "bronze", phase: "branch", maxStacks: 4, apply: () => { this.bladeRadius += 10; } },
+      { id: "weapon-blade-damage", title: "刀刃锋利", description: "刀刃伤害 +3。", rarity: "bronze", phase: "branch", maxStacks: 5, apply: () => { this.bladeDamage += 3; } },
+      { id: "weapon-blade-motor", title: "高速刀盘", description: "刀刃转速提高。", rarity: "gold", phase: "branch", maxStacks: 4, apply: () => { this.bladeSpinSpeed += 0.9; } },
+      { id: "combo-blade-freeze", title: "冰刀护身", description: "刀刃伤害提高；冻结 Buff 开启时，刀刃会短暂冻住命中的敌人。", rarity: "gold", apply: () => { this.bladeDamage += 2; this.freezeDuration += 0.15; } },
+      { id: "combo-blade-boom", title: "爆裂刀盘", description: "刀刃伤害提高；爆炸 Buff 开启时，刀刃偶尔触发小爆破。", rarity: "gold", apply: () => { this.bladeDamage += 2; this.explosionRadius += 8; } },
       { id: "survive-hp", title: "先把血抬上来", description: "生命上限 +18，并立即回复 18。", rarity: "bronze", apply: () => { this.player.maxHp += 18; this.player.hp = Math.min(this.player.maxHp, this.player.hp + 18); } },
       { id: "survive-armor", title: "安全帽", description: "受到的每次伤害 -2，落地也体面一点。", rarity: "gold", apply: () => { this.armor += 2; } },
       { id: "survive-regen", title: "慢慢缓过来", description: "每秒恢复少量 HP，适合操作不过来时稳住。", rarity: "gold", apply: () => { this.hpRegen += 0.75; } },
@@ -2084,12 +3484,30 @@ export class VoiceSurvivorGame {
       "combo-cannon-shards": "ricochet",
       "combo-blade-freeze": "freeze",
       "combo-blade-boom": "explode",
+      "weapon-guard-ricochet": "ricochet",
       "stat-bang-plus": "bang",
       "stat-skillgo-plus": "skillGo",
     };
     const required = requirements[buff.id];
-    if (!required) return true;
-    return Array.isArray(required) ? required.every((spell) => this.hasSpell(spell)) : this.hasSpell(required);
+    const spellReady = !required || (Array.isArray(required) ? required.every((spell) => this.hasSpell(spell)) : this.hasSpell(required));
+    if (!spellReady) return false;
+
+    const ownedRequirements: Record<string, string | string[]> = {
+      "weapon-guard-damage": "weapon-guard-turret",
+      "weapon-guard-rate": "weapon-guard-turret",
+      "weapon-guard-range": "weapon-guard-turret",
+      "weapon-guard-ricochet": "weapon-guard-turret",
+      "weapon-blade-count": "weapon-blade",
+      "weapon-blade-radius": "weapon-blade",
+      "weapon-blade-damage": "weapon-blade",
+      "weapon-blade-motor": "weapon-blade",
+      "combo-blade-freeze": "weapon-blade",
+      "combo-blade-boom": "weapon-blade",
+    };
+    const ownedRequired = ownedRequirements[buff.id];
+    if (!ownedRequired) return true;
+    const hasOwnedBuff = (id: string) => (this.ownedBuffs.get(id) ?? 0) > 0;
+    return Array.isArray(ownedRequired) ? ownedRequired.every(hasOwnedBuff) : hasOwnedBuff(ownedRequired);
   }
 
   private isMidPowerBuff(buff: Buff): boolean {
@@ -2097,19 +3515,51 @@ export class VoiceSurvivorGame {
   }
 
   private isLatePowerBuff(buff: Buff): boolean {
-    return ["spell-bang", "spell-skillgo", "spell-xiexiu", "spell-serious", "spell-scramble", "stat-chain", "combo-lightning-burst", "combo-cannon-shards"].includes(buff.id);
+    return ["spell-skillgo", "spell-xiexiu", "spell-serious", "spell-scramble", "stat-chain", "combo-lightning-burst", "combo-cannon-shards"].includes(buff.id);
   }
 
   private pickTarget(): Enemy | null {
-    if (this.activeMods.focusTime > 0 || this.activeMods.seriousTime > 0) {
-      const priority = [...this.enemies].sort((a, b) => {
-        const scoreA = (a.type === "silencer" ? 3 : 0) + (a.type === "ranged" ? 2 : 0) + a.hp / 30;
-        const scoreB = (b.type === "silencer" ? 3 : 0) + (b.type === "ranged" ? 2 : 0) + b.hp / 30;
-        return scoreB - scoreA;
-      })[0];
-      if (priority) return priority;
-    }
+    const focused = this.focusedTarget();
+    if (focused) return focused;
     return this.nearestEnemy(this.player.position, Infinity);
+  }
+
+  private focusedTarget(): Enemy | null {
+    if (this.activeMods.focusTime <= 0 && this.activeMods.seriousTime <= 0) return null;
+    let best: Enemy | null = null;
+    let bestScore = -Infinity;
+    for (const enemy of this.enemies) {
+      if (enemy.hp <= 0) continue;
+      const score = this.targetPriorityScore(enemy);
+      if (score > bestScore) {
+        best = enemy;
+        bestScore = score;
+      }
+    }
+    return best;
+  }
+
+  private targetPriorityScore(enemy: Enemy): number {
+    const typeScore =
+      (enemy.type === "silencer" ? 4.2 : 0) +
+      (enemy.type === "ranged" ? 2.6 : 0) +
+      (enemy.type === "target" ? 2.4 : 0) +
+      (enemy.type === "brute" ? 1.2 : 0);
+    const distancePenalty = distance(enemy.position, this.player.position) / 520;
+    const seriousBonus = this.activeMods.seriousTime > 0 ? 1.2 : 0;
+    return typeScore + enemy.hp / 32 + seriousBonus - distancePenalty;
+  }
+
+  private aimAngleToPrimaryTarget(): number {
+    const target = this.pickTarget();
+    if (target) {
+      return Math.atan2(target.position.y - this.player.position.y, target.position.x - this.player.position.x);
+    }
+    const pointerDelta = { x: this.pointer.x - this.player.position.x, y: this.pointer.y - this.player.position.y };
+    if (Math.hypot(pointerDelta.x, pointerDelta.y) > 16) {
+      return Math.atan2(pointerDelta.y, pointerDelta.x);
+    }
+    return -Math.PI / 2;
   }
 
   private nearestEnemy(position: Vec2, maxDistance: number): Enemy | null {
@@ -2193,6 +3643,21 @@ export class VoiceSurvivorGame {
     }
   }
 
+  private addImpactBurst(position: Vec2, color: string, count: number): void {
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 120 + Math.random() * 260;
+      this.particles.push({
+        position: { ...position },
+        velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+        radius: 1.5 + Math.random() * 2.5,
+        color,
+        life: 0.18 + Math.random() * 0.18,
+        maxLife: 0.36,
+      });
+    }
+  }
+
   private addParticle(from: Vec2, to: Vec2, color: string): void {
     this.particles.push({
       position: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
@@ -2204,6 +3669,33 @@ export class VoiceSurvivorGame {
     });
   }
 
+  private addSpellRing(position: Vec2, radius: number, color: string, label?: string, life = 0.82): void {
+    this.spellCues.push({
+      kind: "ring",
+      position: { ...position },
+      radius,
+      color,
+      label,
+      life,
+      maxLife: life,
+    });
+  }
+
+  private addSpellFan(angle: number, spread: number, lines: number, radius: number, color: string, label: string): void {
+    this.spellCues.push({
+      kind: "fan",
+      position: { ...this.player.position },
+      radius,
+      color,
+      label,
+      angle,
+      spread,
+      lines,
+      life: 0.72,
+      maxLife: 0.72,
+    });
+  }
+
   private say(message: string): void {
     this.statusLine.textContent = message;
   }
@@ -2211,16 +3703,34 @@ export class VoiceSurvivorGame {
   private render(): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
-    this.renderArena(ctx);
-    this.renderDrops(ctx);
-    this.renderOrbitWeapons(ctx);
-    this.renderTurrets(ctx);
-    this.renderProjectiles(ctx);
-    this.renderEnemies(ctx);
-    this.renderEnemyShots(ctx);
-    this.renderPlayer(ctx);
-    this.renderParticles(ctx);
+    this.renderer.render(ctx, this.getRenderState());
+    this.renderSpellCues(ctx);
     this.renderHudText();
+  }
+
+  private getRenderState(): SurvivorRenderState {
+    return {
+      width: this.width,
+      height: this.height,
+      elapsed: this.elapsed,
+      player: { ...this.player, radius: this.effectivePlayerRadius() },
+      enemies: this.enemies,
+      projectiles: this.projectiles,
+      enemyShots: this.enemyShots,
+      drops: this.drops,
+      particles: this.particles,
+      turrets: this.turrets,
+      activeMods: this.activeMods,
+      cannonTarget: this.cannonTarget,
+      cannonCharge: this.cannonCharge,
+      splitAngle: this.splitAngle,
+      magnetRadius: this.magnetRadius,
+      guardTurretCount: this.guardTurretCount,
+      bladeCount: this.bladeCount,
+      bladeAngle: this.bladeAngle,
+      bladeRadius: this.bladeRadius,
+      playerSilenced: this.isPlayerSilenced(),
+    };
   }
 
   private renderArena(ctx: CanvasRenderingContext2D): void {
@@ -2271,11 +3781,21 @@ export class VoiceSurvivorGame {
     ctx.save();
     ctx.translate(this.player.position.x, this.player.position.y);
     const cannon = this.player.cannonTime > 0;
+    const bodyRadius = this.effectivePlayerRadius();
+    if (this.activeMods.slimTime > 0 || this.activeMods.gracefulTime > 0) {
+      ctx.strokeStyle = this.activeMods.gracefulTime > 0 ? "rgba(156, 255, 208, 0.72)" : "rgba(210, 140, 255, 0.62)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.arc(0, 0, bodyRadius + 8 + Math.sin(this.elapsed * 8) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.fillStyle = cannon ? "#ffe27a" : "#ffffff";
     ctx.shadowColor = cannon ? "#ff9b4a" : "#66e0ff";
     ctx.shadowBlur = cannon ? 22 : 14;
     ctx.beginPath();
-    ctx.arc(0, 0, this.player.radius + (cannon ? 5 : 0), 0, Math.PI * 2);
+    ctx.arc(0, 0, (cannon ? this.player.radius : bodyRadius) + (cannon ? 5 : 0), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#101626";
@@ -2294,8 +3814,11 @@ export class VoiceSurvivorGame {
   }
 
   private renderEnemies(ctx: CanvasRenderingContext2D): void {
+    const focused = this.focusedTarget();
     for (const enemy of this.enemies) {
       const cfg = ENEMY_CONFIG[enemy.type];
+      const isFocused = focused?.id === enemy.id;
+      const isMarked = this.cardMarkTime > 0 && this.markedEnemyId === enemy.id;
       ctx.save();
       ctx.translate(enemy.position.x, enemy.position.y);
       if (enemy.type === "silencer") {
@@ -2320,16 +3843,79 @@ export class VoiceSurvivorGame {
       ctx.fillRect(-enemy.radius, -enemy.radius - 10, enemy.radius * 2, 4);
       ctx.fillStyle = "#8aff94";
       ctx.fillRect(-enemy.radius, -enemy.radius - 10, enemy.radius * 2 * clamp(enemy.hp / enemy.maxHp, 0, 1), 4);
+      if (isFocused) {
+        const pulse = 1 + Math.sin(this.elapsed * 9) * 0.08;
+        const markerColor = this.activeMods.seriousTime > 0 ? "rgba(255, 241, 166, 0.95)" : "rgba(142, 232, 255, 0.95)";
+        ctx.strokeStyle = markerColor;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath();
+        ctx.arc(0, 0, (enemy.radius + 11) * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = markerColor;
+        ctx.font = "900 13px Microsoft YaHei, sans-serif";
+        ctx.fillText(this.activeMods.seriousTime > 0 ? "办" : "锁", 0, -enemy.radius - 23);
+      }
+      if (isMarked) {
+        const pulse = 1 + Math.sin(this.elapsed * 11) * 0.08;
+        ctx.strokeStyle = "rgba(255, 79, 109, 0.95)";
+        ctx.fillStyle = "rgba(248, 241, 209, 0.92)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(-enemy.radius - 8, -enemy.radius - 28, 20 * pulse, 26 * pulse, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#6c1530";
+        ctx.font = "900 13px Microsoft YaHei, sans-serif";
+        ctx.fillText("验", 2, -enemy.radius - 14);
+      }
       ctx.restore();
     }
   }
 
   private renderProjectiles(ctx: CanvasRenderingContext2D): void {
     for (const projectile of this.projectiles) {
-      ctx.fillStyle = projectile.explosion ? "#ffb15a" : projectile.freeze ? "#a8ecff" : projectile.lightning ? "#e5ff66" : "#66e0ff";
+      const color = projectile.explosion ? "#ffb15a" : projectile.freeze ? "#a8ecff" : projectile.lightning ? "#e5ff66" : "#66e0ff";
+      const speed = Math.max(1, Math.hypot(projectile.velocity.x, projectile.velocity.y));
+      const direction = { x: projectile.velocity.x / speed, y: projectile.velocity.y / speed };
+      const isPiercing = projectile.pierce > 0;
+      const isRicochet = projectile.ricochet > 0;
+      ctx.save();
+      ctx.lineCap = "round";
+      if (isPiercing) {
+        ctx.strokeStyle = "rgba(233, 251, 255, 0.78)";
+        ctx.lineWidth = 4;
+        ctx.shadowColor = "#e9fbff";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(projectile.position.x - direction.x * 34, projectile.position.y - direction.y * 34);
+        ctx.lineTo(projectile.position.x + direction.x * 10, projectile.position.y + direction.y * 10);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      if (isRicochet) {
+        ctx.strokeStyle = "rgba(255, 207, 90, 0.78)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(projectile.position.x, projectile.position.y, projectile.radius + 7, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = projectile.lightning || isPiercing || isRicochet ? 12 : 6;
       ctx.beginPath();
       ctx.arc(projectile.position.x, projectile.position.y, projectile.radius, 0, Math.PI * 2);
       ctx.fill();
+      if (isPiercing) {
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(projectile.position.x - direction.x * 8, projectile.position.y - direction.y * 8);
+        ctx.lineTo(projectile.position.x + direction.x * 8, projectile.position.y + direction.y * 8);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
   }
 
@@ -2414,10 +4000,70 @@ export class VoiceSurvivorGame {
     for (const particle of this.particles) {
       ctx.globalAlpha = clamp(particle.life / particle.maxLife, 0, 1);
       ctx.fillStyle = particle.color;
+      ctx.shadowColor = particle.color;
+      ctx.shadowBlur = particle.radius > 6 ? 16 : 8;
       ctx.beginPath();
       ctx.arc(particle.position.x, particle.position.y, particle.radius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+    }
+  }
+
+  private renderSpellCues(ctx: CanvasRenderingContext2D): void {
+    for (const cue of this.spellCues) {
+      const progress = 1 - clamp(cue.life / cue.maxLife, 0, 1);
+      const alpha = clamp(cue.life / cue.maxLife, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = cue.color;
+      ctx.fillStyle = cue.color;
+      ctx.lineCap = "round";
+      ctx.shadowColor = cue.color;
+      ctx.shadowBlur = 16;
+
+      if (cue.kind === "ring") {
+        const radius = cue.radius * (0.38 + progress * 0.82);
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(cue.position.x, cue.position.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = alpha * 0.16;
+        ctx.beginPath();
+        ctx.arc(cue.position.x, cue.position.y, radius * 0.72, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const angle = cue.angle ?? -Math.PI / 2;
+        const spread = cue.spread ?? 0.36;
+        const lines = Math.max(1, cue.lines ?? 3);
+        ctx.lineWidth = 2.2;
+        for (let i = 0; i < lines; i += 1) {
+          const t = lines === 1 ? 0.5 : i / (lines - 1);
+          const ray = angle - spread + spread * 2 * t;
+          const inner = cue.radius * 0.18;
+          const outer = cue.radius * (0.58 + progress * 0.32);
+          ctx.beginPath();
+          ctx.moveTo(cue.position.x + Math.cos(ray) * inner, cue.position.y + Math.sin(ray) * inner);
+          ctx.lineTo(cue.position.x + Math.cos(ray) * outer, cue.position.y + Math.sin(ray) * outer);
+          ctx.stroke();
+        }
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        ctx.arc(cue.position.x, cue.position.y, cue.radius * (0.58 + progress * 0.32), angle - spread, angle + spread);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      if (cue.label) {
+        ctx.globalAlpha = alpha;
+        ctx.shadowBlur = 8;
+        ctx.font = "900 15px Microsoft YaHei, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#f7fbff";
+        ctx.fillText(cue.label, cue.position.x, cue.position.y - cue.radius * 0.32 - progress * 14);
+      }
+      ctx.restore();
     }
   }
 
@@ -2434,32 +4080,18 @@ export class VoiceSurvivorGame {
     this.energyText.textContent = `${Math.round(this.energy)}/${this.maxEnergy}`;
     this.xpText.textContent = `差 ${xpMissing}`;
     const statEntries: Array<{ label: string; value: string; wide?: boolean }> = [
-      { label: "火力", value: String(Math.round(this.attackDamage)) },
-      { label: "回能", value: `${this.energyRegen.toFixed(1)}/秒` },
-      { label: "拾能", value: `${Math.round(this.dropEnergyRatio * 100)}%` },
-      { label: "弹射", value: `${this.ricochetBounces}次/${this.ricochetRange}/${Math.round(this.ricochetDamageMultiplier * 100)}%` },
-      { label: "减伤", value: String(this.armor) },
-      { label: "护盾", value: String(Math.round(this.player.shield)) },
-      { label: "大炮", value: `${Math.round(this.cannonMeter)}%` },
-      { label: "准备", value: `${this.cannonCharge}/3` },
-      { label: "下次准备", value: this.cannonCharge >= 3 ? "已满" : `${this.nextCannonPrepCost()} 声能` },
       { label: "等级", value: `Lv.${this.level}` },
       { label: "分数", value: String(this.score) },
+      { label: "击杀", value: String(this.kills) },
+      { label: "大炮", value: `${Math.floor(this.cannonMeter)}%` },
+      { label: "准备", value: `${this.cannonCharge}/3` },
+      { label: "火力", value: String(Math.round(this.attackDamage)) },
     ];
     if (this.cannonAiming) {
-      statEntries.splice(5, 0, { label: "瞄准", value: "锁定中", wide: true });
+      statEntries.splice(3, 0, { label: "瞄准", value: "锁定中", wide: true });
     }
-    if (this.unlockedSpells.has("split") || this.splitExtraPairs > 0) {
-      statEntries.splice(5, 0, { label: "分裂", value: `${2 + this.splitExtraPairs * 2}发/${Math.round(this.splitAngle * 100)}` });
-    }
-    if (this.guardTurretCount > 0) {
-      statEntries.splice(5, 0, { label: "炮塔", value: `${this.guardTurretCount}` });
-    }
-    if (this.bladeCount > 0) {
-      statEntries.splice(5, 0, { label: "刀刃", value: `${this.bladeCount}` });
-    }
-    if (this.chainEnergyBonus > 0) {
-      statEntries.splice(6, 0, { label: "链返", value: `+${3 + this.chainEnergyBonus}` });
+    if (this.player.shield > 0) {
+      statEntries.splice(5, 0, { label: "护盾", value: String(Math.round(this.player.shield)) });
     }
     const statSignature = statEntries.map((entry) => `${entry.label}:${entry.value}:${entry.wide ? "1" : "0"}`).join("|");
     if (statSignature !== this.lastStatSignature) {
@@ -2480,10 +4112,17 @@ export class VoiceSurvivorGame {
         }),
       );
     }
-    const chain = this.spellChain.map((spell) => SPELL_NAMES[spell]).join(" -> ");
+    const chain = this.spellChain.map((spell) => this.spellChainLabel(spell)).join(" -> ");
     this.chainLine.textContent = chain ? `咒语链：${chain}` : "咒语链：先喊点不一样的。";
     this.updateCommandDockState();
     this.renderActiveSpellPanel();
+  }
+
+  private spellChainLabel(spell: SpellKey): string {
+    if (spell === "cannonPrep") return "人间大炮·装填";
+    if (spell === "cannon") return "人间大炮·瞄准";
+    if (spell === "cannonFire") return "人间大炮·发射";
+    return SPELL_NAMES[spell];
   }
 
   private renderActiveSpellPanel(): void {
@@ -2495,122 +4134,294 @@ export class VoiceSurvivorGame {
       { spell: "pierce", time: this.activeMods.pierceTime, duration: 8 },
       { spell: "ricochet", time: this.activeMods.ricochetTime, duration: 8 },
       { spell: "focus", time: this.activeMods.focusTime, duration: 6 },
+      { spell: "serious", time: this.activeMods.seriousTime, duration: 5.5 },
+      { spell: "noTalk", time: this.activeMods.refusalTime, duration: 5.5 },
+      { spell: "bodyShape", time: this.activeMods.slimTime, duration: 8 },
+      { spell: "graceful", time: this.activeMods.gracefulTime, duration: 8 },
     ];
     const tracked = allTracked.filter((item) => this.unlockedSpells.has(item.spell));
 
     this.activeSpellPanel.replaceChildren();
 
     const title = document.createElement("strong");
-    title.textContent = "持续咒语";
+    title.textContent = "持续效果";
     this.activeSpellPanel.append(title);
 
     if (tracked.length === 0) {
       const empty = document.createElement("span");
       empty.className = "survivor-active-empty";
-      empty.textContent = "升级后解锁爆炸、冻结、分裂等 Buff。";
+      empty.textContent = "抽到爆炸、冻结、分裂等咒语后显示状态。";
       this.activeSpellPanel.append(empty);
       return;
     }
 
     for (const item of tracked) {
+      const cost = this.currentSpellCost(item.spell);
+      const enough = this.energy >= cost;
       const row = document.createElement("div");
       row.className = "survivor-active-row";
-      row.dataset.state = item.time > 0 ? "on" : "off";
+      row.dataset.state = item.time > 0 ? "on" : enough ? "ready" : "empty";
+      row.title = item.time > 0 ? `${SPELL_NAMES[item.spell]}正在生效。` : enough ? `${SPELL_NAMES[item.spell]}可施放。` : `${SPELL_NAMES[item.spell]}需要 ${cost} 声能。`;
+      row.dataset.tone = getLineglowSpellArt(item.spell).tone;
+
+      const glyph = document.createElement("span");
+      glyph.className = "survivor-active-glyph";
+      glyph.textContent = getLineglowSpellArt(item.spell).glyph;
 
       const name = document.createElement("span");
+      name.className = "survivor-active-name";
       name.textContent = SPELL_NAMES[item.spell];
 
       const track = document.createElement("i");
       track.style.setProperty("--spell-fill", `${Math.round(clamp(item.time / item.duration, 0, 1) * 100)}%`);
 
       const time = document.createElement("em");
-      time.textContent = item.time > 0 ? `${item.time.toFixed(1)}s` : "待补";
+      time.textContent = item.time > 0 ? `生效 ${item.time.toFixed(1)}s` : enough ? "可施放" : "声能不足";
 
-      row.append(name, track, time);
+      row.append(glyph, name, track, time);
       this.activeSpellPanel.append(row);
     }
   }
 
   private renderCommandDock(): void {
     this.commandDock.replaceChildren();
-    const visible = [...this.unlockedSpells].filter((spell) => !["cannonPrep", "cannonFire"].includes(spell));
-    for (const spell of visible) {
+    const header = document.createElement("div");
+    header.className = "survivor-command-header";
+    const title = document.createElement("strong");
+    title.textContent = "手动施法";
+    const subtitle = document.createElement("span");
+    subtitle.textContent = "语音可选";
+    header.append(title, subtitle);
+
+    const list = document.createElement("div");
+    list.className = "survivor-command-list";
+
+    ([
+      ["cannonPrep", "q"],
+      ["cannon", "e"],
+      ["cannonFire", "r"],
+    ] as const).forEach(([spell, shortcut]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.spell = spell;
-      button.textContent = SPELL_NAMES[spell];
-      button.title = `点击模拟语音：${SPELL_NAMES[spell]}`;
-      button.addEventListener("click", () => this.castSpell(spell));
-      this.commandDock.append(button);
-    }
-    const prep = document.createElement("button");
-    prep.type = "button";
-    prep.dataset.spell = "cannonPrep";
-    prep.textContent = "一级准备";
-    prep.addEventListener("click", () => this.castSpell("cannonPrep"));
-    this.commandDock.append(prep);
-    const fire = document.createElement("button");
-    fire.type = "button";
-    fire.dataset.spell = "cannonFire";
-    fire.textContent = "发射";
-    fire.addEventListener("click", () => this.castSpell("cannonFire"));
-    this.commandDock.append(fire);
+      button.dataset.shortcut = shortcut;
+      button.addEventListener("click", () => {
+        this.pulseCommandButton(button);
+        this.castSpell(spell);
+      });
+      list.append(button);
+    });
+
+    const visible = this.commandSpells();
+    visible.forEach((spell, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.spell = spell;
+      if (index < 9) {
+        button.dataset.shortcut = String(index + 1);
+      }
+      button.addEventListener("click", () => {
+        this.pulseCommandButton(button);
+        this.castSpell(spell);
+      });
+      list.append(button);
+    });
+
+    this.commandDock.append(header, list);
     this.updateCommandDockState();
   }
 
+  private pulseCommandButton(button: HTMLButtonElement): void {
+    button.classList.remove("is-pressed");
+    void button.offsetWidth;
+    button.classList.add("is-pressed");
+    window.setTimeout(() => button.classList.remove("is-pressed"), 180);
+  }
+
+  private commandSpells(): SpellKey[] {
+    const unlocked = [...this.unlockedSpells].filter((spell) => !["cannon", "cannonPrep", "cannonFire"].includes(spell));
+    return unlocked;
+  }
+
   private updateCommandDockState(): void {
+    const cannonButton = this.commandDock.querySelector<HTMLButtonElement>("button[data-command='cannon']");
+    if (cannonButton) {
+      const state = this.cannonCommandState();
+      cannonButton.title = state.title;
+      cannonButton.dataset.state = state.state;
+      cannonButton.setAttribute("aria-disabled", state.state === "ready" ? "false" : "true");
+      this.renderCommandButton(cannonButton, state);
+    }
+
     const buttons = this.commandDock.querySelectorAll<HTMLButtonElement>("button[data-spell]");
     for (const button of buttons) {
       const spell = button.dataset.spell as SpellKey | undefined;
       if (!spell) continue;
       const state = this.commandState(spell);
-      button.textContent = state.label;
       button.title = state.title;
       button.dataset.state = state.state;
       button.setAttribute("aria-disabled", state.state === "ready" ? "false" : "true");
+      this.renderCommandButton(button, state);
     }
   }
 
-  private commandState(spell: SpellKey): { label: string; title: string; state: "ready" | "empty" | "blocked" } {
+  private renderCommandButton(button: HTMLButtonElement, state: CommandButtonState): void {
+    const shortcut = button.dataset.shortcut ?? "";
+    const spell = button.dataset.spell as SpellKey | undefined;
+    const art = getLineglowSpellArt(spell ?? "cannon");
+    button.dataset.tone = art.tone;
+
+    const icon = document.createElement("span");
+    icon.className = "survivor-command-icon";
+    icon.textContent = art.glyph;
+
+    const key = document.createElement("span");
+    key.className = "survivor-command-key";
+    key.textContent = shortcut ? shortcut.toUpperCase() : "-";
+
+    const copy = document.createElement("span");
+    copy.className = "survivor-command-copy";
+    const label = document.createElement("strong");
+    label.textContent = state.label;
+    const meta = document.createElement("em");
+    meta.textContent = state.meta;
+    copy.append(label, meta);
+
+    const badge = document.createElement("span");
+    badge.className = "survivor-command-state";
+    badge.textContent = state.badge;
+
+    button.setAttribute("aria-label", `${shortcut ? `${shortcut}，` : ""}${state.label}，${state.meta}，${state.badge}`);
+    button.replaceChildren(icon, key, copy, badge);
+  }
+
+  private cannonCommandState(): CommandButtonState {
+    if (this.cannonCharge <= 0) {
+      const cost = this.nextCannonPrepCost();
+      const enough = this.energy >= cost;
+      return {
+        label: "人间大炮",
+        meta: `装填 ${cost} 声能`,
+        title: enough ? "消耗声能装填人间大炮。再次使用会瞄准，第三次发射。" : `声能不足：装填需要 ${cost}，当前 ${Math.floor(this.energy)}。`,
+        badge: enough ? "装填" : "声能不足",
+        state: enough ? "ready" : "empty",
+      };
+    }
+    if (!this.cannonTarget) {
+      return {
+        label: "人间大炮",
+        meta: `${this.cannonCharge}/3 层`,
+        title: "锁定敌群或进入瞄准，移动鼠标可微调方向。再次使用会发射。",
+        badge: "瞄准",
+        state: "ready",
+      };
+    }
+    const meterCost = this.cannonFireMeterCost();
+    const enough = this.cannonMeter >= meterCost;
+    return {
+      label: "人间大炮",
+      meta: `${meterCost}% 大炮`,
+      title: enough ? "发射玩家本人，撞怪造成高伤害，落地冲击清场。" : `大炮槽不足：需要 ${meterCost}%，当前 ${Math.floor(this.cannonMeter)}%。`,
+      badge: enough ? "发射" : "槽不足",
+      state: enough ? "ready" : "empty",
+    };
+  }
+
+  private commandState(spell: SpellKey): CommandButtonState {
     if (spell === "cannonPrep") {
       if (this.cannonCharge >= 3) {
-        return { label: "一级准备 已满", title: "一级准备已经三层，喊人间大炮锁定，再喊发射。", state: "blocked" };
+        return { label: "一级准备", meta: "3/3 层", title: "一级准备已经三层，喊人间大炮锁定，再喊发射。", badge: "已满", state: "blocked" };
       }
       const cost = this.nextCannonPrepCost();
       const enough = this.energy >= cost;
       return {
-        label: `一级准备 ${cost}`,
+        label: "一级准备",
+        meta: `${cost} 声能`,
         title: enough ? `消耗 ${cost} 声能，增加 1 层大炮充能。` : `声能不足：第 ${this.cannonCharge + 1} 层一级准备需要 ${cost}，当前 ${Math.floor(this.energy)}。`,
+        badge: enough ? "充能" : "声能不足",
         state: enough ? "ready" : "empty",
       };
     }
     if (spell === "cannonFire") {
       if (this.cannonCharge <= 0) {
-        return { label: "发射", title: "需要先喊一级准备获得至少 1 层充能。", state: "blocked" };
+        return { label: "发射", meta: "先准备", title: "需要先喊一级准备获得至少 1 层充能。", badge: "未装填", state: "blocked" };
+      }
+      if (!this.cannonTarget) {
+        return { label: "发射", meta: "先瞄准", title: "需要先用人间大炮锁定方向。", badge: "待瞄准", state: "blocked" };
       }
       const meterCost = this.cannonFireMeterCost();
       const enough = this.cannonMeter >= meterCost;
       return {
-        label: `发射 ${meterCost}%`,
+        label: "发射",
+        meta: `${meterCost}% 大炮`,
         title: enough ? `消耗 ${meterCost}% 大炮槽，按 ${this.cannonCharge} 层充能发射。` : `大炮槽不足：需要 ${meterCost}%，当前 ${Math.floor(this.cannonMeter)}%。`,
+        badge: enough ? "发射" : "槽不足",
         state: enough ? "ready" : "empty",
       };
     }
     if (spell === "cannon") {
-      return { label: SPELL_NAMES[spell], title: "锁定敌群或进入瞄准，移动鼠标调整方向。", state: "ready" };
+      if (this.cannonCharge <= 0) {
+        return {
+          label: SPELL_NAMES[spell],
+          meta: "先准备",
+          title: "需要先使用一级准备获得充能，再用人间大炮瞄准。",
+          badge: "待装填",
+          state: "blocked",
+        };
+      }
+      return {
+        label: SPELL_NAMES[spell],
+        meta: this.cannonAiming ? "微调方向" : `${this.cannonCharge}/3 准备`,
+        title: "锁定敌群或进入瞄准，移动鼠标调整方向。",
+        badge: this.cannonAiming ? "已瞄准" : "瞄准",
+        state: "ready",
+      };
     }
     const cost = this.currentSpellCost(spell);
     const enough = this.energy >= cost;
+    const activeTime = this.activeSpellTime(spell);
     return {
-      label: `${SPELL_NAMES[spell]} ${cost}`,
+      label: SPELL_NAMES[spell],
+      meta: `${cost} 声能`,
       title: enough ? `消耗 ${cost} 声能。` : `声能不足：${SPELL_NAMES[spell]}需要 ${cost}，当前 ${Math.floor(this.energy)}。`,
+      badge: enough ? (activeTime > 0 ? "续唱" : "施放") : "声能不足",
       state: enough ? "ready" : "empty",
     };
+  }
+
+  private activeSpellTime(spell: SpellKey): number {
+    switch (spell) {
+      case "explode":
+        return this.activeMods.explosionTime;
+      case "freeze":
+        return this.activeMods.freezeTime;
+      case "lightning":
+        return this.activeMods.lightningTime;
+      case "split":
+        return this.activeMods.splitTime;
+      case "pierce":
+        return this.activeMods.pierceTime;
+      case "ricochet":
+        return this.activeMods.ricochetTime;
+      case "focus":
+        return this.activeMods.focusTime;
+      case "serious":
+        return this.activeMods.seriousTime;
+      case "noTalk":
+        return this.activeMods.refusalTime;
+      case "bodyShape":
+        return this.activeMods.slimTime;
+      case "graceful":
+        return this.activeMods.gracefulTime;
+      default:
+        return 0;
+    }
   }
 
   private currentSpellCost(spell: SpellKey): number {
     if (spell === "cannonPrep") return this.nextCannonPrepCost();
     if (spell === "cannon" || spell === "cannonFire") return 0;
+    if (this.nextSpellFree && !this.isHiddenComboSpell(spell)) return 0;
     const fatigue = this.spellFatigueMultiplier(spell);
     const silenceCost = this.isPlayerSilenced() ? 1.6 : 1;
     return Math.round(SPELL_COSTS[spell] * (1 + (1 - fatigue) * 1.1) * silenceCost);
