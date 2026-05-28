@@ -400,6 +400,50 @@ export type SpellKey = keyof typeof SPELL_CONFIG;
 
 const SPELL_KEYS = Object.keys(SPELL_CONFIG) as SpellKey[];
 const CORE_VOICE_SPELLS = ["cannon", "cannonPrep", "cannonFire"] as const satisfies readonly SpellKey[];
+const EXTRA_COMMAND_SHORTCUTS = ["z", "x", "c", "v", "b", "n", "m"] as const;
+const TEST_FUN_SPELLS = [
+  "bang",
+  "skillGo",
+  "xiexiu",
+  "serious",
+  "cardCheck",
+  "woqu",
+  "tooLate",
+  "noTalk",
+  "urgentCry",
+  "received",
+  "unknown",
+  "bodyShape",
+  "graceful",
+  "internalDrain",
+  "externalDrain",
+  "oldSelf",
+  "seeTomorrow",
+  "comboBangFull",
+  "comboBangTwoFists",
+  "comboCardCheck",
+  "comboTooLate",
+  "comboNoTalk",
+  "comboReceived",
+  "comboGracefulBody",
+  "comboExternalize",
+  "comboSeeTomorrow",
+] as const satisfies readonly SpellKey[];
+const TEST_COMMAND_SPELLS = [
+  "skillGo",
+  "xiexiu",
+  "serious",
+  "urgentCry",
+  "comboBangFull",
+  "comboBangTwoFists",
+  "comboCardCheck",
+  "comboTooLate",
+  "comboNoTalk",
+  "comboReceived",
+  "comboGracefulBody",
+  "comboExternalize",
+  "comboSeeTomorrow",
+] as const satisfies readonly SpellKey[];
 const MAX_GENERATED_ALIASES_PER_SEED = 36;
 
 type SpellVoiceCommand = {
@@ -1228,6 +1272,7 @@ export class VoiceSurvivorGame {
   private xpText!: HTMLElement;
   private gmPanel!: HTMLElement;
   private readonly gmEnabled = new URLSearchParams(window.location.search).get("gm") === "1";
+  private readonly testEnvironment = new URLSearchParams(window.location.search).get("test") === "1";
 
   private voiceInput!: VoiceInput<SurvivorVoiceAction>;
   private voiceActive = false;
@@ -1240,6 +1285,7 @@ export class VoiceSurvivorGame {
   private running = false;
   private paused = false;
   private selectingBuff = false;
+  private pendingUpgradeChoices = 0;
   private pauseSelectionIndex = 0;
   private upgradeSelectionIndex = 0;
   private gameOver = false;
@@ -1420,7 +1466,7 @@ export class VoiceSurvivorGame {
 
   mount(): void {
     this.root.innerHTML = `
-      <section class="survivor-shell${this.gmEnabled ? " has-gm" : ""}">
+      <section class="survivor-shell${this.gmEnabled && !this.testEnvironment ? " has-gm" : ""}${this.testEnvironment ? " has-test-env" : ""}">
         <canvas class="survivor-canvas" aria-label="人间大炮一级准备"></canvas>
         <section class="survivor-hud" aria-label="战斗状态">
           <div class="survivor-title">
@@ -1565,7 +1611,7 @@ export class VoiceSurvivorGame {
   }
 
   private renderGmPanel(): void {
-    if (!this.gmEnabled) {
+    if (!this.gmEnabled || this.testEnvironment) {
       this.gmPanel.hidden = true;
       return;
     }
@@ -2241,6 +2287,9 @@ export class VoiceSurvivorGame {
     if (!event.shiftKey && /^Digit[1-9]$/.test(event.code)) {
       add(event.code.slice(5));
     }
+    if (!event.shiftKey && /^Key[ZXCVBNM]$/.test(event.code)) {
+      add(event.code.slice(3));
+    }
 
     const codeAliases: Record<string, string> = {
       NumpadMultiply: "*",
@@ -2812,6 +2861,7 @@ export class VoiceSurvivorGame {
     this.level = 1;
     this.xp = 0;
     this.xpGoal = INITIAL_XP_GOAL;
+    this.pendingUpgradeChoices = 0;
     this.elapsed = 0;
     this.spawnTimer = 0.72;
     this.spawnBudget = 1.15;
@@ -2867,11 +2917,30 @@ export class VoiceSurvivorGame {
     this.lightningDamageScale = 0.55;
     this.bangLevel = 1;
     this.skillGoLevel = 1;
+    if (this.testEnvironment) {
+      this.enableTestEnvironment();
+    }
     this.screenShake = 0;
     this.screenShakePower = 0;
     this.renderCommandDock();
     this.renderGuidePanel();
     this.say("开局：按 Q 一级准备，按 E 人间大炮瞄准，按 R 发射；普通咒语从 1 开始。");
+  }
+
+  private enableTestEnvironment(): void {
+    this.unlockedSpells = new Set<SpellKey>([...CORE_VOICE_SPELLS, ...TEST_FUN_SPELLS]);
+    this.refreshVoiceSpellRecognition();
+    this.maxEnergy = 300;
+    this.energy = this.maxEnergy;
+    this.energyRegen = BASE_ENERGY_REGEN * 4.6;
+    this.dropEnergyRatio = 0.34;
+    this.cannonMeter = 100;
+    this.spawnBudget = 10;
+    this.surgeTimer = 9;
+    this.attackDamage += 5;
+    this.tutorial.upgradeSeen = true;
+    this.tutorial.upgradeChosen = true;
+    this.say("TEST 环境：已解锁全部乐子咒语，升级不抽卡，声能高速恢复，怪潮大幅提升。");
   }
 
   private loop(time: number): void {
@@ -2925,9 +2994,11 @@ export class VoiceSurvivorGame {
     this.recordPlayerSnapshot();
     const pressure = this.enemyPressure();
     const ramp = this.elapsed < 20 ? 1.45 : this.elapsed < 70 ? 1 : 0.72;
-    this.spawnBudget += dt * 0.085 * ramp * (1 - pressure * 0.62);
+    const spawnGain = this.testEnvironment ? 0.34 : 0.085;
+    const pressureDrag = this.testEnvironment ? 0.24 : 0.62;
+    this.spawnBudget += dt * spawnGain * ramp * (1 - pressure * pressureDrag);
     const inSilence = this.isPlayerSilenced();
-    this.energy = clamp(this.energy + dt * this.energyRegen * (inSilence ? 0.35 : 1), 0, this.maxEnergy);
+    this.energy = clamp(this.energy + dt * this.energyRegen * (inSilence && !this.testEnvironment ? 0.35 : 1), 0, this.maxEnergy);
     this.cannonMeter = clamp(this.cannonMeter + dt * 4 + this.kills * 0.0005, 0, 100);
     this.player.invuln = Math.max(0, this.player.invuln - dt);
     this.player.dodgeCooldown = Math.max(0, this.player.dodgeCooldown - dt);
@@ -2991,6 +3062,7 @@ export class VoiceSurvivorGame {
     this.updateSurges(dt);
     this.spawnEnemies(dt);
     this.checkLevelUp();
+    this.tryShowPendingUpgradeChoice();
     this.updateHudPassThroughState();
   }
 
@@ -3790,25 +3862,31 @@ export class VoiceSurvivorGame {
     const pressure = this.enemyPressure();
     const targetCount = this.targetEnemyCount();
     const tier = this.threatTier();
-    const pressureLimit = tier >= 4 ? 1.06 : tier >= 3 ? 1.08 : 1;
+    const pressureLimit = this.testEnvironment ? 1.22 : tier >= 4 ? 1.06 : tier >= 3 ? 1.08 : 1;
     if (pressure >= pressureLimit) {
       this.spawnTimer = tier >= 4 ? 0.78 : tier >= 3 ? 0.72 : 0.9;
       this.spawnBudget = Math.min(this.spawnBudget, tier >= 4 ? 1.45 : tier >= 3 ? 1.6 : 1.2);
       return;
     }
     const earlyRush = this.elapsed < 20;
-    const maxBatch = earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 4 + tier;
+    const maxBatch = this.testEnvironment ? (earlyRush ? 10 : 14 + tier * 2) : earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 4 + tier;
     const roomLeft = Math.max(0, targetCount - this.enemies.length);
     const count = Math.min(maxBatch, roomLeft, (earlyRush ? 2 : 1) + Math.floor(this.spawnBudget));
     for (let i = 0; i < count; i += 1) {
       this.spawnEnemy(this.pickEnemyType(wave));
     }
-    this.spawnBudget = Math.max(earlyRush ? 1.05 : 0.7, this.spawnBudget - count * 0.62);
+    this.spawnBudget = Math.max(this.testEnvironment ? 3.4 : earlyRush ? 1.05 : 0.7, this.spawnBudget - count * (this.testEnvironment ? 0.38 : 0.62));
     this.spawnTimer = this.nextSpawnInterval(pressure);
   }
 
   private targetEnemyCount(): number {
     const tier = this.threatTier();
+    if (this.testEnvironment) {
+      if (this.elapsed < 20) return 58;
+      if (this.elapsed < 55) return 74 + tier * 5;
+      if (this.elapsed < 100) return 88 + tier * 7;
+      return 102 + tier * 8;
+    }
     if (this.elapsed < 20) return 20;
     if (this.elapsed < 55) return 24 + tier * 2;
     if (this.elapsed < 100) return 29 + tier * 3;
@@ -3821,6 +3899,9 @@ export class VoiceSurvivorGame {
 
   private nextSpawnInterval(pressure: number): number {
     const tier = this.threatTier();
+    if (this.testEnvironment) {
+      return clamp(0.28 + pressure * 0.18 - tier * 0.025, 0.18, 0.52);
+    }
     const base = this.elapsed < 20 ? 0.86 : this.elapsed < 70 ? 1.08 : 1.36;
     const pressureDelay = pressure * (0.78 - tier * 0.06);
     return clamp(base + pressureDelay - tier * 0.065, 0.5, 2.05);
@@ -3831,6 +3912,7 @@ export class VoiceSurvivorGame {
     const byBuffs = buffCount >= 10 ? 4 : buffCount >= 7 ? 3 : buffCount >= 4 ? 2 : buffCount >= 1 ? 1 : 0;
     const byLevel = this.level >= 10 ? 4 : this.level >= 7 ? 3 : this.level >= 4 ? 2 : this.level >= 2 ? 1 : 0;
     const byTime = this.elapsed >= 175 ? 4 : this.elapsed >= 115 ? 3 : this.elapsed >= 60 ? 2 : this.elapsed >= 28 ? 1 : 0;
+    if (this.testEnvironment) return Math.max(2, byBuffs, byLevel, byTime);
     return Math.max(byBuffs, byLevel, byTime);
   }
 
@@ -6876,6 +6958,42 @@ export class VoiceSurvivorGame {
     this.cannonMeter = clamp(this.cannonMeter + 8 * lateTempo, 0, 100);
     this.addBurst(this.player.position, "#7cff9b", 48);
     this.addBurst(this.player.position, "#8ee8ff", 28);
+    if (this.testEnvironment) {
+      this.energy = this.maxEnergy;
+      this.cannonMeter = 100;
+      this.say(`TEST 环境：Lv.${this.level} 基础成长已生效，跳过抽卡。`);
+      return;
+    }
+    this.pendingUpgradeChoices += 1;
+    if (this.shouldDeferUpgradeChoice()) {
+      this.addVoiceDanmakuPin("升级待选择", "大招结束后弹出", "#7cff9b", "#8ee8ff");
+      this.say(`升级到 Lv.${this.level}，强化选择将在当前释放结束后出现。`);
+      return;
+    }
+    this.tryShowPendingUpgradeChoice();
+  }
+
+  private shouldDeferUpgradeChoice(): boolean {
+    if (this.player.cannonTime > 0 || this.cannonAiming || this.cannonTarget) return true;
+    if (this.comboFlash && this.comboFlash.life > 0) return true;
+    if (this.hitStopTime > 0 || this.slowMoTime > 0.12 || this.zoomPunchTime > 0.12) return true;
+    return (
+      this.pendingExternalizeBlasts.length > 0 ||
+      this.pendingCardReveals.length > 0 ||
+      this.pendingTooLateEvents.length > 0 ||
+      this.receivedCharge !== null ||
+      this.pendingReceivedReceipts.length > 0 ||
+      this.pendingTomorrowInsuranceEvents.length > 0 ||
+      this.pendingBangTwoFistEvents.length > 0 ||
+      this.seriousCases.length > 0 ||
+      this.pendingUrgentCryEvents.length > 0
+    );
+  }
+
+  private tryShowPendingUpgradeChoice(): void {
+    if (this.pendingUpgradeChoices <= 0 || this.selectingBuff || !this.upgradeOverlay.hidden || this.gameOver || !this.running) return;
+    if (this.shouldDeferUpgradeChoice()) return;
+    this.pendingUpgradeChoices -= 1;
     this.selectingBuff = true;
     this.showBuffChoices();
   }
@@ -6948,6 +7066,7 @@ export class VoiceSurvivorGame {
     this.say(buff.spell ? `解锁咒语：${SPELL_NAMES[buff.spell]}，已加入底部施法栏和语音识别${this.voiceRecognitionUpdateText(extraVoiceUpdates)}。` : `获得被动强化：${buff.title}，效果已立即生效。`);
     this.resumeVoiceAfterUpgrade();
     this.renderGuidePanel();
+    this.tryShowPendingUpgradeChoice();
   }
 
   private renderUpgradeGuide(choices: readonly Buff[]): void {
@@ -9235,6 +9354,11 @@ export class VoiceSurvivorGame {
       button.dataset.spell = spell;
       if (index < 9) {
         button.dataset.shortcut = String(index + 1);
+      } else {
+        const extraShortcut = EXTRA_COMMAND_SHORTCUTS[index - 9];
+        if (extraShortcut) {
+          button.dataset.shortcut = extraShortcut;
+        }
       }
       button.addEventListener("click", () => {
         this.pulseCommandButton(button);
@@ -9284,6 +9408,9 @@ export class VoiceSurvivorGame {
   }
 
   private commandSpells(): SpellKey[] {
+    if (this.testEnvironment) {
+      return TEST_COMMAND_SPELLS.filter((spell) => this.unlockedSpells.has(spell));
+    }
     const unlocked = [...this.unlockedSpells].filter((spell) => !["cannon", "cannonPrep", "cannonFire"].includes(spell));
     return unlocked;
   }
