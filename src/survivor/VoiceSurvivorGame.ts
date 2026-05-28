@@ -545,6 +545,15 @@ type SpellCue = {
   lines?: number;
 };
 
+type ComboFlash = {
+  label: string;
+  sublabel: string;
+  color: string;
+  accent: string;
+  life: number;
+  maxLife: number;
+};
+
 export type Turret = {
   position: Vec2;
   cooldown: number;
@@ -826,6 +835,7 @@ export class VoiceSurvivorGame {
   private drops: Drop[] = [];
   private particles: Particle[] = [];
   private spellCues: SpellCue[] = [];
+  private comboFlash: ComboFlash | null = null;
   private turrets: Turret[] = [];
   private unlockedSpells = new Set<SpellKey>(["cannon", "cannonPrep", "cannonFire"]);
   private ownedBuffs = new Map<string, number>();
@@ -916,6 +926,8 @@ export class VoiceSurvivorGame {
   private lightningDamageScale = 0.55;
   private bangLevel = 1;
   private skillGoLevel = 1;
+  private screenShake = 0;
+  private screenShakePower = 0;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -1380,6 +1392,7 @@ export class VoiceSurvivorGame {
     this.drops = [];
     this.particles = [];
     this.spellCues = [];
+    this.comboFlash = null;
     this.turrets = [];
     this.unlockedSpells = new Set(["cannon", "cannonPrep", "cannonFire"]);
     this.ownedBuffs.clear();
@@ -1470,6 +1483,8 @@ export class VoiceSurvivorGame {
     this.lightningDamageScale = 0.55;
     this.bangLevel = 1;
     this.skillGoLevel = 1;
+    this.screenShake = 0;
+    this.screenShakePower = 0;
     this.renderCommandDock();
     this.say("开局：按 Q 一级准备，按 E 人间大炮瞄准，按 R 发射；普通咒语从 1 开始。");
   }
@@ -1486,6 +1501,11 @@ export class VoiceSurvivorGame {
 
   private update(dt: number): void {
     this.elapsed += dt;
+    this.screenShake = Math.max(0, this.screenShake - dt);
+    if (this.comboFlash) {
+      this.comboFlash.life -= dt;
+      if (this.comboFlash.life <= 0) this.comboFlash = null;
+    }
     this.recordPlayerSnapshot();
     const pressure = this.enemyPressure();
     const ramp = this.elapsed < 20 ? 1.45 : this.elapsed < 70 ? 1 : 0.72;
@@ -2387,12 +2407,15 @@ export class VoiceSurvivorGame {
         this.castBangKeyword(power);
         break;
       case "skillGo":
+        this.triggerFunSpellImpact("技能五子棋", "棋阵落位", "#f8f1d1", "#8ee8ff");
         this.castSkillGo();
         break;
       case "xiexiu":
+        this.triggerFunSpellImpact("邪修", "野路子启动", "#d28cff", "#ff4f6d");
         this.castXiexiu();
         break;
       case "serious":
+        this.triggerFunSpellImpact("当个事儿办", "危险目标已受理", "#fff1a6", "#ff4f6d");
         this.activeMods.seriousTime = Math.max(this.activeMods.seriousTime, 5.5 * power);
         this.activeMods.focusTime = Math.max(this.activeMods.focusTime, 5.5 * power);
         this.addBurst(this.player.position, "#fff1a6", 18);
@@ -2420,6 +2443,7 @@ export class VoiceSurvivorGame {
         this.say("不讲：打断附近正在起手的敌人。");
         break;
       case "urgentCry":
+        this.triggerFunSpellImpact("你已急哭", "红温扩散", "#ff4f6d", "#fff1a6");
         this.castUrgentCry(power);
         break;
       case "received":
@@ -2495,6 +2519,7 @@ export class VoiceSurvivorGame {
     const power = fatigue * (1 + fragments.length * 0.22 + Math.min(0.35, this.level * 0.02));
     this.energy -= cost;
     this.recordSpell(spell);
+    this.triggerFunComboImpact(spell, power);
 
     switch (spell) {
       case "comboBangFull":
@@ -2571,6 +2596,90 @@ export class VoiceSurvivorGame {
       });
       this.nextProjectileId += 1;
     }
+  }
+
+  private triggerFunComboImpact(spell: SpellKey, power: number): void {
+    const theme = this.funComboTheme(spell);
+    const fragments = Math.max(1, this.comboFragments(spell).length);
+    const radius = 300 + fragments * 58 + Math.min(90, this.level * 4);
+    this.comboFlash = {
+      label: theme.label,
+      sublabel: theme.sublabel,
+      color: theme.color,
+      accent: theme.accent,
+      life: 1.05,
+      maxLife: 1.05,
+    };
+    this.screenShake = Math.max(this.screenShake, 0.34 + fragments * 0.05);
+    this.screenShakePower = Math.max(this.screenShakePower, 8 + fragments * 3);
+    this.addSpellRing(this.player.position, radius, theme.color, theme.label, 1.05);
+    this.addSpellRing(this.player.position, radius * 0.58, theme.accent, theme.sublabel, 0.78);
+    this.addBurst(this.player.position, theme.color, 34 + fragments * 12);
+    this.addBurst(this.player.position, theme.accent, 22 + fragments * 8);
+    this.addComboRays(this.player.position, theme.color, 14 + fragments * 4, radius * 0.95);
+    this.applyFunComboShockwave(radius * 0.78, power, theme);
+  }
+
+  private triggerFunSpellImpact(label: string, sublabel: string, color: string, accent: string): void {
+    this.comboFlash = {
+      label,
+      sublabel,
+      color,
+      accent,
+      life: 0.72,
+      maxLife: 0.72,
+    };
+    this.screenShake = Math.max(this.screenShake, 0.2);
+    this.screenShakePower = Math.max(this.screenShakePower, 5);
+    this.addSpellRing(this.player.position, 210, color, label, 0.72);
+    this.addBurst(this.player.position, color, 22);
+    this.addBurst(this.player.position, accent, 12);
+    this.addComboRays(this.player.position, accent, 10, 210);
+  }
+
+  private funComboTheme(spell: SpellKey): { label: string; sublabel: string; color: string; accent: string } {
+    const themes: Partial<Record<SpellKey, { label: string; sublabel: string; color: string; accent: string }>> = {
+      comboBangFull: { label: "梆梆不梆梆", sublabel: "连梆开路", color: "#ffcf5a", accent: "#fff1a6" },
+      comboBangTwoFists: { label: "梆梆两拳", sublabel: "点名重拳", color: "#ffe27a", accent: "#ff9b4a" },
+      comboCardCheck: { label: "我要验牌", sublabel: "全场翻牌", color: "#f8f1d1", accent: "#ff4f6d" },
+      comboTooLate: { label: "我去不早说", sublabel: "状态回溯", color: "#9cffd0", accent: "#7cff9b" },
+      comboNoTalk: { label: "不讲不讲", sublabel: "拒绝沟通", color: "#e9fbff", accent: "#66e0ff" },
+      comboReceived: { label: "收到，收到", sublabel: "复读爆发", color: "#7cff9b", accent: "#e9fbff" },
+      comboGracefulBody: { label: "身材很曼妙", sublabel: "判定缩小", color: "#d28cff", accent: "#9cffd0" },
+      comboExternalize: { label: "与其内耗，不如外耗", sublabel: "压力转嫁", color: "#c491ff", accent: "#ffcf5a" },
+      comboSeeTomorrow: { label: "爱你老己，明天见", sublabel: "今晚不死", color: "#f8f1d1", accent: "#7cff9b" },
+    };
+    return themes[spell] ?? { label: SPELL_NAMES[spell], sublabel: "完整梗 Combo", color: "#ffe27a", accent: "#8ee8ff" };
+  }
+
+  private addComboRays(position: Vec2, color: string, count: number, radius: number): void {
+    for (let i = 0; i < count; i += 1) {
+      const angle = (Math.PI * 2 * i) / count + this.elapsed * 0.35;
+      const start = {
+        x: position.x + Math.cos(angle) * 34,
+        y: position.y + Math.sin(angle) * 34,
+      };
+      const end = {
+        x: position.x + Math.cos(angle) * radius,
+        y: position.y + Math.sin(angle) * radius,
+      };
+      this.addParticle(start, end, color);
+    }
+  }
+
+  private applyFunComboShockwave(radius: number, power: number, theme: { color: string; accent: string }): void {
+    for (const enemy of this.enemies) {
+      const dist = distance(enemy.position, this.player.position);
+      if (enemy.hp <= 0 || dist > radius) continue;
+      const falloff = 1 - dist / radius;
+      const damage = (5 + this.attackDamage * 0.28) * power * (0.45 + falloff);
+      this.damageEnemy(enemy, damage, "bang");
+      this.knockEnemyAway(enemy, this.player.position, 18 + falloff * 26);
+      if (Math.random() < 0.55 + falloff * 0.35) {
+        this.addBurst(enemy.position, falloff > 0.55 ? theme.accent : theme.color, 6 + Math.floor(falloff * 7));
+      }
+    }
+    this.clearEnemyShotsNear(this.player.position, radius * 0.72);
   }
 
   private freezePriorityTargets(count: number, duration: number): void {
@@ -3918,8 +4027,15 @@ export class VoiceSurvivorGame {
   private render(): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
+    ctx.save();
+    if (this.screenShake > 0) {
+      const strength = this.screenShakePower * clamp(this.screenShake / 0.44, 0, 1);
+      ctx.translate((Math.random() - 0.5) * strength, (Math.random() - 0.5) * strength);
+    }
     this.renderer.render(ctx, this.getRenderState());
     this.renderSpellCues(ctx);
+    ctx.restore();
+    this.renderComboFlash(ctx);
     this.renderHudText();
   }
 
@@ -4280,6 +4396,52 @@ export class VoiceSurvivorGame {
       }
       ctx.restore();
     }
+  }
+
+  private renderComboFlash(ctx: CanvasRenderingContext2D): void {
+    const flash = this.comboFlash;
+    if (!flash) return;
+    const alpha = clamp(flash.life / flash.maxLife, 0, 1);
+    const progress = 1 - alpha;
+    const centerX = this.width / 2;
+    const centerY = this.height * 0.32;
+    const pulse = 1 + Math.sin(progress * Math.PI) * 0.08;
+
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.28;
+    const gradient = ctx.createRadialGradient(centerX, centerY, 20, centerX, centerY, Math.max(this.width, this.height) * 0.62);
+    gradient.addColorStop(0, flash.color);
+    gradient.addColorStop(0.35, "rgba(255,255,255,0.12)");
+    gradient.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    ctx.globalAlpha = alpha * 0.78;
+    ctx.fillStyle = "rgba(5, 7, 14, 0.42)";
+    const bannerWidth = Math.min(this.width * 0.82, 720);
+    const bannerHeight = 86;
+    ctx.fillRect(centerX - bannerWidth / 2, centerY - bannerHeight / 2, bannerWidth, bannerHeight);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = flash.color;
+    ctx.shadowBlur = 28;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `900 ${Math.round(35 * pulse)}px Microsoft YaHei, sans-serif`;
+    ctx.fillText(flash.label, centerX, centerY - 9 - progress * 10);
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = flash.accent;
+    ctx.font = "800 16px Microsoft YaHei, sans-serif";
+    ctx.fillText(flash.sublabel, centerX, centerY + 30 - progress * 6);
+
+    ctx.strokeStyle = flash.accent;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = alpha * 0.86;
+    ctx.beginPath();
+    ctx.moveTo(centerX - bannerWidth * 0.44, centerY + bannerHeight * 0.5);
+    ctx.lineTo(centerX + bannerWidth * 0.44, centerY + bannerHeight * 0.5);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private renderHudText(): void {
