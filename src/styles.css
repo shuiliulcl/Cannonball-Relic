@@ -1686,6 +1686,35 @@ button:focus-visible {
     0 16px 34px rgba(0, 0, 0, 0.38);
 }
 
+.survivor-pause {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 207, 90, 0.18), transparent 34%),
+    rgba(5, 7, 14, 0.82);
+}
+
+.survivor-pause h1 {
+  font-size: clamp(42px, 7vw, 82px);
+}
+
+.survivor-pause-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.survivor-pause-actions button.is-selected {
+  outline: 4px solid #00f5ff;
+  outline-offset: 4px;
+  filter: brightness(1.1) saturate(1.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.68),
+    0 0 0 2px rgba(5, 7, 14, 0.9),
+    0 0 0 7px rgba(255, 79, 109, 0.9),
+    0 0 28px rgba(0, 245, 255, 0.62),
+    0 18px 34px rgba(0, 0, 0, 0.42);
+}
+
 .survivor-upgrade {
   background: rgba(5, 7, 14, 0.82);
 }

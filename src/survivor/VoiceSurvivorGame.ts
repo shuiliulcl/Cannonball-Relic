@@ -981,6 +981,7 @@ export class VoiceSurvivorGame {
   private lastStatSignature = "";
   private voiceButton!: HTMLButtonElement;
   private startOverlay!: HTMLElement;
+  private pauseOverlay!: HTMLElement;
   private upgradeOverlay!: HTMLElement;
   private upgradeChoices!: HTMLElement;
   private commandDock!: HTMLElement;
@@ -1004,7 +1005,9 @@ export class VoiceSurvivorGame {
   private lastFrame = 0;
   private rafId = 0;
   private running = false;
+  private paused = false;
   private selectingBuff = false;
+  private pauseSelectionIndex = 0;
   private upgradeSelectionIndex = 0;
   private gameOver = false;
   private width = 1280;
@@ -1195,6 +1198,15 @@ export class VoiceSurvivorGame {
           <p>自动攻击怪潮，升级抽取咒语 Buff。键盘 Q/E/R 分别对应一级准备、人间大炮、发射；普通咒语从 1 开始排。</p>
           <button type="button" data-action="start">开始整活</button>
         </div>
+        <div id="survivorPause" class="survivor-overlay survivor-pause" hidden>
+          <span class="survivor-kicker">PAUSED</span>
+          <h1>暂停</h1>
+          <p>战斗已冻结，呼吸一下再回场。</p>
+          <div class="survivor-pause-actions">
+            <button type="button" data-action="resume">继续</button>
+            <button type="button" data-action="restart">重新开始</button>
+          </div>
+        </div>
         <div id="survivorUpgrade" class="survivor-overlay survivor-upgrade" hidden>
           <span class="survivor-kicker">选择一个 Buff</span>
           <h1>新咒语入库</h1>
@@ -1212,6 +1224,7 @@ export class VoiceSurvivorGame {
     this.chainLine = this.root.querySelector<HTMLElement>("#survivorChain") ?? this.fail("Missing survivor chain.");
     this.voiceButton = this.root.querySelector<HTMLButtonElement>("#survivorVoiceButton") ?? this.fail("Missing survivor voice button.");
     this.startOverlay = this.root.querySelector<HTMLElement>("#survivorStart") ?? this.fail("Missing survivor start overlay.");
+    this.pauseOverlay = this.root.querySelector<HTMLElement>("#survivorPause") ?? this.fail("Missing survivor pause overlay.");
     this.upgradeOverlay = this.root.querySelector<HTMLElement>("#survivorUpgrade") ?? this.fail("Missing survivor upgrade overlay.");
     this.upgradeChoices = this.root.querySelector<HTMLElement>("#survivorUpgradeChoices") ?? this.fail("Missing survivor upgrade choices.");
     this.commandDock = this.root.querySelector<HTMLElement>("#survivorCommandDock") ?? this.fail("Missing survivor command dock.");
@@ -1412,6 +1425,18 @@ export class VoiceSurvivorGame {
   private installEvents(): void {
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("keydown", (event) => {
+      if (this.handleStartKeyboard(event)) {
+        event.preventDefault();
+        return;
+      }
+      if (this.handlePauseMenuKeyboard(event)) {
+        event.preventDefault();
+        return;
+      }
+      if (this.handlePauseKeyboard(event)) {
+        event.preventDefault();
+        return;
+      }
       if (this.handleUpgradeKeyboard(event)) {
         event.preventDefault();
         return;
@@ -1438,10 +1463,94 @@ export class VoiceSurvivorGame {
       }
     });
     this.root.querySelector<HTMLButtonElement>("[data-action='start']")?.addEventListener("click", () => this.start());
+    this.pauseActionButtons().forEach((button, index) => {
+      button.addEventListener("focus", () => this.selectPauseAction(index, { focus: false }));
+      button.addEventListener("pointerenter", () => this.selectPauseAction(index, { focus: false }));
+    });
+    this.root.querySelector<HTMLButtonElement>("[data-action='resume']")?.addEventListener("click", () => this.resume());
+    this.root.querySelector<HTMLButtonElement>("[data-action='restart']")?.addEventListener("click", () => this.start());
     this.voiceButton.addEventListener("click", () => {
       if (this.voiceActive) this.stopVoice();
       else this.startVoice();
     });
+  }
+
+  private handleStartKeyboard(event: KeyboardEvent): boolean {
+    if (this.startOverlay.hidden || event.altKey || event.ctrlKey || event.metaKey) {
+      return false;
+    }
+    if (event.key !== "Enter" && event.code !== "Space") {
+      return false;
+    }
+    if (!event.repeat) {
+      this.start();
+    }
+    return true;
+  }
+
+  private handlePauseMenuKeyboard(event: KeyboardEvent): boolean {
+    if (!this.paused || this.pauseOverlay.hidden || event.altKey || event.ctrlKey || event.metaKey) {
+      return false;
+    }
+    const buttons = this.pauseActionButtons();
+    if (buttons.length === 0) return false;
+
+    const key = event.key.toLowerCase();
+    if (event.key === "Escape" || key === "p") {
+      if (!event.repeat) this.resume();
+      return true;
+    }
+    if (event.key === "ArrowLeft" || event.key === "Left" || event.key === "ArrowUp" || event.code === "KeyA" || event.code === "KeyW") {
+      this.selectPauseAction(this.pauseSelectionIndex - 1);
+      return true;
+    }
+    if (event.key === "ArrowRight" || event.key === "Right" || event.key === "ArrowDown" || event.code === "KeyD" || event.code === "KeyS") {
+      this.selectPauseAction(this.pauseSelectionIndex + 1);
+      return true;
+    }
+    if (event.key === "Enter" || event.code === "Space") {
+      if (!event.repeat) {
+        const button = buttons[clamp(this.pauseSelectionIndex, 0, buttons.length - 1)];
+        button?.click();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private handlePauseKeyboard(event: KeyboardEvent): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) {
+      return false;
+    }
+    const key = event.key.toLowerCase();
+    if (key !== "escape" && key !== "p") {
+      return false;
+    }
+    this.togglePause();
+    return true;
+  }
+
+  private pauseActionButtons(): HTMLButtonElement[] {
+    return Array.from(this.pauseOverlay.querySelectorAll<HTMLButtonElement>(".survivor-pause-actions button"));
+  }
+
+  private selectPauseAction(index: number, options: { focus?: boolean } = { focus: true }): void {
+    const buttons = this.pauseActionButtons();
+    if (buttons.length === 0) {
+      this.pauseSelectionIndex = 0;
+      return;
+    }
+    const normalized = ((index % buttons.length) + buttons.length) % buttons.length;
+    this.pauseSelectionIndex = normalized;
+    buttons.forEach((button, buttonIndex) => {
+      const selected = buttonIndex === normalized;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-selected", selected ? "true" : "false");
+      button.tabIndex = selected ? 0 : -1;
+    });
+    if (options.focus !== false) {
+      buttons[normalized]?.focus({ preventScroll: true });
+    }
   }
 
   private castManualShortcut(event: KeyboardEvent): boolean {
@@ -1450,7 +1559,7 @@ export class VoiceSurvivorGame {
     }
     const shortcuts = this.manualShortcutCandidates(event);
     if (shortcuts.length === 0) return false;
-    if (!this.running || this.selectingBuff || this.gameOver) {
+    if (!this.running || this.paused || this.selectingBuff || this.gameOver) {
       return false;
     }
     const button = this.commandButtonForShortcuts(shortcuts);
@@ -1731,15 +1840,52 @@ export class VoiceSurvivorGame {
 
   private start(): void {
     this.running = true;
+    this.paused = false;
     this.selectingBuff = false;
+    this.pauseSelectionIndex = 0;
     this.voicePausedForUpgrade = false;
     this.voiceCommandsEnabled = true;
     this.gameOver = false;
     this.startOverlay.hidden = true;
+    this.pauseOverlay.hidden = true;
+    this.upgradeOverlay.hidden = true;
     this.resetRun();
     this.lastFrame = performance.now();
     cancelAnimationFrame(this.rafId);
     this.rafId = requestAnimationFrame((time) => this.loop(time));
+  }
+
+  private pause(): void {
+    if (!this.running || this.paused || this.selectingBuff || this.gameOver) {
+      return;
+    }
+    this.paused = true;
+    this.keys.clear();
+    this.pauseOverlay.hidden = false;
+    this.selectPauseAction(0);
+    this.syncCommandDockVisibility();
+  }
+
+  private resume(): void {
+    if (!this.running || !this.paused || this.selectingBuff || this.gameOver) {
+      return;
+    }
+    this.paused = false;
+    this.pauseOverlay.hidden = true;
+    this.pauseSelectionIndex = 0;
+    this.lastFrame = performance.now();
+    this.syncCommandDockVisibility();
+  }
+
+  private togglePause(): void {
+    if (!this.running || this.selectingBuff || this.gameOver) {
+      return;
+    }
+    if (this.paused) {
+      this.resume();
+      return;
+    }
+    this.pause();
   }
 
   private resetRun(): void {
@@ -1882,9 +2028,11 @@ export class VoiceSurvivorGame {
     const dt = Math.min(0.033, (time - this.lastFrame) / 1000);
     this.lastFrame = time;
     const impactPaused = this.hitStopTime > 0;
-    this.updateScreenEffects(dt);
+    if (!this.paused) {
+      this.updateScreenEffects(dt);
+    }
     const worldDt = dt * this.currentTimeScale();
-    if (this.running && !this.selectingBuff && !this.gameOver) {
+    if (this.running && !this.paused && !this.selectingBuff && !this.gameOver) {
       if (impactPaused) {
         this.updateParticles(dt * 0.18);
         this.updateSpellCues(dt * 0.18);
@@ -2523,7 +2671,7 @@ export class VoiceSurvivorGame {
   }
 
   private castVoiceCombo(comboKey: VoiceComboKey): boolean {
-    if (!this.running || this.selectingBuff || this.gameOver) return false;
+    if (!this.running || this.paused || this.selectingBuff || this.gameOver) return false;
     const combo = VOICE_COMBO_CONFIG[comboKey];
     let successfulCasts = 0;
     for (const spell of combo.spells) {
@@ -2791,7 +2939,7 @@ export class VoiceSurvivorGame {
   }
 
   private castSpell(spell: SpellKey): boolean {
-    if (!this.running || this.selectingBuff || this.gameOver) return false;
+    if (!this.running || this.paused || this.selectingBuff || this.gameOver) return false;
     if (this.isHiddenComboSpell(spell)) {
       return this.castHiddenCombo(spell);
     }
@@ -4076,6 +4224,8 @@ export class VoiceSurvivorGame {
   private endRun(): void {
     this.gameOver = true;
     this.running = false;
+    this.paused = false;
+    this.pauseOverlay.hidden = true;
     this.startOverlay.hidden = false;
     this.startOverlay.querySelector("h1")!.textContent = "本局结束";
     this.startOverlay.querySelector("p")!.textContent = `分数 ${this.score}，击杀 ${this.kills}。再来一局，争取更梆。`;
@@ -4105,6 +4255,8 @@ export class VoiceSurvivorGame {
   }
 
   private showBuffChoices(count = 3): void {
+    this.paused = false;
+    this.pauseOverlay.hidden = true;
     this.pauseVoiceForUpgrade();
     const choices = this.draftBuffs(count);
     this.upgradeChoices.replaceChildren();
@@ -5746,7 +5898,7 @@ export class VoiceSurvivorGame {
   }
 
   private syncCommandDockVisibility(): void {
-    const hidden = !this.running || this.selectingBuff || this.gameOver;
+    const hidden = !this.running || this.paused || this.selectingBuff || this.gameOver;
     this.commandDock.hidden = hidden;
     this.commandDock.setAttribute("aria-hidden", hidden ? "true" : "false");
     window.requestAnimationFrame(() => this.updateCommandDockMetrics());
