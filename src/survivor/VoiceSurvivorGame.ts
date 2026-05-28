@@ -929,6 +929,7 @@ export class VoiceSurvivorGame {
   private upgradeOverlay!: HTMLElement;
   private upgradeChoices!: HTMLElement;
   private commandDock!: HTMLElement;
+  private commandDockObserver?: ResizeObserver;
   private activeSpellPanel!: HTMLElement;
   private hpFill!: HTMLElement;
   private hpText!: HTMLElement;
@@ -1155,6 +1156,9 @@ export class VoiceSurvivorGame {
     this.xpFill = this.root.querySelector<HTMLElement>("#survivorXpFill") ?? this.fail("Missing survivor XP fill.");
     this.xpText = this.root.querySelector<HTMLElement>("#survivorXpText") ?? this.fail("Missing survivor XP text.");
     this.gmPanel = this.root.querySelector<HTMLElement>("#survivorGmPanel") ?? this.fail("Missing survivor GM panel.");
+    this.commandDockObserver?.disconnect();
+    this.commandDockObserver = new ResizeObserver(() => this.updateCommandDockMetrics());
+    this.commandDockObserver.observe(this.commandDock);
 
     this.resize();
     this.installEvents();
@@ -3369,11 +3373,13 @@ export class VoiceSurvivorGame {
   private prepareCannon(): boolean {
     if (this.cannonCharge >= 3) {
       this.say("一级准备已经三层，够离谱了。喊人间大炮锁定，再喊发射。");
+      this.updateCommandDockState();
       return false;
     }
     const cost = this.nextCannonPrepCost();
     if (this.energy < cost) {
       this.say(`第 ${this.cannonCharge + 1} 层一级准备需要 ${cost} 声能，还差 ${Math.ceil(cost - this.energy)}。`);
+      this.updateCommandDockState();
       return false;
     }
     this.energy -= cost;
@@ -3382,6 +3388,7 @@ export class VoiceSurvivorGame {
     this.recordSpell("cannonPrep");
     this.addBurst(this.player.position, "#ffe27a", 16 + this.cannonCharge * 4);
     this.say(`一级准备 x${this.cannonCharge}。充能越高，弹射越多、伤害越高。`);
+    this.updateCommandDockState();
     return true;
   }
 
@@ -3392,6 +3399,7 @@ export class VoiceSurvivorGame {
   private lockCannonTarget(): boolean {
     if (this.cannonCharge <= 0) {
       this.say("人间大炮还没装填。再喊一级准备先充能。");
+      this.updateCommandDockState();
       return false;
     }
     const target = this.densestEnemyPoint();
@@ -3402,6 +3410,7 @@ export class VoiceSurvivorGame {
       this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
       this.addBurst(this.cannonTarget, "#ffe27a", 12);
       this.say("人间大炮：进入瞄准。移动鼠标调整方向，再按一次发射。");
+      this.updateCommandDockState();
       return true;
     }
     this.cannonTarget = { ...target };
@@ -3409,21 +3418,25 @@ export class VoiceSurvivorGame {
     this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
     this.addBurst(this.cannonTarget, "#ffe27a", 16);
     this.say("人间大炮：已对准敌群。可以移动鼠标微调，再按一次发射。");
+    this.updateCommandDockState();
     return true;
   }
 
   private fireCannon(): boolean {
     if (this.cannonCharge <= 0) {
       this.say("还没一级准备，先充能再发射。");
+      this.updateCommandDockState();
       return false;
     }
     if (!this.cannonTarget) {
       this.say("人间大炮还没瞄准。先锁定方向，再发射。");
+      this.updateCommandDockState();
       return false;
     }
     const meterCost = this.cannonFireMeterCost();
     if (this.cannonMeter < meterCost) {
       this.say(`大炮槽还差 ${Math.ceil(meterCost - this.cannonMeter)}，再等一下或打靶心怪。`);
+      this.updateCommandDockState();
       return false;
     }
     const direction = normalize({ x: this.cannonTarget.x - this.player.position.x, y: this.cannonTarget.y - this.player.position.y });
@@ -3445,6 +3458,7 @@ export class VoiceSurvivorGame {
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
     this.playSpellImpact({ glyph: "发射", glyphSize: 128 + charge * 16, color: "#ffe27a", shake: 12 + charge * 2, flash: 0.26, hitStop: 0.08, radius: 118 + charge * 18, particles: 28 + charge * 8 });
     this.say(`发射！${charge} 层充能，${charge} 次弹射。`);
+    this.updateCommandDockState();
     return true;
   }
 
@@ -3457,7 +3471,8 @@ export class VoiceSurvivorGame {
       this.lockCannonTarget();
       return;
     }
-    this.fireCannon();  }
+    this.fireCannon();
+  }
 
   private finishCannonLaunch(): void {
     const charge = Math.max(1, this.cannonLaunchCharge);
@@ -3797,6 +3812,7 @@ export class VoiceSurvivorGame {
     this.startOverlay.querySelector("h1")!.textContent = "本局结束";
     this.startOverlay.querySelector("p")!.textContent = `分数 ${this.score}，击杀 ${this.kills}。再来一局，争取更梆。`;
     this.startOverlay.querySelector("button")!.textContent = "重新开始";
+    this.syncCommandDockVisibility();
   }
 
   private checkLevelUp(): void {
@@ -3842,6 +3858,7 @@ export class VoiceSurvivorGame {
       this.upgradeChoices.append(button);
     }
     this.upgradeOverlay.hidden = false;
+    this.syncCommandDockVisibility();
   }
 
   private applyBuff(buff: Buff, options: { gm?: boolean } = {}): void {
@@ -5027,21 +5044,40 @@ export class VoiceSurvivorGame {
     const list = document.createElement("div");
     list.className = "survivor-command-list";
 
+    const cannonChain = document.createElement("div");
+    cannonChain.className = "survivor-cannon-chain";
+    cannonChain.setAttribute("role", "group");
+    cannonChain.setAttribute("aria-label", "人间大炮技能链：Q 一级准备，E 瞄准，R 发射");
+
+    const cannonTitle = document.createElement("div");
+    cannonTitle.className = "survivor-cannon-chain-title";
+    const cannonName = document.createElement("strong");
+    cannonName.textContent = "人间大炮";
+    const cannonMeta = document.createElement("span");
+    cannonMeta.textContent = "同一技能链：准备 / 瞄准 / 发射";
+    cannonTitle.append(cannonName, cannonMeta);
+
+    const cannonActions = document.createElement("div");
+    cannonActions.className = "survivor-cannon-chain-actions";
+
     ([
-      ["cannonPrep", "q"],
-      ["cannon", "e"],
-      ["cannonFire", "r"],
-    ] as const).forEach(([spell, shortcut]) => {
+      ["cannonPrep", "q", "prep"],
+      ["cannon", "e", "aim"],
+      ["cannonFire", "r", "fire"],
+    ] as const).forEach(([spell, shortcut, step]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.spell = spell;
       button.dataset.shortcut = shortcut;
+      button.dataset.chainStep = step;
       button.addEventListener("click", () => {
         this.pulseCommandButton(button);
         this.castSpell(spell);
       });
-      list.append(button);
+      cannonActions.append(button);
     });
+    cannonChain.append(cannonTitle, cannonActions);
+    list.append(cannonChain);
 
     const visible = this.commandSpells();
     visible.forEach((spell, index) => {
@@ -5059,7 +5095,21 @@ export class VoiceSurvivorGame {
     });
 
     this.commandDock.append(header, list);
+    this.syncCommandDockVisibility();
     this.updateCommandDockState();
+    this.updateCommandDockMetrics();
+  }
+
+  private syncCommandDockVisibility(): void {
+    const hidden = !this.running || this.selectingBuff || this.gameOver;
+    this.commandDock.hidden = hidden;
+    this.commandDock.setAttribute("aria-hidden", hidden ? "true" : "false");
+    window.requestAnimationFrame(() => this.updateCommandDockMetrics());
+  }
+
+  private updateCommandDockMetrics(): void {
+    const height = this.commandDock.hidden ? 0 : this.commandDock.getBoundingClientRect().height;
+    this.root.style.setProperty("--survivor-command-dock-height", `${Math.ceil(height)}px`);
   }
 
   private pulseCommandButton(button: HTMLButtonElement): void {
@@ -5075,6 +5125,7 @@ export class VoiceSurvivorGame {
   }
 
   private updateCommandDockState(): void {
+    this.syncCommandDockVisibility();
     const cannonButton = this.commandDock.querySelector<HTMLButtonElement>("button[data-command='cannon']");
     if (cannonButton) {
       const state = this.cannonCommandState();
@@ -5100,15 +5151,8 @@ export class VoiceSurvivorGame {
     const shortcut = button.dataset.shortcut ?? "";
     const spell = button.dataset.spell as SpellKey | undefined;
     const art = getLineglowSpellArt(spell ?? "cannon");
-    const glyphShortcut =
-      spell && art.glyph !== "•" && !(CORE_VOICE_SPELLS as readonly SpellKey[]).includes(spell)
-        ? this.normalizeManualShortcut(art.glyph)
-        : "";
     button.dataset.tone = art.tone;
-
-    const icon = document.createElement("span");
-    icon.className = "survivor-command-icon";
-    icon.textContent = art.glyph;
+    const displayLabel = button.dataset.chainStep === "aim" ? "瞄准" : state.label;
 
     const key = document.createElement("span");
     key.className = "survivor-command-key";
@@ -5117,7 +5161,7 @@ export class VoiceSurvivorGame {
     const copy = document.createElement("span");
     copy.className = "survivor-command-copy";
     const label = document.createElement("strong");
-    label.textContent = state.label;
+    label.textContent = displayLabel;
     const meta = document.createElement("em");
     meta.textContent = state.meta;
     copy.append(label, meta);
@@ -5126,10 +5170,8 @@ export class VoiceSurvivorGame {
     badge.className = "survivor-command-state";
     badge.textContent = state.badge;
 
-    const glyphHint = glyphShortcut && glyphShortcut !== this.normalizeManualShortcut(shortcut) ? `，图标快捷键 ${art.glyph}` : "";
-    button.title = `${state.title}${glyphHint ? `；也可按 ${art.glyph}` : ""}`;
-    button.setAttribute("aria-label", `${shortcut ? `${shortcut}，` : ""}${state.label}${glyphHint}，${state.meta}，${state.badge}`);
-    button.replaceChildren(icon, key, copy, badge);
+    button.setAttribute("aria-label", `${shortcut ? `${shortcut.toUpperCase()}，` : ""}${displayLabel}，${state.meta}，${state.badge}`);
+    button.replaceChildren(key, copy, badge);
   }
 
   private cannonCommandState(): CommandButtonState {
