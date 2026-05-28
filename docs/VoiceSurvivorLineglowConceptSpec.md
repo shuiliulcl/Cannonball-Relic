@@ -437,6 +437,25 @@ Rule added:
 
 - If a player body does not rotate in normal movement, keep the base silhouette radially balanced. Directional silhouettes are only acceptable when the renderer also rotates them to an actual movement, aim, or launch vector.
 
+## Runner / Pouncer Separation Pass v6.20
+
+Validation screenshots:
+
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/pouncer-concave-triangle-v6-20-slanted-flat-eye.png`
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/pouncer-v6-20-runtime-implementation-check.png`
+
+Adjustment:
+
+- Runner was moved toward the original projectile language: rounded dark body, warm contour, short soft tail, and a single slit eye/core.
+- Pouncer was then moved away from the runner language into a concave triangle shell.
+- The selected pouncer source is `docs/concepts/voice-survivor-orbit-ruins/extracted/lineglow-enemy-tokens-v6-20-pouncer-slanted-flat-eye-review/h2-flat-up-slant/`.
+- `pouncer_01.png` through `pouncer_04.png` were copied into `public/assets/skins/orbit-ruins/survivor/enemies/`.
+- The pouncer internal mark is now a solid flat-up slanted sensor instead of the runner's slit eye, reducing repeated internal detail language.
+
+Rule added:
+
+- High-frequency enemies can share a warm palette, but they need separate silhouette and eye grammar. Runner owns rounded projectile/slit-eye language; pouncer owns concave triangular shell/solid slanted sensor language.
+
 ## Player Readability Pass v6.5
 
 Validation screenshot:
@@ -455,3 +474,48 @@ Adjustment:
 Rule added:
 
 - In dense survivor gameplay, evaluate the player as a layered read stack: dark local contrast pocket, bright center, balanced locator ring, skill VFX, then HUD. Do not solve density by only scaling the player body, because that can break collision expectation and crowd spacing.
+
+## Player Buff Orbit Pass v6.6
+
+Validation screenshot:
+
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/player-buff-v6-6-review.png`
+
+Adjustment:
+
+- Added a close player-side Buff orbit layer in `LineglowSurvivorRenderer.ts`.
+- The large gameplay VFX stay responsible for action meaning: explosion arcs, freeze ring, lightning slashes, split rays, ricochet squares, focus reticle, and shield ring.
+- The new close orbit is for status readability: compact colored nodes and short arcs around the player show which Buff families are active without covering the center core.
+- Full-stack cases are capped to six nearby Buff nodes. `serious` replaces the normal focus node, and lower-priority damage boost can drop out before higher-role effects when the ring is crowded.
+- Each node has a small shape mark, not text: shield arc, explosion cross, freeze square, lightning bolt, split branch, pierce line, ricochet bounce, focus reticle, and damage slash.
+
+Rule added:
+
+- Buffs around the player should use two layers: outer functional VFX for what the Buff does, and a capped inner status orbit for what is currently active. Do not put every active modifier at full visual weight near the player.
+
+## Player Buff Signature Pass v6.8
+
+Validation screenshot:
+
+- `docs/concepts/voice-survivor-orbit-ruins/screenshots/player-buff-v6-8-shape-action-review.png`
+
+Problem found:
+
+- The v6.6/v6.7 close-orbit solution technically gave each Buff a small mark, but at runtime scale the marks were too similar in size and placement.
+- The result still read mostly as same-family colored dots/arcs, so color was carrying too much of the meaning.
+
+Adjustment:
+
+- Replaced the close color-node constellation with larger action-shaped Buff signatures in `LineglowSurvivorRenderer.ts`.
+- Shield is now a protective shell around the player instead of a node.
+- Freeze uses diamond crystal shards outside the core.
+- Ricochet uses angular corner/bounce marks.
+- Split uses fan lanes.
+- Pierce uses a double-ended spear line.
+- Lightning uses jagged slashes.
+- Explosion/cannon uses radial burst spikes and a hot arc.
+- Focus/serious keeps the reticle language because it maps directly to targeting behavior.
+
+Rule added:
+
+- Player-side Buffs must pass a silhouette-first read: in a small runtime screenshot, each Buff family should remain distinguishable by geometry or motion role even if the hue is ignored. Color is secondary confirmation, not the primary identifier.
