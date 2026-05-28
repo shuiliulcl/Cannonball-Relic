@@ -658,6 +658,27 @@ type LightningArc = {
   seed: number;
 };
 
+type FrostWave = {
+  position: Vec2;
+  radius: number;
+  color: string;
+  life: number;
+  maxLife: number;
+  spokes: number;
+  seed: number;
+};
+
+type FrostShard = {
+  position: Vec2;
+  angle: number;
+  length: number;
+  width: number;
+  drift: number;
+  color: string;
+  life: number;
+  maxLife: number;
+};
+
 export type PlayerAfterimage = {
   position: Vec2;
   radius: number;
@@ -984,6 +1005,7 @@ export class VoiceSurvivorGame {
   private rafId = 0;
   private running = false;
   private selectingBuff = false;
+  private upgradeSelectionIndex = 0;
   private gameOver = false;
   private width = 1280;
   private height = 720;
@@ -1027,6 +1049,8 @@ export class VoiceSurvivorGame {
   private zoomPunchStrength = 0;
   private impactLines: ImpactLine[] = [];
   private lightningArcs: LightningArc[] = [];
+  private frostWaves: FrostWave[] = [];
+  private frostShards: FrostShard[] = [];
   private playerAfterimages: PlayerAfterimage[] = [];
   private turrets: Turret[] = [];
   private unlockedSpells = new Set<SpellKey>(["cannon", "cannonPrep", "cannonFire"]);
@@ -1388,6 +1412,10 @@ export class VoiceSurvivorGame {
   private installEvents(): void {
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("keydown", (event) => {
+      if (this.handleUpgradeKeyboard(event)) {
+        event.preventDefault();
+        return;
+      }
       if (this.castManualShortcut(event)) {
         event.preventDefault();
         return;
@@ -1433,6 +1461,53 @@ export class VoiceSurvivorGame {
     this.pulseCommandButton(button);
     this.castSpell(spell);
     return true;
+  }
+
+  private handleUpgradeKeyboard(event: KeyboardEvent): boolean {
+    if (!this.selectingBuff || this.upgradeOverlay.hidden || event.altKey || event.ctrlKey || event.metaKey) {
+      return false;
+    }
+    const buttons = this.upgradeChoiceButtons();
+    if (buttons.length === 0) return false;
+    const key = event.key.toLowerCase();
+    if (event.key === "ArrowLeft" || event.key === "Left" || event.code === "KeyA" || key === "a") {
+      this.selectUpgradeChoice(this.upgradeSelectionIndex - 1);
+      return true;
+    }
+    if (event.key === "ArrowRight" || event.key === "Right" || event.code === "KeyD" || key === "d") {
+      this.selectUpgradeChoice(this.upgradeSelectionIndex + 1);
+      return true;
+    }
+    if (event.key === "Enter") {
+      if (event.repeat) return true;
+      const button = buttons[clamp(this.upgradeSelectionIndex, 0, buttons.length - 1)];
+      button?.click();
+      return true;
+    }
+    return false;
+  }
+
+  private upgradeChoiceButtons(): HTMLButtonElement[] {
+    return Array.from(this.upgradeChoices.querySelectorAll<HTMLButtonElement>("button"));
+  }
+
+  private selectUpgradeChoice(index: number, options: { focus?: boolean } = { focus: true }): void {
+    const buttons = this.upgradeChoiceButtons();
+    if (buttons.length === 0) {
+      this.upgradeSelectionIndex = 0;
+      return;
+    }
+    const normalized = ((index % buttons.length) + buttons.length) % buttons.length;
+    this.upgradeSelectionIndex = normalized;
+    buttons.forEach((button, buttonIndex) => {
+      const selected = buttonIndex === normalized;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-selected", selected ? "true" : "false");
+      button.tabIndex = selected ? 0 : -1;
+    });
+    if (options.focus !== false) {
+      buttons[normalized]?.focus({ preventScroll: true });
+    }
   }
 
   private manualShortcutCandidates(event: KeyboardEvent): string[] {
@@ -1703,6 +1778,8 @@ export class VoiceSurvivorGame {
     this.zoomPunchStrength = 0;
     this.impactLines = [];
     this.lightningArcs = [];
+    this.frostWaves = [];
+    this.frostShards = [];
     this.playerAfterimages = [];
     this.turrets = [];
     this.unlockedSpells = new Set(["cannon", "cannonPrep", "cannonFire"]);
@@ -1835,6 +1912,7 @@ export class VoiceSurvivorGame {
     }
     this.updateImpactLines(dt);
     this.updateLightningArcs(dt);
+    this.updateFrostEffects(dt);
     this.updatePlayerAfterimages(dt);
   }
 
@@ -2125,7 +2203,10 @@ export class VoiceSurvivorGame {
         const hitSpell = projectile.explosion ? "explode" : projectile.freeze ? "freeze" : projectile.lightning ? "lightning" : projectile.ricochet > 0 ? "ricochet" : undefined;
         this.damageEnemy(enemy, projectile.damage, hitSpell);
         projectile.hitIds.push(enemy.id);
-        if (projectile.freeze) enemy.frozen = Math.max(enemy.frozen, this.freezeDuration);
+        if (projectile.freeze) {
+          enemy.frozen = Math.max(enemy.frozen, this.freezeDuration);
+          this.addFrostShards(enemy.position, 3, enemy.radius * 2.2, "#bdf2ff", 0.18);
+        }
         if (projectile.explosion) this.explode(projectile.position, this.explosionRadius, projectile.damage * this.explosionDamageScale, projectile.freeze);
         if (projectile.lightning) this.chainLightning(enemy.position, projectile.damage * this.lightningDamageScale);
         if (projectile.ricochet > 0 && this.redirectRicochet(projectile, enemy)) {
@@ -2274,6 +2355,17 @@ export class VoiceSurvivorGame {
       arc.life -= dt;
     }
     this.lightningArcs = this.lightningArcs.filter((arc) => arc.life > 0);
+  }
+
+  private updateFrostEffects(dt: number): void {
+    for (const wave of this.frostWaves) {
+      wave.life -= dt;
+    }
+    for (const shard of this.frostShards) {
+      shard.life -= dt;
+    }
+    this.frostWaves = this.frostWaves.filter((wave) => wave.life > 0);
+    this.frostShards = this.frostShards.filter((shard) => shard.life > 0);
   }
 
   private updatePlayerAfterimages(dt: number): void {
@@ -2512,13 +2604,14 @@ export class VoiceSurvivorGame {
       }
       case "iceBomb": {
         this.playSlowMo(0.42, 0.24);
-        this.playZoomPunch(0.038, 0.22);
-        this.addImpactLines(this.player.position, "#9be7ff", 16, 168);
-        this.playSpellImpact({ glyph: "冰", glyphCount: 6, glyphSize: 54, color: "#9be7ff", shake: 9, flash: 0.2, hitStop: 0.05, radius: 150, particles: 22 });
+        this.playZoomPunch(0.044, 0.24);
+        this.addImpactLines(this.player.position, "#9be7ff", 18, 178);
+        this.playSpellImpact({ glyph: "冰", glyphCount: 7, glyphSize: 58, color: "#9be7ff", shake: 10, flash: 0.22, hitStop: 0.055, radius: 164, particles: 28 });
         const radius = this.freezePulseRadius + 52;
         this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 3.8 * power);
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, 3.2 * power);
         this.freezeAround(this.player.position, radius, this.freezeDuration * (1.1 + power * 0.18));
+        this.addFrostShards(this.player.position, 18, radius * 0.48, "#e8fbff", 0.38);
         this.explode(this.player.position, this.explosionRadius + 46, (18 + this.attackDamage) * power, true);
         this.addVoiceComboBurst("#9be7ff", "#ff9b4a", 54);
         this.say(`组合咒语：${combo.name}！先冻住，再炸开。`);
@@ -2586,7 +2679,8 @@ export class VoiceSurvivorGame {
       case "frostBlades": {
         const hasBlades = this.bladeCount > 0;
         if (hasBlades) {
-          this.playSpellImpact({ glyph: "冰", glyphCount: Math.min(5, this.bladeCount + 1), glyphSize: 48, color: "#9be7ff", shake: 5, flash: 0.1, radius: 116, particles: 12 });
+          this.playSpellImpact({ glyph: "冰", glyphCount: Math.min(6, this.bladeCount + 1), glyphSize: 52, color: "#9be7ff", shake: 6, flash: 0.13, hitStop: 0.025, radius: 126, particles: 18 });
+          this.addFrostShards(this.player.position, 8 + this.bladeCount, this.bladeRadius + 68, "#bdf2ff", 0.32);
         }
         this.freezeAround(this.player.position, this.bladeRadius + (hasBlades ? 92 : 54), this.freezeDuration * power);
         if (hasBlades) {
@@ -2744,7 +2838,9 @@ export class VoiceSurvivorGame {
       case "freeze":
         this.activeMods.freezeTime = Math.max(this.activeMods.freezeTime, 8 * power);
         this.freezeAround(this.player.position, this.freezePulseRadius, this.freezeDuration * power);
-        this.playSpellImpact({ glyph: "冻", glyphCount: 4, glyphSize: 48, color: "#9be7ff", shake: 2.5, flash: 0.08, radius: 112, particles: 8 });
+        this.playSlowMo(0.62, 0.16);
+        this.playZoomPunch(0.018, 0.16);
+        this.playSpellImpact({ glyph: "冻", glyphCount: 5, glyphSize: 54, color: "#9be7ff", shake: 4.5, flash: 0.12, hitStop: 0.025, radius: 126, particles: 16 });
         this.say(`冻结 Buff 开启 ${Math.ceil(this.activeMods.freezeTime)} 秒。`);
         break;
       case "lightning":
@@ -3825,9 +3921,15 @@ export class VoiceSurvivorGame {
       const dist = distance(position, enemy.position);
       if (dist > radius) continue;
       this.damageEnemy(enemy, damage * (1 - dist / radius * 0.45), "explode");
-      if (freezes) enemy.frozen = Math.max(enemy.frozen, this.freezeDuration * 0.75);
+      if (freezes) {
+        enemy.frozen = Math.max(enemy.frozen, this.freezeDuration * 0.75);
+        this.addFrostShards(enemy.position, 4, enemy.radius * 2.6, "#bdf2ff", 0.22);
+      }
     }
     this.addBurst(position, freezes ? "#9be7ff" : "#ff9b4a", 24);
+    if (freezes) {
+      this.addFrostWave(position, radius, 12);
+    }
   }
 
   private cannonShockwave(position: Vec2, radius: number, damage: number, knockback: number, freezes: boolean): void {
@@ -3837,9 +3939,15 @@ export class VoiceSurvivorGame {
       const falloff = 1 - dist / radius * 0.32;
       this.damageEnemy(enemy, damage * falloff, "cannon");
       this.knockEnemyAway(enemy, position, knockback * falloff);
-      if (freezes) enemy.frozen = Math.max(enemy.frozen, 0.28);
+      if (freezes) {
+        enemy.frozen = Math.max(enemy.frozen, 0.28);
+        this.addFrostShards(enemy.position, 3, enemy.radius * 2.1, "#e8fbff", 0.18);
+      }
     }
     this.addBurst(position, freezes ? "#fff1a6" : "#ffe27a", freezes ? 52 : 28);
+    if (freezes) {
+      this.addFrostWave(position, radius, 18, "#fff1a6", 0.42);
+    }
   }
 
   private knockEnemyAway(enemy: Enemy, origin: Vec2, amount: number): void {
@@ -3857,12 +3965,18 @@ export class VoiceSurvivorGame {
   }
 
   private freezeAround(position: Vec2, radius: number, duration: number): void {
+    const affected: Enemy[] = [];
     for (const enemy of this.enemies) {
       if (distance(position, enemy.position) <= radius) {
         enemy.frozen = Math.max(enemy.frozen, duration);
+        affected.push(enemy);
       }
     }
-    this.addBurst(position, "#9be7ff", 18);
+    this.addFrostWave(position, radius, 10 + Math.min(12, affected.length * 2));
+    for (const enemy of affected.slice(0, 12)) {
+      this.addFrostShards(enemy.position, 5, enemy.radius * 3, "#bdf2ff", 0.3);
+    }
+    this.addBurst(position, "#9be7ff", 24 + Math.min(18, affected.length * 2));
   }
 
   private chainLightning(position: Vec2, damage: number): void {
@@ -3994,12 +4108,17 @@ export class VoiceSurvivorGame {
     this.pauseVoiceForUpgrade();
     const choices = this.draftBuffs(count);
     this.upgradeChoices.replaceChildren();
+    this.upgradeChoices.setAttribute("role", "listbox");
     this.upgradeOverlay.querySelector("h1")!.textContent = "选择强化";
-    for (const buff of choices) {
+    for (const [index, buff] of choices.entries()) {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.rarity = buff.rarity;
       button.dataset.kind = this.buffKind(buff);
+      button.dataset.index = String(index);
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-selected", "false");
+      button.tabIndex = -1;
       button.innerHTML = `
         <span class="survivor-card-tags">
           <i>${buff.rarity === "diamond" ? "钻石" : buff.rarity === "gold" ? "黄金" : "青铜"}</i>
@@ -4009,9 +4128,12 @@ export class VoiceSurvivorGame {
         <em>${buff.description}</em>
       `;
       button.addEventListener("click", () => this.applyBuff(buff));
+      button.addEventListener("focus", () => this.selectUpgradeChoice(index, { focus: false }));
+      button.addEventListener("pointerenter", () => this.selectUpgradeChoice(index, { focus: false }));
       this.upgradeChoices.append(button);
     }
     this.upgradeOverlay.hidden = false;
+    this.selectUpgradeChoice(0);
     this.syncCommandDockVisibility();
   }
 
@@ -4022,6 +4144,7 @@ export class VoiceSurvivorGame {
     const voiceUpdates = this.refreshVoiceSpellRecognition();
     this.selectingBuff = false;
     this.upgradeOverlay.hidden = true;
+    this.upgradeSelectionIndex = 0;
     this.renderCommandDock();
     this.addBuffFeedback(buff);
     const extraVoiceUpdates = buff.spell ? voiceUpdates.filter((spell) => spell !== buff.spell) : voiceUpdates;
@@ -4238,6 +4361,46 @@ export class VoiceSurvivorGame {
     });
     if (this.lightningArcs.length > 72) {
       this.lightningArcs.splice(0, this.lightningArcs.length - 72);
+    }
+  }
+
+  private addFrostWave(position: Vec2, radius: number, spokes = 12, color = "#9be7ff", life = 0.46): void {
+    this.frostWaves.push({
+      position: { ...position },
+      radius: Math.max(44, radius),
+      color,
+      life,
+      maxLife: life,
+      spokes: Math.max(6, Math.floor(spokes)),
+      seed: Math.random() * 1000,
+    });
+    if (this.frostWaves.length > 24) {
+      this.frostWaves.splice(0, this.frostWaves.length - 24);
+    }
+  }
+
+  private addFrostShards(position: Vec2, count: number, radius: number, color = "#bdf2ff", life = 0.34): void {
+    const safeCount = Math.max(1, Math.floor(count));
+    const safeRadius = Math.max(18, radius);
+    for (let i = 0; i < safeCount; i += 1) {
+      const angle = (Math.PI * 2 * i) / safeCount + (Math.random() - 0.5) * 0.5;
+      const shardLife = life + Math.random() * 0.1;
+      this.frostShards.push({
+        position: {
+          x: position.x + Math.cos(angle) * safeRadius * (0.12 + Math.random() * 0.18),
+          y: position.y + Math.sin(angle) * safeRadius * (0.12 + Math.random() * 0.18),
+        },
+        angle,
+        length: safeRadius * (0.28 + Math.random() * 0.34),
+        width: 3 + Math.random() * 4,
+        drift: safeRadius * (0.08 + Math.random() * 0.14),
+        color,
+        life: shardLife,
+        maxLife: shardLife,
+      });
+    }
+    if (this.frostShards.length > 160) {
+      this.frostShards.splice(0, this.frostShards.length - 160);
     }
   }
 
@@ -4746,6 +4909,7 @@ export class VoiceSurvivorGame {
       ctx.translate(-this.width / 2, -this.height / 2);
     }
     this.renderer.render(ctx, this.getRenderState());
+    this.renderFrostEffects(ctx);
     this.renderLightningArcs(ctx);
     this.renderImpactLines(ctx);
     this.renderSpellCues(ctx);
@@ -4766,6 +4930,94 @@ export class VoiceSurvivorGame {
       x: (Math.random() * 2 - 1) * strength,
       y: (Math.random() * 2 - 1) * strength,
     };
+  }
+
+  private renderFrostEffects(ctx: CanvasRenderingContext2D): void {
+    if (this.frostWaves.length === 0 && this.frostShards.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (const wave of this.frostWaves) {
+      const alpha = clamp(wave.life / wave.maxLife, 0, 1);
+      const progress = 1 - alpha;
+      const radius = wave.radius * (0.18 + progress * 0.92);
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.strokeStyle = wave.color;
+      ctx.fillStyle = wave.color;
+      ctx.shadowColor = wave.color;
+      ctx.shadowBlur = 20 * alpha;
+      ctx.lineWidth = 2.2 + alpha * 1.4;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      for (let i = 0; i <= wave.spokes; i += 1) {
+        const angle = (Math.PI * 2 * i) / wave.spokes + wave.seed * 0.01;
+        const wobble = 1 + (this.frostNoise(wave.seed, i) - 0.5) * 0.12;
+        const x = wave.position.x + Math.cos(angle) * radius * wobble;
+        const y = wave.position.y + Math.sin(angle) * radius * wobble;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.globalAlpha = alpha * 0.18;
+      ctx.beginPath();
+      ctx.arc(wave.position.x, wave.position.y, radius * 0.72, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = alpha * 0.72;
+      ctx.lineWidth = 1.4 + alpha;
+      const crackCount = Math.min(18, wave.spokes);
+      for (let i = 0; i < crackCount; i += 1) {
+        const angle = (Math.PI * 2 * i) / crackCount + wave.seed * 0.017;
+        const start = radius * (0.26 + this.frostNoise(wave.seed + 13, i) * 0.18);
+        const mid = radius * (0.58 + this.frostNoise(wave.seed + 29, i) * 0.14);
+        const end = radius * (0.86 + this.frostNoise(wave.seed + 47, i) * 0.12);
+        const bend = (this.frostNoise(wave.seed + 61, i) - 0.5) * 0.22;
+        ctx.beginPath();
+        ctx.moveTo(wave.position.x + Math.cos(angle) * start, wave.position.y + Math.sin(angle) * start);
+        ctx.lineTo(wave.position.x + Math.cos(angle + bend) * mid, wave.position.y + Math.sin(angle + bend) * mid);
+        ctx.lineTo(wave.position.x + Math.cos(angle - bend * 0.7) * end, wave.position.y + Math.sin(angle - bend * 0.7) * end);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    for (const shard of this.frostShards) {
+      const alpha = clamp(shard.life / shard.maxLife, 0, 1);
+      const progress = 1 - alpha;
+      const x = shard.position.x + Math.cos(shard.angle) * shard.drift * progress;
+      const y = shard.position.y + Math.sin(shard.angle) * shard.drift * progress;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.78;
+      ctx.translate(x, y);
+      ctx.rotate(shard.angle);
+      ctx.fillStyle = shard.color;
+      ctx.strokeStyle = "rgba(247, 253, 255, 0.92)";
+      ctx.shadowColor = shard.color;
+      ctx.shadowBlur = 15 * alpha;
+      ctx.lineWidth = 1.2;
+      const length = shard.length * (0.65 + progress * 0.35);
+      ctx.beginPath();
+      ctx.moveTo(length * 0.58, 0);
+      ctx.lineTo(-length * 0.24, -shard.width);
+      ctx.lineTo(-length * 0.1, 0);
+      ctx.lineTo(-length * 0.24, shard.width);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  private frostNoise(seed: number, index: number): number {
+    const value = Math.sin(seed * 17.371 + index * 51.917 + this.elapsed * 9.3) * 24634.6345;
+    return value - Math.floor(value);
   }
 
   private renderLightningArcs(ctx: CanvasRenderingContext2D): void {

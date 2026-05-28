@@ -388,10 +388,10 @@ export class LineglowSurvivorRenderer {
     const spin = -this.elapsed * 0.28;
     ctx.strokeStyle = "rgba(182, 242, 255, 0.72)";
     ctx.shadowColor = "rgba(168, 236, 255, 0.68)";
-    ctx.shadowBlur = 13;
-    ctx.lineWidth = 1.55;
-    for (let i = 0; i < 4; i += 1) {
-      const angle = spin + Math.PI / 4 + i * (Math.PI / 2);
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 1.75;
+    for (let i = 0; i < 6; i += 1) {
+      const angle = spin + Math.PI / 6 + i * (Math.PI / 3);
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
       ctx.save();
@@ -411,6 +411,17 @@ export class LineglowSurvivorRenderer {
       ctx.lineTo(0, 5);
       ctx.stroke();
       ctx.restore();
+    }
+    ctx.strokeStyle = "rgba(247, 253, 255, 0.58)";
+    ctx.lineWidth = 1.15;
+    for (let i = 0; i < 12; i += 1) {
+      const angle = -spin * 1.4 + i * (Math.PI * 2 / 12);
+      const inner = this.player.radius + 18 + (i % 3) * 2;
+      const outer = this.player.radius + 42 + Math.sin(this.elapsed * 5 + i) * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      ctx.lineTo(Math.cos(angle + 0.08) * outer, Math.sin(angle + 0.08) * outer);
+      ctx.stroke();
     }
   }
 
@@ -653,14 +664,7 @@ export class LineglowSurvivorRenderer {
         ctx.shadowBlur = 0;
       }
       if (enemy.frozen > 0) {
-        ctx.strokeStyle = "rgba(168, 236, 255, 0.82)";
-        ctx.lineWidth = 2.2;
-        ctx.shadowColor = "rgba(168, 236, 255, 0.58)";
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.08, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        this.renderFrozenShell(ctx, radius);
       }
       return;
     }
@@ -802,6 +806,10 @@ export class LineglowSurvivorRenderer {
         break;
     }
 
+    if (enemy.frozen > 0) {
+      this.renderFrozenShell(ctx, radius);
+    }
+
     ctx.shadowBlur = 0;
     ctx.fillStyle = core;
     ctx.shadowColor = core;
@@ -810,6 +818,46 @@ export class LineglowSurvivorRenderer {
     ctx.arc(0, 0, Math.max(3.2, radius * 0.2), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+  }
+
+  private renderFrozenShell(ctx: CanvasRenderingContext2D, radius: number): void {
+    const pulse = 1 + Math.sin(this.elapsed * 7.2) * 0.035;
+    const shellRadius = radius * 1.16 * pulse;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = "rgba(189, 242, 255, 0.92)";
+    ctx.fillStyle = "rgba(168, 236, 255, 0.12)";
+    ctx.shadowColor = "rgba(168, 236, 255, 0.74)";
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i += 1) {
+      const angle = -Math.PI / 2 + (Math.PI * 2 * i) / 8;
+      const pointRadius = shellRadius * (i % 2 === 0 ? 1.08 : 0.94);
+      const x = Math.cos(angle) * pointRadius;
+      const y = Math.sin(angle) * pointRadius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(247, 253, 255, 0.86)";
+    ctx.lineWidth = 1.25;
+    ctx.shadowBlur = 8;
+    for (let i = 0; i < 5; i += 1) {
+      const angle = this.elapsed * 0.18 + i * (Math.PI * 2 / 5);
+      const inner = radius * (0.18 + (i % 2) * 0.1);
+      const mid = radius * 0.62;
+      const outer = shellRadius * 0.94;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      ctx.lineTo(Math.cos(angle + 0.22) * mid, Math.sin(angle + 0.22) * mid);
+      ctx.lineTo(Math.cos(angle - 0.12) * outer, Math.sin(angle - 0.12) * outer);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private renderOrbitRuinsEnemySprite(ctx: CanvasRenderingContext2D, enemy: Enemy, image: HTMLImageElement): void {

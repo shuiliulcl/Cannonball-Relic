@@ -1702,6 +1702,7 @@ button:focus-visible {
 }
 
 .survivor-upgrade-choices button {
+  position: relative;
   min-height: 220px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -1719,6 +1720,29 @@ button:focus-visible {
     0 5px 0 #78510d,
     0 16px 30px rgba(0, 0, 0, 0.36);
   text-align: left;
+}
+
+.survivor-upgrade-choices button.is-selected {
+  border-color: #00f5ff;
+  outline: 4px solid #ff4f6d;
+  outline-offset: 5px;
+  filter: brightness(1.12) saturate(1.14);
+  transform: translateY(-5px);
+  box-shadow:
+    0 0 0 2px rgba(5, 7, 14, 0.96),
+    0 0 0 7px rgba(0, 245, 255, 0.92),
+    0 0 30px rgba(0, 245, 255, 0.62),
+    0 18px 38px rgba(0, 0, 0, 0.44);
+}
+
+.survivor-upgrade-choices button.is-selected::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 2px solid rgba(5, 7, 14, 0.86);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2px rgba(247, 253, 255, 0.72);
+  pointer-events: none;
 }
 
 .survivor-upgrade-choices button[data-rarity="gold"] {
