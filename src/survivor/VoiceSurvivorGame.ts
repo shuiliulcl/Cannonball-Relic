@@ -448,6 +448,10 @@ const TEST_COMMAND_SPELLS = [
   "comboExternalize",
   "comboSeeTomorrow",
 ] as const satisfies readonly SpellKey[];
+const SYNTHESIZABLE_FUN_COMBOS = SPELL_KEYS.filter((spell) => {
+  const config = SPELL_CONFIG[spell] as SpellConfig;
+  return Boolean(config.hidden && config.fragments?.length);
+}) as SpellKey[];
 const MAX_GENERATED_ALIASES_PER_SEED = 36;
 
 type SpellVoiceCommand = {
@@ -1386,6 +1390,7 @@ export class VoiceSurvivorGame {
   private voiceRecognizedSpells = getCoreVoiceSpells();
   private voiceSpellCommands = buildSpellVoiceCommands(this.voiceRecognizedSpells);
   private ownedBuffs = new Map<string, number>();
+  private pendingSynthesizedFunCombos = new Set<SpellKey>();
   private spellChain: SpellKey[] = [];
   private repeatableSpellChain: SpellKey[] = [];
   private spellCastCounts = new Map<SpellKey, number>();
@@ -1736,6 +1741,7 @@ export class VoiceSurvivorGame {
   private gmUnlockSpell(spell: SpellKey): boolean {
     this.gmStart();
     this.unlockedSpells.add(spell);
+    this.synthesizeReadyFunCombos();
     this.refreshVoiceSpellRecognition();
     this.energy = this.maxEnergy;
     this.renderCommandDock();
@@ -3217,6 +3223,7 @@ export class VoiceSurvivorGame {
     this.unlockedSpells = new Set(["cannon", "cannonPrep", "cannonFire"]);
     this.refreshVoiceSpellRecognition();
     this.ownedBuffs.clear();
+    this.pendingSynthesizedFunCombos.clear();
     this.spellChain = [];
     this.repeatableSpellChain = [];
     this.spellCastCounts.clear();
@@ -5022,6 +5029,20 @@ export class VoiceSurvivorGame {
 
   private comboFragments(spell: SpellKey): SpellKey[] {
     return ((SPELL_CONFIG[spell] as SpellConfig).fragments ?? []) as SpellKey[];
+  }
+
+  private synthesizeReadyFunCombos(): SpellKey[] {
+    if (this.runMode === "wild") return [];
+    const synthesized: SpellKey[] = [];
+    for (const spell of SYNTHESIZABLE_FUN_COMBOS) {
+      if (this.unlockedSpells.has(spell)) continue;
+      const fragments = this.comboFragments(spell);
+      if (fragments.length > 0 && fragments.every((fragment) => this.unlockedSpells.has(fragment))) {
+        this.unlockedSpells.add(spell);
+        synthesized.push(spell);
+      }
+    }
+    return synthesized;
   }
 
   private castHiddenCombo(spell: SpellKey, options: { source?: CastSource } = {}): boolean {
@@ -7749,13 +7770,15 @@ export class VoiceSurvivorGame {
     this.tutorial.upgradeChosen = true;
     this.ownedBuffs.set(buff.id, (this.ownedBuffs.get(buff.id) ?? 0) + 1);
     if (buff.spell) this.unlockedSpells.add(buff.spell);
+    const synthesizedCombos = this.synthesizeReadyFunCombos();
     const voiceUpdates = this.refreshVoiceSpellRecognition();
     this.selectingBuff = false;
     this.upgradeOverlay.hidden = true;
     this.upgradeSelectionIndex = 0;
     this.renderCommandDock();
     this.addBuffFeedback(buff);
-    const extraVoiceUpdates = buff.spell ? voiceUpdates.filter((spell) => spell !== buff.spell) : voiceUpdates;
+    if (!options.gm) this.queueFunComboSynthesisFeedback(synthesizedCombos);
+    const extraVoiceUpdates = voiceUpdates.filter((spell) => spell !== buff.spell && !synthesizedCombos.includes(spell));
     if (options.gm) {
       this.say(buff.spell ? `GM: unlocked ${buff.spell}` : `GM: buff ${buff.id}`);
       this.renderGuidePanel();
@@ -7771,6 +7794,7 @@ export class VoiceSurvivorGame {
     }
     this.manualUpgradeSequenceOpen = false;
     this.syncCommandDockVisibility();
+    this.flushFunComboSynthesisFeedback();
   }
 
   private renderUpgradeGuide(choices: readonly Buff[]): void {
@@ -7821,6 +7845,31 @@ export class VoiceSurvivorGame {
     const kind = this.buffKind(buff);
     const color = kind === "spell" ? "#8ee8ff" : kind === "combo" ? "#ffe27a" : "#7cff9b";
     this.addBurst(this.player.position, color, kind === "passive" ? 18 : 26);
+  }
+
+  private queueFunComboSynthesisFeedback(spells: readonly SpellKey[]): void {
+    for (const spell of spells) {
+      this.pendingSynthesizedFunCombos.add(spell);
+    }
+  }
+
+  private flushFunComboSynthesisFeedback(): void {
+    const spells = [...this.pendingSynthesizedFunCombos];
+    if (spells.length === 0 || this.gameOver) return;
+    this.pendingSynthesizedFunCombos.clear();
+    this.addFunComboSynthesisFeedback(spells);
+    this.say(`合成完整乐子咒语：${spells.map((spell) => SPELL_NAMES[spell]).join("、")}，已折叠碎片并加入底部按键。`);
+  }
+
+  private addFunComboSynthesisFeedback(spells: readonly SpellKey[]): void {
+    if (spells.length === 0) return;
+    const names = spells.map((spell) => SPELL_NAMES[spell]).join("、");
+    this.addVoiceDanmakuPin("乐子合成", names, "#ffe27a", "#ff9b4a");
+    this.addSpellRing(this.player.position, 116, "#ffe27a", "完整咒语", 0.86);
+    this.addBurst(this.player.position, "#ffe27a", 34 + spells.length * 8);
+    this.addImpactLines(this.player.position, "#ff9b4a", 16 + spells.length * 3, 180, 0.34);
+    this.flashScreen("#ffe27a", 0.16, 0.08);
+    this.shakeScreen(4 + spells.length, 0.22);
   }
 
   private playSpellImpact(options: {
@@ -10156,6 +10205,11 @@ export class VoiceSurvivorGame {
 
   private renderCommandDock(): void {
     this.commandDock.replaceChildren();
+    const backfilledCombos = this.synthesizeReadyFunCombos();
+    if (backfilledCombos.length > 0 && this.running && !this.selectingBuff && !this.gameOver) {
+      this.queueFunComboSynthesisFeedback(backfilledCombos);
+      window.requestAnimationFrame(() => this.flushFunComboSynthesisFeedback());
+    }
     const visible = this.commandSpells();
     const header = document.createElement("div");
     header.className = "survivor-command-header";
@@ -10280,8 +10334,23 @@ export class VoiceSurvivorGame {
     if (this.testEnvironment) {
       return TEST_COMMAND_SPELLS.filter((spell) => this.unlockedSpells.has(spell));
     }
-    const unlocked = [...this.unlockedSpells].filter((spell) => !["cannon", "cannonPrep", "cannonFire"].includes(spell));
+    const collapsedFragments = this.collapsedSynthesizedFragments();
+    const unlocked = [...this.unlockedSpells].filter((spell) =>
+      !["cannon", "cannonPrep", "cannonFire"].includes(spell) &&
+      !collapsedFragments.has(spell),
+    );
     return unlocked;
+  }
+
+  private collapsedSynthesizedFragments(): Set<SpellKey> {
+    const collapsed = new Set<SpellKey>();
+    for (const spell of SYNTHESIZABLE_FUN_COMBOS) {
+      if (!this.unlockedSpells.has(spell)) continue;
+      for (const fragment of this.comboFragments(spell)) {
+        collapsed.add(fragment);
+      }
+    }
+    return collapsed;
   }
 
   private updateCommandDockState(): void {
