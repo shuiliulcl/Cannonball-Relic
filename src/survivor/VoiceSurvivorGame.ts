@@ -1545,7 +1545,7 @@ export class VoiceSurvivorGame {
         <section id="survivorWildSpellbook" class="survivor-wild-spellbook" aria-label="狂野模式咒语细则" hidden></section>
         <section id="survivorGmPanel" class="survivor-gm-panel" aria-label="GM debug tools" hidden></section>
         <div id="survivorStart" class="survivor-overlay">
-          <span class="survivor-kicker">语音幸存者肉鸽</span>
+          <span class="survivor-kicker">生活不妙，大喊大叫；人生无聊，一起大闹！</span>
           <h1>人间大炮一级准备</h1>
           <p>开局默认听咒语，大声喊出一级准备、人间大炮、发射等咒语施法；键盘 Q/E/R 仍可备用。</p>
           <div class="survivor-start-guide" aria-label="首次进入操作引导" hidden>
@@ -2215,7 +2215,7 @@ export class VoiceSurvivorGame {
   private renderStartIntroOverlay(): void {
     this.startOverlayMode = "intro";
     this.startOverlay.classList.remove("is-result");
-    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "语音幸存者肉鸽";
+    this.startOverlay.querySelector(".survivor-kicker")!.textContent = "生活不妙，大喊大叫；人生无聊，一起大闹！";
     this.startOverlay.querySelector("h1")!.textContent = "人间大炮一级准备";
     this.startOverlay.querySelector("p")!.textContent = "开局默认听咒语，大声喊出一级准备、人间大炮、发射等咒语施法；键盘 Q/E/R 仍可备用。";
     this.startGuide.hidden = true;
