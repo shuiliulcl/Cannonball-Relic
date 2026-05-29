@@ -1,4 +1,5 @@
 import { VoiceInput } from "../game/voice";
+import { playBounce, playCardSelect, playDefeat, playExplosion, playFire, playFreeze, playGoStone, playHit, playLightning, playPierce, playRicochet, playSplit, playWaveClear, resumeAudio } from "../game/Audio";
 import { LineglowSurvivorRenderer, type SurvivorRenderState } from "./render/LineglowSurvivorRenderer";
 import { getLineglowSpellArt, type LineglowTone } from "./render/lineglowTheme";
 
@@ -1063,6 +1064,9 @@ const CANNON_PREP_COSTS = [34, 48, 62] as const;
 const PERSONAL_LEADERBOARD_KEY = "voice-survivor-personal-leaderboard-v1";
 const PERSONAL_LEADERBOARD_LIMIT = 20;
 const INITIAL_XP_GOAL = 10;
+const RESULT_RATING_B_THRESHOLD = 260;
+const RESULT_RATING_A_THRESHOLD = 560;
+const RESULT_RATING_S_STEP = 360;
 
 const ENEMY_CONFIG: Record<EnemyType, { hp: number; speed: number; radius: number; color: string; label: string; xp: number }> = {
   runner: { hp: 12, speed: 68, radius: 13, color: "#ffbd4a", label: "跑", xp: 5 },
@@ -1297,6 +1301,16 @@ export class VoiceSurvivorGame {
   private wildSpellbookWasPaused = false;
   private pendingUpgradeChoices = 0;
   private manualUpgradeSequenceOpen = false;
+  private lastFireSfxAt = -999;
+  private lastHitSfxAt = -999;
+  private lastBounceSfxAt = -999;
+  private lastExplosionSfxAt = -999;
+  private lastLightningSfxAt = -999;
+  private lastFreezeSfxAt = -999;
+  private lastRicochetSfxAt = -999;
+  private lastSplitSfxAt = -999;
+  private lastPierceSfxAt = -999;
+  private lastGoSfxAt = -999;
   private pauseSelectionIndex = 0;
   private upgradeSelectionIndex = 0;
   private gameOver = false;
@@ -2167,6 +2181,7 @@ export class VoiceSurvivorGame {
     ) {
       return false;
     }
+    this.pulseUpgradePrompt();
     this.openPendingUpgradeChoices();
     return true;
   }
@@ -2699,6 +2714,97 @@ export class VoiceSurvivorGame {
     this.voiceDanmakuPins = this.voiceDanmakuPins.filter((pin) => pin.life > 0);
   }
 
+  private playFireSfx(interval = 0.08): void {
+    if (this.elapsed - this.lastFireSfxAt < interval) return;
+    this.lastFireSfxAt = this.elapsed;
+    playFire();
+  }
+
+  private playHitSfx(interval = 0.055): void {
+    if (this.elapsed - this.lastHitSfxAt < interval) return;
+    this.lastHitSfxAt = this.elapsed;
+    playHit();
+  }
+
+  private playBounceSfx(interval = 0.09): void {
+    if (this.elapsed - this.lastBounceSfxAt < interval) return;
+    this.lastBounceSfxAt = this.elapsed;
+    playBounce();
+  }
+
+  private playExplosionSfx(intensity = 1, interval = 0.13): void {
+    if (this.elapsed - this.lastExplosionSfxAt < interval) return;
+    this.lastExplosionSfxAt = this.elapsed;
+    playExplosion(intensity);
+  }
+
+  private playLightningSfx(intensity = 1, interval = 0.12): void {
+    if (this.elapsed - this.lastLightningSfxAt < interval) return;
+    this.lastLightningSfxAt = this.elapsed;
+    playLightning(intensity);
+  }
+
+  private playFreezeSfx(intensity = 1, interval = 0.18): void {
+    if (this.elapsed - this.lastFreezeSfxAt < interval) return;
+    this.lastFreezeSfxAt = this.elapsed;
+    playFreeze(intensity);
+  }
+
+  private playRicochetSfx(intensity = 1, interval = 0.09): void {
+    if (this.elapsed - this.lastRicochetSfxAt < interval) return;
+    this.lastRicochetSfxAt = this.elapsed;
+    playRicochet(intensity);
+  }
+
+  private playSplitSfx(intensity = 1, interval = 0.22): void {
+    if (this.elapsed - this.lastSplitSfxAt < interval) return;
+    this.lastSplitSfxAt = this.elapsed;
+    playSplit(intensity);
+  }
+
+  private playPierceSfx(intensity = 1, interval = 0.16): void {
+    if (this.elapsed - this.lastPierceSfxAt < interval) return;
+    this.lastPierceSfxAt = this.elapsed;
+    playPierce(intensity);
+  }
+
+  private playGoSfx(intensity = 1, interval = 0.1): void {
+    if (this.elapsed - this.lastGoSfxAt < interval) return;
+    this.lastGoSfxAt = this.elapsed;
+    playGoStone(intensity);
+  }
+
+  private playSpellCastSfx(spell: SpellKey): void {
+    switch (spell) {
+      case "explode":
+        this.playExplosionSfx(1.05, 0.08);
+        return;
+      case "freeze":
+        this.playFreezeSfx(1.15, 0.08);
+        return;
+      case "lightning":
+        this.playLightningSfx(1.25, 0.07);
+        return;
+      case "split":
+        this.playSplitSfx(1.15, 0.08);
+        return;
+      case "pierce":
+        this.playPierceSfx(1.15, 0.08);
+        return;
+      case "ricochet":
+        this.playRicochetSfx(1.1, 0.08);
+        return;
+      case "skillGo":
+        this.playGoSfx(1.25, 0.08);
+        return;
+      case "bang":
+        this.playHitSfx(0.02);
+        return;
+      default:
+        this.playFireSfx(0.06);
+    }
+  }
+
   private spellDanmakuColor(spell: SpellKey): string {
     return SPELL_TONE_COLORS[getLineglowSpellArt(spell).tone];
   }
@@ -2760,6 +2866,7 @@ export class VoiceSurvivorGame {
   }
 
   private startVoice(): void {
+    resumeAudio();
     this.voicePausedForUpgrade = false;
     this.voiceCommandsEnabled = true;
     if (this.voiceActive) {
@@ -2845,6 +2952,7 @@ export class VoiceSurvivorGame {
   }
 
   private start(options: { skipGuide?: boolean; mode?: RunMode } = {}): void {
+    resumeAudio();
     this.runMode = options.mode ?? "normal";
     this.running = true;
     this.paused = false;
@@ -3055,6 +3163,16 @@ export class VoiceSurvivorGame {
     this.lastVoiceDanmakuText = "";
     this.lastVoiceDanmakuAt = 0;
     this.nextVoiceDanmakuLane = 0;
+    this.lastFireSfxAt = -999;
+    this.lastHitSfxAt = -999;
+    this.lastBounceSfxAt = -999;
+    this.lastExplosionSfxAt = -999;
+    this.lastLightningSfxAt = -999;
+    this.lastFreezeSfxAt = -999;
+    this.lastRicochetSfxAt = -999;
+    this.lastSplitSfxAt = -999;
+    this.lastPierceSfxAt = -999;
+    this.lastGoSfxAt = -999;
     this.pendingExternalizeBlasts = [];
     this.pendingCardReveals = [];
     this.pendingTooLateEvents = [];
@@ -3716,6 +3834,7 @@ export class VoiceSurvivorGame {
         this.addImpactLines(this.player.position, "#ffe27a", 10 + this.cannonLaunchCharge * 3, 98 + this.cannonLaunchCharge * 22, 0.22);
         this.cannonShockwave(this.player.position, 72 + this.cannonLaunchCharge * 18, 10 + this.cannonLaunchCharge * 7, 26 + this.cannonLaunchCharge * 9, false);
         this.shakeScreen(5 + this.cannonLaunchCharge * 2, 0.1);
+        this.playBounceSfx();
       }
       if (this.player.position.y < this.player.radius || this.player.position.y > this.playerMaxY(this.player.radius)) {
         this.player.cannonVelocity.y *= -1.03;
@@ -3725,6 +3844,7 @@ export class VoiceSurvivorGame {
         this.addImpactLines(this.player.position, "#ffe27a", 10 + this.cannonLaunchCharge * 3, 98 + this.cannonLaunchCharge * 22, 0.22);
         this.cannonShockwave(this.player.position, 72 + this.cannonLaunchCharge * 18, 10 + this.cannonLaunchCharge * 7, 26 + this.cannonLaunchCharge * 9, false);
         this.shakeScreen(5 + this.cannonLaunchCharge * 2, 0.1);
+        this.playBounceSfx();
       }
       this.player.position.x = clamp(this.player.position.x, this.player.radius, this.width - this.player.radius);
       this.player.position.y = clamp(this.player.position.y, this.player.radius, this.playerMaxY(this.player.radius));
@@ -3801,6 +3921,7 @@ export class VoiceSurvivorGame {
       this.nextProjectileId += 1;
     };
     makeProjectile(0);
+    this.playFireSfx();
     if (this.bonusProjectiles >= 1) {
       makeProjectile(-0.18);
       makeProjectile(0.18);
@@ -3822,6 +3943,7 @@ export class VoiceSurvivorGame {
         makeProjectile(-angle);
         makeProjectile(angle);
       }
+      this.playSplitSfx(0.72, 0.34);
     }
   }
 
@@ -3829,6 +3951,7 @@ export class VoiceSurvivorGame {
     if (this.guardTurretCount <= 0) return;
     this.guardTurretCooldown -= dt;
     if (this.guardTurretCooldown > 0) return;
+    let fired = false;
     for (let i = 0; i < this.guardTurretCount; i += 1) {
       const position = this.guardTurretPosition(i);
       const target = this.nearestEnemy(position, this.guardTurretRange);
@@ -3849,7 +3972,9 @@ export class VoiceSurvivorGame {
         lightning: this.activeMods.lightningTime > 0,
       });
       this.nextProjectileId += 1;
+      fired = true;
     }
+    if (fired) this.playFireSfx(0.12);
     this.guardTurretCooldown = Math.max(0.24, this.guardTurretRate);
   }
 
@@ -3957,9 +4082,11 @@ export class VoiceSurvivorGame {
         if (projectile.freeze) {
           enemy.frozen = Math.max(enemy.frozen, this.freezeDuration);
           this.addFrostShards(enemy.position, 3, enemy.radius * 2.2, "#bdf2ff", 0.18);
+          this.playFreezeSfx(0.62, 0.28);
         }
         if (projectile.explosion) this.explode(projectile.position, this.explosionRadius, projectile.damage * this.explosionDamageScale, projectile.freeze);
         if (projectile.lightning) this.chainLightning(enemy.position, projectile.damage * this.lightningDamageScale);
+        if (projectile.pierce > 0) this.playPierceSfx(0.62, 0.24);
         if (projectile.ricochet > 0 && this.redirectRicochet(projectile, enemy)) {
           break;
         }
@@ -3984,6 +4111,7 @@ export class VoiceSurvivorGame {
     projectile.damage *= this.ricochetDamageMultiplier;
     projectile.ricochet -= 1;
     this.addParticle(fromEnemy.position, target.position, "#fff06a");
+    this.playRicochetSfx(0.86, 0.08);
     return true;
   }
 
@@ -4074,6 +4202,7 @@ export class VoiceSurvivorGame {
         lightning: this.skillGoLevel >= 3,
       });
       this.nextProjectileId += 1;
+      this.playGoSfx(0.56, 0.16);
       turret.cooldown = 0.58;
     }
     this.turrets = this.turrets.filter((turret) => turret.life > 0);
@@ -4564,6 +4693,7 @@ export class VoiceSurvivorGame {
     damage: number,
     options: { explosion?: boolean; freeze?: boolean; lightning?: boolean; ricochet?: boolean; pierce?: number; color: string },
   ): void {
+    if (count > 0) this.playFireSfx(0.06);
     const target = this.nearestEnemy(this.player.position, Infinity)?.position ?? {
       x: this.player.position.x + Math.cos(this.elapsed) * 120,
       y: this.player.position.y + Math.sin(this.elapsed) * 120,
@@ -4635,6 +4765,7 @@ export class VoiceSurvivorGame {
     this.energy -= cost;
     if (isFreeCast) this.nextSpellFree = false;
     this.recordSpell(spell);
+    this.playSpellCastSfx(spell);
 
     const power = fatigue * this.diversityBonus();
     switch (spell) {
@@ -4912,6 +5043,7 @@ export class VoiceSurvivorGame {
     life: number,
     options: Partial<Pick<Projectile, "pierce" | "ricochet" | "explosion" | "freeze" | "lightning" | "radius">> = {},
   ): void {
+    if (count > 0) this.playFireSfx(0.06);
     for (let i = 0; i < count; i += 1) {
       const angle = (Math.PI * 2 * i) / count + this.elapsed * 0.45;
       this.projectiles.push({
@@ -5993,6 +6125,7 @@ export class VoiceSurvivorGame {
     this.playZoomPunch(0.056, 0.22);
     this.flashScreen("#ffcf5a", 0.18, 0.18);
     this.shakeScreen(13, 0.26);
+    this.playExplosionSfx(1.55, 0.1);
     this.addPunchSpellGlyph({ x: blast.center.x - 50, y: blast.center.y }, "外", "#ffcf5a", 118, { x: -1, y: 0 }, 0, 0.78, 148, 2);
     this.addPunchSpellGlyph({ x: blast.center.x + 50, y: blast.center.y }, "耗", "#ffcf5a", 118, { x: 1, y: 0 }, 0.04, 0.78, 148, 2);
     this.addSpellRing(blast.center, blast.pushRadius * 0.5, "#ffcf5a", "外耗", 0.82);
@@ -6114,6 +6247,7 @@ export class VoiceSurvivorGame {
       this.playZoomPunch(0.052, 0.32);
       this.flashScreen("#ff4f6d", 0.24, 0.18);
       this.shakeScreen(11 + Math.min(12, event.pressureIndex * 0.5), 0.4);
+      this.playExplosionSfx(clamp(1.1 + event.pressureIndex * 0.035, 1.1, 1.8), 0.12);
       this.addSpellGlyph(event.center, event.pressureIndex >= 12 ? "绷不住了" : "急哭", "#ff4f6d", event.pressureIndex >= 12 ? 104 : 122, 1.08);
       this.addSpellRing(event.center, event.radius * 0.68, "#ff4f6d", "破防扩散", 1.08);
       this.addSpellRing(event.center, event.radius * 0.44, "#8ee8ff", `急哭指数 ${event.pressureIndex}`, 0.94);
@@ -6335,6 +6469,7 @@ export class VoiceSurvivorGame {
     this.cannonCharge += 1;
     this.cannonMeter = clamp(this.cannonMeter + 38, 0, 100);
     this.recordSpell("cannonPrep");
+    playCardSelect();
     this.addBurst(this.player.position, "#ffe27a", 24 + this.cannonCharge * 10);
     this.addSpellGlyph(this.player.position, `${this.cannonCharge}级准备`, "#ffe27a", 42 + this.cannonCharge * 10, 0.58);
     this.addSpellRing(this.player.position, 86 + this.cannonCharge * 34, "#ffe27a", "装填", 0.62);
@@ -6365,6 +6500,7 @@ export class VoiceSurvivorGame {
     if (!target) {
       this.cannonTarget = { ...this.pointer };
       this.recordSpell("cannon");
+      playCardSelect();
       this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
       this.addBurst(this.cannonTarget, "#ffe27a", 24 + this.cannonCharge * 6);
       this.addSpellGlyph(this.cannonTarget, "锁定", "#ffe27a", 46 + this.cannonCharge * 8, 0.62);
@@ -6376,6 +6512,7 @@ export class VoiceSurvivorGame {
     }
     this.cannonTarget = { ...target };
     this.recordSpell("cannon");
+    playCardSelect();
     this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
     this.addBurst(this.cannonTarget, "#ffe27a", 28 + this.cannonCharge * 8);
     this.addSpellGlyph(this.cannonTarget, "锁定", "#ffe27a", 48 + this.cannonCharge * 8, 0.62);
@@ -6421,6 +6558,7 @@ export class VoiceSurvivorGame {
     this.cannonTarget = null;
     this.cannonAiming = false;
     this.recordSpell("cannonFire");
+    this.playFireSfx(0);
     this.addBurst(this.player.position, "#ffe27a", 40);
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
     this.playSlowMo(0.34, 0.26);
@@ -6630,6 +6768,7 @@ export class VoiceSurvivorGame {
     const projectileDamage = 8 + this.attackDamage * 0.34 + this.skillGoLevel * 2.2;
     this.playSlowMo(0.32, 0.28);
     this.playZoomPunch(0.052, 0.26);
+    this.playGoSfx(1.45, 0.05);
     this.flashScreen("#f8f1d1", 0.18, 0.16);
     this.addImpactLines(this.player.position, "#f8f1d1", 24, 240, 0.36);
     for (let i = 0; i < placed.length; i += 1) {
@@ -6763,6 +6902,7 @@ export class VoiceSurvivorGame {
       }
     }
     this.addBurst(position, freezes ? "#9be7ff" : "#ff9b4a", 24);
+    this.playExplosionSfx(clamp(radius / 130 + damage / 260, 0.75, freezes ? 1.6 : 1.85), radius >= 150 ? 0.1 : 0.14);
     if (freezes) {
       this.addFrostWave(position, radius, 12);
     }
@@ -6781,6 +6921,9 @@ export class VoiceSurvivorGame {
       }
     }
     this.clearEnemyShotsNear(position, freezes ? radius + 90 : radius * 0.72);
+    if (freezes || radius >= 130 || damage >= 26) {
+      this.playExplosionSfx(clamp(radius / 170 + damage / 220, freezes ? 1.1 : 0.85, freezes ? 1.9 : 1.55), freezes ? 0.1 : 0.16);
+    }
     this.addBurst(position, freezes ? "#fff1a6" : "#ffe27a", freezes ? 76 : 42);
     this.addImpactLines(position, freezes ? "#ff9b4a" : "#ffe27a", freezes ? 24 : 14, radius * (freezes ? 0.86 : 0.62), freezes ? 0.36 : 0.24);
     if (freezes) {
@@ -6816,6 +6959,7 @@ export class VoiceSurvivorGame {
       this.addFrostShards(enemy.position, 5, enemy.radius * 3, "#bdf2ff", 0.3);
     }
     this.addBurst(position, "#9be7ff", 24 + Math.min(18, affected.length * 2));
+    this.playFreezeSfx(clamp(0.82 + affected.length * 0.045 + radius / 520, 0.82, 1.45), 0.14);
   }
 
   private chainLightning(position: Vec2, damage: number): void {
@@ -6823,6 +6967,9 @@ export class VoiceSurvivorGame {
       .filter((enemy) => enemy.hp > 0)
       .sort((a, b) => distance(a.position, position) - distance(b.position, position))
       .slice(0, this.lightningJumps);
+    if (targets.length > 0) {
+      this.playLightningSfx(clamp(0.82 + targets.length * 0.12 + damage / 80, 0.82, 1.55), 0.08);
+    }
     let arcOrigin = { ...position };
     for (const [index, enemy] of targets.entries()) {
       this.damageEnemy(enemy, damage, "lightning");
@@ -6850,6 +6997,7 @@ export class VoiceSurvivorGame {
     }
     if (spell) enemy.lastSpellHit = spell;
     enemy.hp -= amount;
+    this.playHitSfx(spell === "cannon" || spell === "explode" ? 0.09 : 0.055);
     if (enemy.hp > 0) {
       if (spell || amount >= this.attackDamage * 0.85) {
         this.addImpactBurst(enemy.position, spell === "freeze" ? "#9be7ff" : spell === "lightning" ? "#e5ff66" : spell === "explode" ? "#ff9b4a" : "#8ee8ff", 5);
@@ -6907,6 +7055,7 @@ export class VoiceSurvivorGame {
     this.gameOver = true;
     this.running = false;
     this.paused = false;
+    playDefeat();
     this.closeWildSpellbook({ restorePause: false });
     this.pauseOverlay.hidden = true;
     const rating = this.calculateResultRating();
@@ -6937,14 +7086,22 @@ export class VoiceSurvivorGame {
       uniqueSpellCount * 10 +
       Math.min(80, castCount * 1.4),
     );
-    if (resultScore < 130) return { label: "B", score: resultScore };
-    if (resultScore < 240) return { label: "A", score: resultScore };
-    const sCount = clamp(Math.floor((resultScore - 240) / 135) + 1, 1, 32);
-    return { label: "S".repeat(sCount), score: resultScore };
+    if (resultScore < RESULT_RATING_B_THRESHOLD) return { label: "B", score: resultScore };
+    if (resultScore < RESULT_RATING_A_THRESHOLD) return { label: "A", score: resultScore };
+    const sCount = clamp(Math.floor((resultScore - RESULT_RATING_A_THRESHOLD) / RESULT_RATING_S_STEP) + 1, 1, 32);
+    return { label: this.formatResultRatingLabel(sCount), score: resultScore };
   }
 
   private resultOneLineSummary(resultScore: number): string {
     return `分数 ${this.score}，击杀 ${this.kills}，生存 ${this.formatResultTime(this.elapsed)}，记录分 ${resultScore}。`;
+  }
+
+  private formatResultRatingLabel(sCount: number): string {
+    return sCount > 10 ? `S*${sCount}` : "S".repeat(sCount);
+  }
+
+  private normalizeStoredRatingLabel(label: string): string {
+    return /^S{11,}$/.test(label) ? this.formatResultRatingLabel(label.length) : label;
   }
 
   private renderResultPanel(rating: ResultRating): void {
@@ -7085,7 +7242,7 @@ export class VoiceSurvivorGame {
       const score = document.createElement("b");
       score.textContent = String(entry.score);
       const meta = document.createElement("em");
-      meta.textContent = `${entry.rating} / 击杀 ${entry.kills} / ${this.formatResultTime(entry.survivalTime)}`;
+      meta.textContent = `${this.normalizeStoredRatingLabel(entry.rating)} / 击杀 ${entry.kills} / ${this.formatResultTime(entry.survivalTime)}`;
       const date = document.createElement("small");
       date.textContent = this.formatLeaderboardDate(entry.createdAt);
       row.append(order, score, meta, date);
@@ -7289,6 +7446,7 @@ export class VoiceSurvivorGame {
     this.cannonMeter = clamp(this.cannonMeter + 8 * lateTempo, 0, 100);
     this.addBurst(this.player.position, "#7cff9b", 48);
     this.addBurst(this.player.position, "#8ee8ff", 28);
+    playWaveClear();
     if (this.runMode === "wild") {
       this.energy = clamp(this.energy + 26 * lateTempo, 0, this.maxEnergy);
       this.cannonMeter = clamp(this.cannonMeter + 18 * lateTempo, 0, 100);
@@ -7424,6 +7582,7 @@ export class VoiceSurvivorGame {
 
   private applyBuff(buff: Buff, options: { gm?: boolean } = {}): void {
     buff.apply();
+    if (!options.gm) playCardSelect();
     this.tutorial.upgradeChosen = true;
     this.ownedBuffs.set(buff.id, (this.ownedBuffs.get(buff.id) ?? 0) + 1);
     if (buff.spell) this.unlockedSpells.add(buff.spell);
@@ -9552,6 +9711,9 @@ export class VoiceSurvivorGame {
       const prompt = document.createElement("button");
       prompt.type = "button";
       prompt.className = "survivor-upgrade-prompt-row";
+      prompt.dataset.state = "ready";
+      prompt.title = `按 Tab 打开 ${this.pendingUpgradeChoices} 次升级选择。`;
+      prompt.setAttribute("aria-label", `按 Tab 打开 ${this.pendingUpgradeChoices} 次升级选择`);
       prompt.addEventListener("click", () => this.openPendingUpgradeChoices());
       prompt.innerHTML = `
         <span>Tab</span>
@@ -9595,6 +9757,15 @@ export class VoiceSurvivorGame {
       row.append(glyph, name, track, time);
       this.activeSpellPanel.append(row);
     }
+  }
+
+  private pulseUpgradePrompt(): void {
+    const prompt = this.activeSpellPanel.querySelector<HTMLButtonElement>(".survivor-upgrade-prompt-row");
+    if (!prompt) return;
+    prompt.classList.remove("is-pressed");
+    void prompt.offsetWidth;
+    prompt.classList.add("is-pressed");
+    window.setTimeout(() => prompt.classList.remove("is-pressed"), 140);
   }
 
   private renderGuidePanel(): void {

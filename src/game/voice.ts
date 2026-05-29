@@ -55,9 +55,11 @@ export class VoiceInput<TAction = VoiceAction> {
   private active = false;
   private shouldRestart = false;
   private startGeneration = 0;
+  private restartTimer: number | null = null;
+  private microphoneReady = false;
+  private processedResultCount = 0;
   private lastActionAt = 0;
   private lastActionKey = "";
-  private lastRecognitionText = "";
   private readonly matcher: VoiceMatcher<TAction>;
   private readonly actionKey: VoiceActionKey<TAction>;
 
@@ -80,7 +82,7 @@ export class VoiceInput<TAction = VoiceAction> {
     this.recognition = new ctor();
     this.recognition.lang = "zh-CN";
     this.recognition.continuous = true;
-    this.recognition.interimResults = true;
+    this.recognition.interimResults = false;
     this.recognition.onresult = (event) => this.handleResult(event);
     this.recognition.onerror = (event) => {
       const error = event.error ?? "unknown";
@@ -88,9 +90,15 @@ export class VoiceInput<TAction = VoiceAction> {
       if (!this.shouldRestart) {
         this.active = false;
         this.startGeneration += 1;
-        this.lastRecognitionText = "";
+        this.processedResultCount = 0;
+        this.clearRestartTimer();
+        if (error === "not-allowed" || error === "service-not-allowed") {
+          this.microphoneReady = false;
+        }
+        this.notify({ status: "error", transcript: "", actions: [], error });
+        return;
       }
-      this.notify({ status: "error", transcript: "", actions: [], error });
+      this.notify({ status: "listening", transcript: "", actions: [] });
     };
     this.recognition.onend = () => {
       if (!this.active || !this.shouldRestart) {
@@ -100,16 +108,7 @@ export class VoiceInput<TAction = VoiceAction> {
         }
         return;
       }
-      window.setTimeout(() => {
-        if (!this.active || !this.shouldRestart) {
-          return;
-        }
-        try {
-          this.recognition?.start();
-        } catch {
-          // The browser may still be winding down the previous recognizer session.
-        }
-      }, 250);
+      this.scheduleRestart();
     };
   }
 
@@ -131,7 +130,8 @@ export class VoiceInput<TAction = VoiceAction> {
     }
     this.active = true;
     this.shouldRestart = true;
-    this.lastRecognitionText = "";
+    this.processedResultCount = 0;
+    this.clearRestartTimer();
     const generation = this.startGeneration + 1;
     this.startGeneration = generation;
     void this.startRecognition(generation, recognition);
@@ -146,6 +146,10 @@ export class VoiceInput<TAction = VoiceAction> {
       recognition.start();
       this.notify({ status: "listening", transcript: "", actions: [] });
     } catch (error) {
+      if (this.active && this.startGeneration === generation && this.isRecognitionStartPending(error)) {
+        this.scheduleRestart(360);
+        return;
+      }
       this.active = false;
       this.shouldRestart = false;
       this.startGeneration += 1;
@@ -160,7 +164,8 @@ export class VoiceInput<TAction = VoiceAction> {
     this.active = false;
     this.shouldRestart = false;
     this.startGeneration += 1;
-    this.lastRecognitionText = "";
+    this.processedResultCount = 0;
+    this.clearRestartTimer();
     try {
       this.recognition.stop();
     } catch {
@@ -170,6 +175,9 @@ export class VoiceInput<TAction = VoiceAction> {
   }
 
   private async ensureMicrophonePermission(): Promise<void> {
+    if (this.microphoneReady) {
+      return;
+    }
     const mediaDevices = navigator.mediaDevices;
     if (!mediaDevices?.getUserMedia) {
       return;
@@ -178,6 +186,7 @@ export class VoiceInput<TAction = VoiceAction> {
     for (const track of stream.getTracks()) {
       track.stop();
     }
+    this.microphoneReady = true;
   }
 
   private isRestartableError(error: string): boolean {
@@ -185,37 +194,37 @@ export class VoiceInput<TAction = VoiceAction> {
   }
 
   private handleResult(event: RecognitionEvent): void {
-    const allTranscripts: string[] = [];
+    const visibleTranscripts: string[] = [];
     const transcripts: string[] = [];
-    for (let i = 0; i < event.results.length; i += 1) {
-      const transcript = event.results[i][0].transcript.trim();
-      if (transcript) {
-        allTranscripts.push(transcript);
-      }
-    }
-
+    let processedResultCount = this.processedResultCount;
     for (let i = event.resultIndex; i < event.results.length; i += 1) {
       const result = event.results[i];
       const transcript = result[0].transcript.trim();
       if (!transcript) {
         continue;
       }
-      transcripts.push(transcript);
+      visibleTranscripts.push(transcript);
+      if (i >= this.processedResultCount && result.isFinal) {
+        transcripts.push(transcript);
+        processedResultCount = Math.max(processedResultCount, i + 1);
+      }
     }
 
-    const combinedTranscript = allTranscripts.join(" ").trim();
-    if (!combinedTranscript || transcripts.length === 0) {
+    const latestTranscript = visibleTranscripts[visibleTranscripts.length - 1] ?? "";
+    if (!latestTranscript && transcripts.length === 0) {
       return;
     }
 
-    const latestTranscript = transcripts[transcripts.length - 1];
-    const newTranscript =
-      this.lastRecognitionText && combinedTranscript.startsWith(this.lastRecognitionText)
-        ? combinedTranscript.slice(this.lastRecognitionText.length).trim()
-        : latestTranscript;
-    this.lastRecognitionText = combinedTranscript;
+    if (processedResultCount > this.processedResultCount) {
+      this.processedResultCount = processedResultCount;
+    }
 
-    const actions = this.matcher(newTranscript || latestTranscript);
+    const finalTranscript = transcripts.join(" ").trim();
+    if (!finalTranscript) {
+      return;
+    }
+
+    const actions = this.matcher(finalTranscript);
     if (actions.length > 0) {
       const actionsToEmit = this.dedupeActions(actions);
       if (actionsToEmit.length > 0) {
@@ -225,7 +234,7 @@ export class VoiceInput<TAction = VoiceAction> {
     if (!this.active) {
       return;
     }
-    this.notify({ status: "listening", transcript: latestTranscript, actions });
+    this.notify({ status: "listening", transcript: finalTranscript, actions });
   }
 
   private dedupeActions(actions: TAction[]): TAction[] {
@@ -241,5 +250,43 @@ export class VoiceInput<TAction = VoiceAction> {
 
   private notify(info: VoiceInfo<TAction>): void {
     this.observer?.(info);
+  }
+
+  private scheduleRestart(delay = 250): void {
+    this.clearRestartTimer();
+    this.restartTimer = window.setTimeout(() => {
+      this.restartTimer = null;
+      if (!this.active || !this.shouldRestart) {
+        return;
+      }
+      try {
+        this.processedResultCount = 0;
+        this.recognition?.start();
+        this.notify({ status: "listening", transcript: "", actions: [] });
+      } catch (error) {
+        if (this.isRecognitionStartPending(error)) {
+          this.scheduleRestart(500);
+          return;
+        }
+        this.active = false;
+        this.shouldRestart = false;
+        this.startGeneration += 1;
+        this.notify({ status: "error", transcript: "", actions: [], error: error instanceof Error ? error.message : "start failed" });
+      }
+    }, delay);
+  }
+
+  private clearRestartTimer(): void {
+    if (this.restartTimer === null) {
+      return;
+    }
+    window.clearTimeout(this.restartTimer);
+    this.restartTimer = null;
+  }
+
+  private isRecognitionStartPending(error: unknown): boolean {
+    return error instanceof DOMException
+      ? error.name === "InvalidStateError"
+      : error instanceof Error && /already|started|state/i.test(error.message);
   }
 }
