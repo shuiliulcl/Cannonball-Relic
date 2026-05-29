@@ -400,6 +400,7 @@ const SPELL_CONFIG = {
 export type SpellKey = keyof typeof SPELL_CONFIG;
 type RunMode = "normal" | "wild";
 type UpgradePickMode = "manual" | "safe" | "instant";
+type CastSource = "manual" | "voice";
 
 const SPELL_KEYS = Object.keys(SPELL_CONFIG) as SpellKey[];
 const CORE_VOICE_SPELLS = ["cannon", "cannonPrep", "cannonFire"] as const satisfies readonly SpellKey[];
@@ -905,10 +906,13 @@ type Buff = {
   description: string;
   rarity: "bronze" | "gold" | "diamond";
   spell?: SpellKey;
-  phase?: "starter" | "branch" | "combo" | "late";
+  phase?: DraftPhase;
   maxStacks?: number;
   apply: () => void;
 };
+
+type DraftPhase = "starter" | "branch" | "combo" | "late";
+type DraftPacingStage = "opening" | "foundation" | "build" | "combo" | "late";
 
 type ResultRating = {
   label: string;
@@ -1385,6 +1389,11 @@ export class VoiceSurvivorGame {
   private spellChain: SpellKey[] = [];
   private repeatableSpellChain: SpellKey[] = [];
   private spellCastCounts = new Map<SpellKey, number>();
+  private voiceSpellCastCounts = new Map<SpellKey, number>();
+  private voiceEnergySaved = 0;
+  private voiceResonanceCount = 0;
+  private recentVoiceSpellChain: SpellKey[] = [];
+  private lastVoiceSpellAt = -999;
   private voiceBarrageLog: Array<{ text: string; tone: "heard" | "spell" | "combo" | "control"; time: number }> = [];
   private lastVoiceBarrageText = "";
   private lastVoiceBarrageAt = -999;
@@ -3211,6 +3220,11 @@ export class VoiceSurvivorGame {
     this.spellChain = [];
     this.repeatableSpellChain = [];
     this.spellCastCounts.clear();
+    this.voiceSpellCastCounts.clear();
+    this.voiceEnergySaved = 0;
+    this.voiceResonanceCount = 0;
+    this.recentVoiceSpellChain = [];
+    this.lastVoiceSpellAt = -999;
     this.voiceBarrageLog = [];
     this.lastVoiceBarrageText = "";
     this.lastVoiceBarrageAt = -999;
@@ -3417,10 +3431,13 @@ export class VoiceSurvivorGame {
     }
     this.recordPlayerSnapshot();
     const pressure = this.enemyPressure();
-    const ramp = this.elapsed < 20 ? 1.45 : this.elapsed < 70 ? 1 : 0.72;
+    const director = this.combatDirectorIntensity();
+    const ramp = this.elapsed < 20 ? 1.45 : this.elapsed < 70 ? 1 : 0.86;
     const spawnGain = this.testEnvironment ? 0.34 : this.runMode === "wild" ? 0.22 : 0.085;
-    const pressureDrag = this.testEnvironment ? 0.24 : this.runMode === "wild" ? 0.36 : 0.62;
-    this.spawnBudget += dt * spawnGain * ramp * (1 - pressure * pressureDrag);
+    const pressureDragBase = this.testEnvironment ? 0.24 : this.runMode === "wild" ? 0.36 : 0.62;
+    const pressureDrag = pressureDragBase * clamp(1 - director * 0.18, 0.48, 1);
+    const lowPressureRush = pressure < 0.58 ? (0.58 - pressure) * director * 1.9 : 0;
+    this.spawnBudget += dt * spawnGain * ramp * (1 + director * 0.62 + lowPressureRush) * (1 - pressure * pressureDrag);
     const inSilence = this.isPlayerSilenced();
     this.energy = clamp(this.energy + dt * this.energyRegen * (inSilence && !this.testEnvironment ? 0.35 : 1), 0, this.maxEnergy);
     this.cannonMeter = clamp(this.cannonMeter + dt * 4 + this.kills * 0.0005, 0, 100);
@@ -4263,7 +4280,8 @@ export class VoiceSurvivorGame {
   }
 
   private updateSurges(dt: number): void {
-    if (this.threatTier() < 2) {
+    const director = this.combatDirectorIntensity();
+    if (this.threatTier() < 2 && director < 0.65) {
       return;
     }
     this.surgeTimer -= dt;
@@ -4271,13 +4289,16 @@ export class VoiceSurvivorGame {
       return;
     }
     this.spawnSurge();
-    this.surgeTimer = this.runMode === "wild" ? Math.max(16, 28 - this.threatTier() * 2.5) : Math.max(24, 40 - this.threatTier() * 3);
+    this.surgeTimer = this.runMode === "wild"
+      ? Math.max(12, 28 - this.threatTier() * 2.5 - director * 4)
+      : Math.max(17, 38 - this.threatTier() * 3 - director * 6);
   }
 
   private spawnSurge(): void {
     const tier = this.threatTier();
-    const roomLeft = Math.max(0, this.targetEnemyCount() + 6 - this.enemies.length);
-    const count = Math.min(roomLeft, (this.runMode === "wild" ? 7 : 4) + Math.floor(tier * (this.runMode === "wild" ? 2.1 : 1.45)));
+    const director = this.combatDirectorIntensity();
+    const roomLeft = Math.max(0, this.targetEnemyCount() + 8 + Math.floor(director * 8) - this.enemies.length);
+    const count = Math.min(roomLeft, (this.runMode === "wild" ? 7 : 4) + Math.floor(tier * (this.runMode === "wild" ? 2.1 : 1.45) + director * 4));
     for (let i = 0; i < count; i += 1) {
       const type: EnemyType =
         i === 0 && tier >= 3 ? "target" :
@@ -4285,7 +4306,7 @@ export class VoiceSurvivorGame {
         i % 3 === 0 ? "ranged" :
         i % 2 === 0 ? "pouncer" :
         "brute";
-      this.spawnEnemy(type, 1.12 + tier * 0.12);
+      this.spawnEnemy(type, 1.12 + tier * 0.12 + director * 0.08);
     }
     this.cannonMeter = clamp(this.cannonMeter + 12, 0, 100);
     this.say("压力波来了：这波值得开大。");
@@ -4298,52 +4319,82 @@ export class VoiceSurvivorGame {
     const pressure = this.enemyPressure();
     const targetCount = this.targetEnemyCount();
     const tier = this.threatTier();
-    const pressureLimit = this.testEnvironment ? 1.22 : this.runMode === "wild" ? 1.16 : tier >= 4 ? 1.06 : tier >= 3 ? 1.08 : 1;
+    const director = this.combatDirectorIntensity();
+    const pressureLimit = this.testEnvironment
+      ? 1.26
+      : this.runMode === "wild"
+        ? clamp(1.16 + director * 0.08, 1.16, 1.34)
+        : clamp((tier >= 4 ? 1.06 : tier >= 3 ? 1.08 : 1) + director * 0.14, 1, 1.28);
     if (pressure >= pressureLimit) {
-      this.spawnTimer = this.runMode === "wild" ? 0.48 : tier >= 4 ? 0.78 : tier >= 3 ? 0.72 : 0.9;
-      this.spawnBudget = Math.min(this.spawnBudget, this.runMode === "wild" ? 2.25 : tier >= 4 ? 1.45 : tier >= 3 ? 1.6 : 1.2);
+      this.spawnTimer = this.runMode === "wild" ? 0.42 : tier >= 4 ? 0.64 : tier >= 3 ? 0.62 : 0.76;
+      this.spawnBudget = Math.min(this.spawnBudget, this.runMode === "wild" ? 2.6 : tier >= 4 ? 1.8 : tier >= 3 ? 1.75 : 1.35);
       return;
     }
     const earlyRush = this.elapsed < 20;
     const maxBatch = this.testEnvironment
-      ? (earlyRush ? 10 : 14 + tier * 2)
+      ? (earlyRush ? 10 : 16 + tier * 2 + Math.floor(director * 3))
       : this.runMode === "wild"
-        ? (earlyRush ? 7 : 10 + tier * 2)
-        : earlyRush ? 4 : this.elapsed < 80 ? 7 + tier : 4 + tier;
+        ? (earlyRush ? 7 : 11 + tier * 2 + Math.floor(director * 3))
+        : earlyRush ? 4 : this.elapsed < 80 ? 8 + tier + Math.floor(director * 3) : 7 + tier + Math.floor(director * 4);
     const roomLeft = Math.max(0, targetCount - this.enemies.length);
-    const count = Math.min(maxBatch, roomLeft, (earlyRush ? 2 : 1) + Math.floor(this.spawnBudget));
+    const count = Math.min(maxBatch, roomLeft, (earlyRush ? 2 : 1) + Math.floor(this.spawnBudget + director * (this.runMode === "wild" ? 1.2 : 0.8)));
     for (let i = 0; i < count; i += 1) {
       this.spawnEnemy(this.pickEnemyType(wave));
     }
     this.spawnBudget = Math.max(
-      this.testEnvironment ? 3.4 : this.runMode === "wild" ? 2.4 : earlyRush ? 1.05 : 0.7,
-      this.spawnBudget - count * (this.testEnvironment ? 0.38 : this.runMode === "wild" ? 0.46 : 0.62),
+      this.testEnvironment ? 3.8 : this.runMode === "wild" ? 2.8 : earlyRush ? 1.05 : 0.9 + director * 0.55,
+      this.spawnBudget - count * (this.testEnvironment ? 0.34 : this.runMode === "wild" ? 0.4 : clamp(0.58 - director * 0.08, 0.42, 0.62)),
     );
     this.spawnTimer = this.nextSpawnInterval(pressure);
   }
 
   private targetEnemyCount(): number {
     const tier = this.threatTier();
+    const director = this.combatDirectorIntensity();
+    const directorCount = Math.round(director * (this.elapsed < 55 ? 7 : this.elapsed < 100 ? 12 : 18));
     if (this.testEnvironment) {
-      if (this.elapsed < 20) return 58;
-      if (this.elapsed < 55) return 74 + tier * 5;
-      if (this.elapsed < 100) return 88 + tier * 7;
-      return 102 + tier * 8;
+      if (this.elapsed < 20) return 58 + directorCount;
+      if (this.elapsed < 55) return 74 + tier * 5 + directorCount;
+      if (this.elapsed < 100) return 88 + tier * 7 + directorCount;
+      return 102 + tier * 8 + directorCount;
     }
     if (this.runMode === "wild") {
-      if (this.elapsed < 20) return 42;
-      if (this.elapsed < 55) return 54 + tier * 4;
-      if (this.elapsed < 100) return 66 + tier * 5;
-      return 76 + tier * 6;
+      if (this.elapsed < 20) return 42 + directorCount;
+      if (this.elapsed < 55) return 56 + tier * 4 + directorCount;
+      if (this.elapsed < 100) return 70 + tier * 5 + directorCount;
+      return 84 + tier * 6 + directorCount;
     }
-    if (this.elapsed < 20) return 20;
-    if (this.elapsed < 55) return 24 + tier * 2;
-    if (this.elapsed < 100) return 29 + tier * 3;
-    return 32 + tier * 3;
+    if (this.elapsed < 20) return 20 + Math.round(director * 3);
+    if (this.elapsed < 55) return 27 + tier * 3 + directorCount;
+    if (this.elapsed < 100) return 36 + tier * 4 + directorCount;
+    return 44 + tier * 5 + directorCount;
   }
 
   private enemyPressure(): number {
     return clamp(this.enemies.length / this.targetEnemyCount(), 0, 1.2);
+  }
+
+  private buffStackCount(): number {
+    return [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
+  }
+
+  private combatDirectorIntensity(): number {
+    const buffCount = this.buffStackCount();
+    const minutes = Math.max(0.5, this.elapsed / 60);
+    const killRate = this.kills / minutes;
+    const levelPressure = Math.max(0, this.level - 4) * 0.055;
+    const buffPressure = buffCount * 0.055;
+    const killPressure = Math.max(0, killRate - 24) * 0.018;
+    const weaponPressure =
+      Math.max(0, this.attackDamage - 14) * 0.016 +
+      this.bonusProjectiles * 0.1 +
+      this.guardTurretCount * 0.08 +
+      this.bladeCount * 0.08 +
+      Math.max(0, this.ricochetBounces - 1) * 0.045;
+    const timePressure = Math.max(0, this.elapsed - 75) * 0.002;
+    const modePressure = this.testEnvironment ? 0.48 : this.runMode === "wild" ? 0.32 : 0;
+    const cap = this.testEnvironment ? 2.15 : this.runMode === "wild" ? 1.9 : 1.7;
+    return clamp(levelPressure + buffPressure + killPressure + weaponPressure + timePressure + modePressure, 0, cap);
   }
 
   private nextSpawnInterval(pressure: number): number {
@@ -4354,13 +4405,14 @@ export class VoiceSurvivorGame {
     if (this.runMode === "wild") {
       return clamp(0.48 + pressure * 0.28 - tier * 0.045, 0.3, 0.78);
     }
-    const base = this.elapsed < 20 ? 0.86 : this.elapsed < 70 ? 1.08 : 1.36;
-    const pressureDelay = pressure * (0.78 - tier * 0.06);
-    return clamp(base + pressureDelay - tier * 0.065, 0.5, 2.05);
+    const director = this.combatDirectorIntensity();
+    const base = this.elapsed < 20 ? 0.82 : this.elapsed < 70 ? 0.94 : 1.08;
+    const pressureDelay = pressure * (0.64 - tier * 0.05);
+    return clamp(base + pressureDelay - tier * 0.075 - director * 0.18, 0.34, 1.75);
   }
 
   private threatTier(): number {
-    const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
+    const buffCount = this.buffStackCount();
     const byBuffs = buffCount >= 10 ? 4 : buffCount >= 7 ? 3 : buffCount >= 4 ? 2 : buffCount >= 1 ? 1 : 0;
     const byLevel = this.level >= 10 ? 4 : this.level >= 7 ? 3 : this.level >= 4 ? 2 : this.level >= 2 ? 1 : 0;
     const byTime = this.elapsed >= 175 ? 4 : this.elapsed >= 115 ? 3 : this.elapsed >= 60 ? 2 : this.elapsed >= 28 ? 1 : 0;
@@ -4371,6 +4423,7 @@ export class VoiceSurvivorGame {
 
   private pickEnemyType(wave: number): EnemyType {
     const tier = this.threatTier();
+    const director = this.combatDirectorIntensity();
     const pool: EnemyType[] = ["runner", "runner", "runner", "brute"];
     if (wave >= 1) pool.push("pouncer", "ranged");
     if (wave >= 2) pool.push("repeater", "repeater");
@@ -4379,14 +4432,20 @@ export class VoiceSurvivorGame {
     if (tier >= 2) pool.push("pouncer", "ranged", "repeater");
     if (tier >= 3) pool.push("silencer", "target", "brute");
     if (tier >= 4) pool.push("target", "silencer", "ranged");
+    if (director >= 0.55) pool.push("pouncer", "ranged", "repeater", "target");
+    if (director >= 1.05) pool.push("brute", "silencer", "target", "repeater");
+    if (director >= 1.45) pool.push("target", "target", "silencer", "brute");
     return pool[Math.floor(Math.random() * pool.length)] ?? "runner";
   }
 
   private spawnEnemy(type: EnemyType, strength = 1): void {
     const cfg = ENEMY_CONFIG[type];
     const scaling = this.enemyScaling();
+    const director = this.combatDirectorIntensity();
     const baseHp = cfg.hp + this.elapsed * (0.15 + scaling.tier * 0.03);
-    const hp = baseHp * scaling.hpMultiplier * strength;
+    const isHeavy = type === "brute" || type === "silencer" || type === "target" || type === "repeater";
+    const directorHp = isHeavy ? 1 + director * 0.24 : 1 + director * 0.08;
+    const hp = baseHp * scaling.hpMultiplier * strength * directorHp;
     const edge = Math.floor(Math.random() * 4);
     const maxY = this.playerMaxY(cfg.radius);
     const position = {
@@ -4412,14 +4471,15 @@ export class VoiceSurvivorGame {
   private enemyScaling(): { tier: number; hpMultiplier: number; speedMultiplier: number; damageMultiplier: number } {
     const tier = this.threatTier();
     const minutes = this.elapsed / 60;
+    const director = this.combatDirectorIntensity();
     const wildHpBonus = this.runMode === "wild" ? 0.22 + minutes * 0.05 : 0;
     const wildSpeedBonus = this.runMode === "wild" ? 0.08 + minutes * 0.015 : 0;
     const wildDamageBonus = this.runMode === "wild" ? 0.18 + minutes * 0.035 : 0;
     return {
       tier,
-      hpMultiplier: 1 + tier * 0.23 + Math.max(0, minutes - 1) * 0.13 + wildHpBonus,
-      speedMultiplier: 1 + tier * 0.04 + Math.max(0, minutes - 1.3) * 0.02 + wildSpeedBonus,
-      damageMultiplier: 1 + tier * 0.13 + Math.max(0, minutes - 1) * 0.06 + wildDamageBonus,
+      hpMultiplier: 1 + tier * 0.23 + Math.max(0, minutes - 1) * 0.13 + director * 0.16 + wildHpBonus,
+      speedMultiplier: 1 + tier * 0.04 + Math.max(0, minutes - 1.3) * 0.02 + director * 0.018 + wildSpeedBonus,
+      damageMultiplier: 1 + tier * 0.13 + Math.max(0, minutes - 1) * 0.06 + director * 0.07 + wildDamageBonus,
     };
   }
 
@@ -4443,7 +4503,7 @@ export class VoiceSurvivorGame {
       } else if (action.type === "combo") {
         this.castVoiceCombo(action.combo);
       } else {
-        this.castSpell(action.spell);
+        this.castSpell(action.spell, { source: "voice" });
       }
     }
   }
@@ -4467,7 +4527,7 @@ export class VoiceSurvivorGame {
     const combo = VOICE_COMBO_CONFIG[comboKey];
     let successfulCasts = 0;
     for (const spell of combo.spells) {
-      if (this.castSpell(spell)) successfulCasts += 1;
+      if (this.castSpell(spell, { source: "voice" })) successfulCasts += 1;
     }
 
     if (successfulCasts <= 0 || !this.isVoiceComboArmed(comboKey)) {
@@ -4733,10 +4793,11 @@ export class VoiceSurvivorGame {
     }
   }
 
-  private castSpell(spell: SpellKey): boolean {
+  private castSpell(spell: SpellKey, options: { source?: CastSource } = {}): boolean {
+    const source = options.source ?? "manual";
     if (!this.running || this.paused || this.selectingBuff || this.gameOver) return false;
     if (this.isHiddenComboSpell(spell)) {
-      return this.castHiddenCombo(spell);
+      return this.castHiddenCombo(spell, { source });
     }
     if (!this.unlockedSpells.has(spell) && !["cannonPrep", "cannonFire", "cannon"].includes(spell)) {
       this.say(`${SPELL_NAMES[spell]}还没抽到，先升级找它。`);
@@ -4744,19 +4805,20 @@ export class VoiceSurvivorGame {
     }
 
     if (spell === "cannonPrep") {
-      return this.prepareCannon();
+      return this.prepareCannon({ source });
     }
     if (spell === "cannon") {
-      return this.lockCannonTarget();
+      return this.lockCannonTarget({ source });
     }
     if (spell === "cannonFire") {
-      return this.fireCannon();
+      return this.fireCannon({ source });
     }
 
     const fatigue = this.spellFatigueMultiplier(spell);
     const silenceCost = this.isPlayerSilenced() ? 1.6 : 1;
     const isFreeCast = this.nextSpellFree && !this.isHiddenComboSpell(spell);
-    const cost = isFreeCast ? 0 : Math.round(SPELL_COSTS[spell] * (1 + (1 - fatigue) * 1.1) * silenceCost);
+    const baseCost = Math.round(SPELL_COSTS[spell] * (1 + (1 - fatigue) * 1.1) * silenceCost);
+    const cost = isFreeCast ? 0 : this.voiceAdjustedCost(baseCost, source);
     if (this.energy < cost) {
       this.say(`${SPELL_NAMES[spell]}声能不够，还差 ${cost - Math.floor(this.energy)}。`);
       this.pulseEnergyDenied();
@@ -4764,10 +4826,10 @@ export class VoiceSurvivorGame {
     }
     this.energy -= cost;
     if (isFreeCast) this.nextSpellFree = false;
-    this.recordSpell(spell);
+    this.recordSpell(spell, { source, energySaved: isFreeCast ? 0 : baseCost - cost });
     this.playSpellCastSfx(spell);
 
-    const power = fatigue * this.diversityBonus();
+    const power = fatigue * this.diversityBonus() * this.voicePowerMultiplier(spell, source);
     switch (spell) {
       case "explode":
         this.activeMods.explosionTime = Math.max(this.activeMods.explosionTime, (8.5 + this.explosionDurationBonus) * power);
@@ -4962,14 +5024,16 @@ export class VoiceSurvivorGame {
     return ((SPELL_CONFIG[spell] as SpellConfig).fragments ?? []) as SpellKey[];
   }
 
-  private castHiddenCombo(spell: SpellKey): boolean {
+  private castHiddenCombo(spell: SpellKey, options: { source?: CastSource } = {}): boolean {
+    const source = options.source ?? "manual";
     const fragments = this.comboFragments(spell);
     const missing = fragments.filter((fragment) => !this.unlockedSpells.has(fragment));
     if (missing.length > 0) {
       this.say(`隐藏 Combo「${SPELL_NAMES[spell]}」还差碎片：${missing.map((fragment) => SPELL_NAMES[fragment]).join("、")}。`);
       return false;
     }
-    const cost = this.currentSpellCost(spell);
+    const baseCost = this.currentSpellCost(spell);
+    const cost = this.voiceAdjustedCost(baseCost, source);
     if (this.energy < cost) {
       this.say(`隐藏 Combo「${SPELL_NAMES[spell]}」声能不够，还差 ${cost - Math.floor(this.energy)}。`);
       this.pulseEnergyDenied();
@@ -4977,9 +5041,9 @@ export class VoiceSurvivorGame {
     }
 
     const fatigue = this.spellFatigueMultiplier(spell);
-    const power = fatigue * (1 + fragments.length * 0.22 + Math.min(0.35, this.level * 0.02));
+    const power = fatigue * (1 + fragments.length * 0.22 + Math.min(0.35, this.level * 0.02)) * this.voicePowerMultiplier(spell, source);
     this.energy -= cost;
-    this.recordSpell(spell);
+    this.recordSpell(spell, { source, energySaved: baseCost - cost });
     if (spell !== "comboExternalize") {
       this.triggerFunComboImpact(spell, power);
     }
@@ -6452,13 +6516,15 @@ export class VoiceSurvivorGame {
     }
   }
 
-  private prepareCannon(): boolean {
+  private prepareCannon(options: { source?: CastSource } = {}): boolean {
+    const source = options.source ?? "manual";
     if (this.cannonCharge >= 3) {
       this.say("一级准备已经三层，够离谱了。喊人间大炮锁定，再喊发射。");
       this.updateCommandDockState();
       return false;
     }
-    const cost = this.nextCannonPrepCost();
+    const baseCost = this.nextCannonPrepCost();
+    const cost = this.voiceAdjustedCost(baseCost, source);
     if (this.energy < cost) {
       this.say(`第 ${this.cannonCharge + 1} 层一级准备需要 ${cost} 声能，还差 ${Math.ceil(cost - this.energy)}。`);
       this.pulseEnergyDenied();
@@ -6468,7 +6534,7 @@ export class VoiceSurvivorGame {
     this.energy -= cost;
     this.cannonCharge += 1;
     this.cannonMeter = clamp(this.cannonMeter + 38, 0, 100);
-    this.recordSpell("cannonPrep");
+    this.recordSpell("cannonPrep", { source, energySaved: baseCost - cost });
     playCardSelect();
     this.addBurst(this.player.position, "#ffe27a", 24 + this.cannonCharge * 10);
     this.addSpellGlyph(this.player.position, `${this.cannonCharge}级准备`, "#ffe27a", 42 + this.cannonCharge * 10, 0.58);
@@ -6489,7 +6555,8 @@ export class VoiceSurvivorGame {
     return CANNON_PREP_COSTS[Math.min(this.cannonCharge, CANNON_PREP_COSTS.length - 1)];
   }
 
-  private lockCannonTarget(): boolean {
+  private lockCannonTarget(options: { source?: CastSource } = {}): boolean {
+    const source = options.source ?? "manual";
     if (this.cannonCharge <= 0) {
       this.say("人间大炮还没装填。再喊一级准备先充能。");
       this.updateCommandDockState();
@@ -6499,7 +6566,7 @@ export class VoiceSurvivorGame {
     this.cannonAiming = true;
     if (!target) {
       this.cannonTarget = { ...this.pointer };
-      this.recordSpell("cannon");
+      this.recordSpell("cannon", { source });
       playCardSelect();
       this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
       this.addBurst(this.cannonTarget, "#ffe27a", 24 + this.cannonCharge * 6);
@@ -6511,7 +6578,7 @@ export class VoiceSurvivorGame {
       return true;
     }
     this.cannonTarget = { ...target };
-    this.recordSpell("cannon");
+    this.recordSpell("cannon", { source });
     playCardSelect();
     this.addParticle(this.player.position, this.cannonTarget, "#ffe27a");
     this.addBurst(this.cannonTarget, "#ffe27a", 28 + this.cannonCharge * 8);
@@ -6525,7 +6592,8 @@ export class VoiceSurvivorGame {
     return true;
   }
 
-  private fireCannon(): boolean {
+  private fireCannon(options: { source?: CastSource } = {}): boolean {
+    const source = options.source ?? "manual";
     if (this.cannonCharge <= 0) {
       this.say("还没一级准备，先充能再发射。");
       this.updateCommandDockState();
@@ -6557,7 +6625,7 @@ export class VoiceSurvivorGame {
     this.cannonCharge = 0;
     this.cannonTarget = null;
     this.cannonAiming = false;
-    this.recordSpell("cannonFire");
+    this.recordSpell("cannonFire", { source });
     this.playFireSfx(0);
     this.addBurst(this.player.position, "#ffe27a", 40);
     this.cannonShockwave(this.player.position, 92 + charge * 18, 14 + charge * 8, 28 + charge * 10, false);
@@ -6657,9 +6725,24 @@ export class VoiceSurvivorGame {
     return clamp(1 - entry.count * 0.2, 0.38, 1);
   }
 
-  private recordSpell(spell: SpellKey): void {
+  private voiceAdjustedCost(cost: number, source: CastSource): number {
+    if (source !== "voice" || cost <= 0) return cost;
+    return Math.max(0, Math.floor(cost * 0.72));
+  }
+
+  private voicePowerMultiplier(spell: SpellKey, source: CastSource): number {
+    if (source !== "voice") return 1;
+    return this.isHiddenComboSpell(spell) || (TEST_FUN_SPELLS as readonly SpellKey[]).includes(spell) ? 1.16 : 1.08;
+  }
+
+  private recordSpell(spell: SpellKey, options: { source?: CastSource; energySaved?: number } = {}): void {
+    const source = options.source ?? "manual";
     const now = this.elapsed;
     this.spellCastCounts.set(spell, (this.spellCastCounts.get(spell) ?? 0) + 1);
+    if (source === "voice") {
+      this.voiceSpellCastCounts.set(spell, (this.voiceSpellCastCounts.get(spell) ?? 0) + 1);
+      this.voiceEnergySaved += Math.max(0, options.energySaved ?? 0);
+    }
     if (spell === "cannonPrep") this.tutorial.prepDone = true;
     if (spell === "cannon") this.tutorial.aimDone = true;
     if (spell === "cannonFire") this.tutorial.fireDone = true;
@@ -6678,7 +6761,49 @@ export class VoiceSurvivorGame {
       this.energy = clamp(this.energy + 3 + this.chainEnergyBonus, 0, this.maxEnergy);
       this.activeMods.damageBoost = Math.max(this.activeMods.damageBoost, 4);
     }
+    if (source === "voice") {
+      this.handleVoiceCastReward(spell, Math.max(0, options.energySaved ?? 0));
+    }
     this.renderGuidePanel();
+  }
+
+  private handleVoiceCastReward(spell: SpellKey, energySaved: number): void {
+    if (this.elapsed - this.lastVoiceSpellAt > 9) {
+      this.recentVoiceSpellChain = [];
+    }
+    this.lastVoiceSpellAt = this.elapsed;
+
+    const art = getLineglowSpellArt(spell);
+    const color = SPELL_TONE_COLORS[art.tone];
+    const savedText = energySaved > 0 ? `省 ${Math.round(energySaved)} 声能` : "声纹强化";
+    this.addVoiceDanmakuPin("声纹施法", `${SPELL_NAMES[spell]} · ${savedText}`, "#7cff9b", color);
+    this.addSpellRing(this.player.position, 82, "#7cff9b", savedText, 0.46);
+    this.addBurst(this.player.position, color, this.isHiddenComboSpell(spell) ? 22 : 12);
+
+    const last = this.recentVoiceSpellChain[this.recentVoiceSpellChain.length - 1];
+    if (last !== spell) {
+      this.recentVoiceSpellChain.push(spell);
+      this.recentVoiceSpellChain = this.recentVoiceSpellChain.slice(-3);
+    }
+    if (this.recentVoiceSpellChain.length >= 3 && new Set(this.recentVoiceSpellChain).size >= 3) {
+      this.triggerVoiceResonance();
+      this.recentVoiceSpellChain = [];
+    }
+  }
+
+  private triggerVoiceResonance(): void {
+    this.voiceResonanceCount += 1;
+    const radius = 156 + Math.min(90, this.level * 5) + Math.min(70, this.voiceResonanceCount * 8);
+    const damage = 18 + this.attackDamage * 0.58 + this.voiceResonanceCount * 2.5;
+    this.energy = clamp(this.energy + 8 + Math.min(12, this.voiceResonanceCount * 1.5), 0, this.maxEnergy);
+    this.explode(this.player.position, radius, damage, false);
+    this.flashScreen("#7cff9b", 0.16, 0.1);
+    this.shakeScreen(6, 0.22);
+    this.playZoomPunch(0.028, 0.2);
+    this.addImpactLines(this.player.position, "#7cff9b", 16, radius + 58, 0.32);
+    this.addSpellGlyph(this.player.position, "声纹共鸣", "#7cff9b", 56, 0.72);
+    this.addVoiceDanmakuPin("声纹共鸣", "不同咒语接力，回能爆发", "#7cff9b", "#8ee8ff");
+    this.say("声纹共鸣：不同咒语接力，回能并爆开一圈。");
   }
 
   private isRepeatableNormalSpell(spell: SpellKey): boolean {
@@ -7006,6 +7131,10 @@ export class VoiceSurvivorGame {
     }
     this.kills += 1;
     this.score += Math.round(ENEMY_CONFIG[enemy.type].xp * 10 + this.elapsed);
+    if (this.elapsed > 35) {
+      const director = this.combatDirectorIntensity();
+      this.spawnBudget = clamp(this.spawnBudget + director * (this.runMode === "wild" ? 0.1 : 0.075), 0, this.testEnvironment ? 18 : this.runMode === "wild" ? 14 : 11);
+    }
     this.cannonMeter = clamp(this.cannonMeter + (enemy.type === "target" ? 14 : 3), 0, 100);
     const xpValue = ENEMY_CONFIG[enemy.type].xp * this.currentXpDropMultiplier();
     this.drops.push({
@@ -7077,6 +7206,7 @@ export class VoiceSurvivorGame {
     const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
     const uniqueSpellCount = this.spellCastCounts.size;
     const castCount = [...this.spellCastCounts.values()].reduce((sum, count) => sum + count, 0);
+    const voiceBonus = this.voiceScoreBonus();
     const resultScore = Math.round(
       this.score / 85 +
       this.kills * 2.2 +
@@ -7084,7 +7214,8 @@ export class VoiceSurvivorGame {
       this.elapsed * 1.08 +
       buffCount * 7 +
       uniqueSpellCount * 10 +
-      Math.min(80, castCount * 1.4),
+      Math.min(80, castCount * 1.4) +
+      voiceBonus,
     );
     if (resultScore < RESULT_RATING_B_THRESHOLD) return { label: "B", score: resultScore };
     if (resultScore < RESULT_RATING_A_THRESHOLD) return { label: "A", score: resultScore };
@@ -7093,7 +7224,31 @@ export class VoiceSurvivorGame {
   }
 
   private resultOneLineSummary(resultScore: number): string {
-    return `分数 ${this.score}，击杀 ${this.kills}，生存 ${this.formatResultTime(this.elapsed)}，记录分 ${resultScore}。`;
+    const voiceBonus = this.voiceScoreBonus();
+    const voiceText = voiceBonus > 0 ? `，声控加分 ${voiceBonus}` : "";
+    return `分数 ${this.score}，击杀 ${this.kills}，生存 ${this.formatResultTime(this.elapsed)}，记录分 ${resultScore}${voiceText}。`;
+  }
+
+  private voiceCastCount(): number {
+    return [...this.voiceSpellCastCounts.values()].reduce((sum, count) => sum + count, 0);
+  }
+
+  private voiceCastRate(totalCastCount?: number): number {
+    const total = totalCastCount ?? [...this.spellCastCounts.values()].reduce((sum, count) => sum + count, 0);
+    if (total <= 0) return 0;
+    return this.voiceCastCount() / total;
+  }
+
+  private voiceScoreBonus(): number {
+    const voiceCasts = this.voiceCastCount();
+    const voiceUnique = this.voiceSpellCastCounts.size;
+    if (voiceCasts <= 0) return 0;
+    return Math.round(
+      Math.min(110, voiceCasts * 2.4) +
+      Math.min(90, voiceUnique * 8) +
+      Math.min(70, this.voiceEnergySaved * 0.55) +
+      this.voiceResonanceCount * 18,
+    );
   }
 
   private formatResultRatingLabel(sCount: number): string {
@@ -7111,6 +7266,9 @@ export class VoiceSurvivorGame {
     const buffCount = [...this.ownedBuffs.values()].reduce((sum, count) => sum + count, 0);
     const castCount = [...this.spellCastCounts.values()].reduce((sum, count) => sum + count, 0);
     const uniqueSpellCount = this.spellCastCounts.size;
+    const voiceCasts = this.voiceCastCount();
+    const voiceRate = Math.round(this.voiceCastRate(castCount) * 100);
+    const voiceBonus = this.voiceScoreBonus();
     const topSpells = this.topResultSpells();
     const leaderboardEntry = this.createPersonalLeaderboardEntry(rating, buffCount, castCount, uniqueSpellCount, topSpells);
     const personalBoard = this.savePersonalLeaderboard(leaderboardEntry);
@@ -7171,6 +7329,11 @@ export class VoiceSurvivorGame {
       ["Buff", String(buffCount)],
       ["施法", String(castCount)],
       ["咒语", String(uniqueSpellCount)],
+      ["声控", String(voiceCasts)],
+      ["声控率", `${voiceRate}%`],
+      ["省声能", String(Math.round(this.voiceEnergySaved))],
+      ["共鸣", String(this.voiceResonanceCount)],
+      ["声控加分", String(voiceBonus)],
     ];
     for (const [label, value] of statItems) {
       const item = document.createElement("span");
@@ -7938,16 +8101,31 @@ export class VoiceSurvivorGame {
 
     while (choices.length < count && pool.length > 0) {
       const source = pool.filter((buff) => this.isPhaseAllowed(buff));
-      choices.push(this.takeDraftBuff(source.length > 0 ? source : pool, pool));
+      if (source.length === 0) break;
+      choices.push(this.takeDraftBuff(source, pool));
+    }
+
+    while (choices.length < count && pool.length > 0) {
+      const fallback = pool.filter((buff) => this.isEmergencyDraftFallbackAllowed(buff));
+      if (fallback.length === 0) break;
+      choices.push(this.takeDraftBuff(fallback, pool));
     }
     return choices;
   }
 
-  private draftPhaseOrder(): Array<"starter" | "branch" | "combo" | "late"> {
-    if (this.level <= 3) return ["starter", "starter", "branch"];
-    if (this.level <= 7) return ["starter", "branch", "branch"];
-    if (this.threatTier() < 2) return ["branch", "branch", "combo"];
-    return ["combo", "late", "branch"];
+  private draftPhaseOrder(): DraftPhase[] {
+    switch (this.draftPacingStage()) {
+      case "opening":
+        return ["starter", "starter", "starter"];
+      case "foundation":
+        return ["starter", "branch", "starter"];
+      case "build":
+        return ["branch", "starter", "branch"];
+      case "combo":
+        return ["branch", "combo", "branch"];
+      case "late":
+        return ["combo", "late", "branch"];
+    }
   }
 
   private takeDraftBuffWhere(pool: Buff[], choices: Buff[], predicate: (buff: Buff) => boolean): void {
@@ -7968,8 +8146,9 @@ export class VoiceSurvivorGame {
     return buff.id.startsWith("stat-") || buff.id.startsWith("weapon-") || buff.id.startsWith("survive-");
   }
 
-  private buffPhase(buff: Buff): "starter" | "branch" | "combo" | "late" {
+  private buffPhase(buff: Buff): DraftPhase {
     if (buff.phase) return buff.phase;
+    if (this.isFunFragmentBuff(buff)) return "combo";
     if (this.isEarlyAbilityBuff(buff)) return "starter";
     if (["weapon-damage", "weapon-rate", "weapon-speed", "weapon-guard-turret", "weapon-blade", "survive-hp", "stat-energy", "stat-damage", "stat-rate"].includes(buff.id)) {
       return "starter";
@@ -7981,10 +8160,117 @@ export class VoiceSurvivorGame {
   }
 
   private isPhaseAllowed(buff: Buff): boolean {
+    return this.buffDraftScore(buff) <= this.draftPacingScore();
+  }
+
+  private isEmergencyDraftFallbackAllowed(buff: Buff): boolean {
+    if (buff.rarity === "diamond" || this.isLatePowerBuff(buff)) return false;
+    return this.buffDraftScore(buff) <= Math.min(2, this.draftPacingScore() + 1);
+  }
+
+  private draftPacingStage(): DraftPacingStage {
+    const buffCount = this.buffStackCount();
+    if (this.level <= 3 && buffCount <= 3) return "opening";
+    if (this.level <= 5 && buffCount <= 5) return "foundation";
+    if (this.level <= 8 && buffCount <= 8) return "build";
+    if (this.level <= 11 || buffCount < 11 || this.elapsed < 135) return "combo";
+    return "late";
+  }
+
+  private draftPacingScore(): number {
+    switch (this.draftPacingStage()) {
+      case "opening":
+        return 0;
+      case "foundation":
+        return 1;
+      case "build":
+        return 2;
+      case "combo":
+        return 3;
+      case "late":
+        return 4;
+    }
+  }
+
+  private buffDraftScore(buff: Buff): number {
+    if (this.isOpeningDraftBuff(buff)) return 0;
+    if (this.isFoundationDraftBuff(buff)) return 1;
+    if (this.isLatePowerBuff(buff) || buff.rarity === "diamond") return 4;
+
     const phase = this.buffPhase(buff);
-    if (phase === "late") return this.threatTier() >= 2 || this.level >= 7;
-    if (phase === "combo") return this.threatTier() >= 1 || this.level >= 5;
-    return true;
+    if (phase === "late") return 4;
+    if (phase === "combo") return 3;
+    if (this.isFunFragmentBuff(buff)) return 3;
+    if (this.isHighImpactBranchBuff(buff)) return 3;
+    if (this.isMidPowerBuff(buff) || buff.rarity === "gold") return 2;
+    if (phase === "branch") return 1;
+    return 1;
+  }
+
+  private isOpeningDraftBuff(buff: Buff): boolean {
+    return [
+      "spell-evade",
+      "spell-shield",
+      "spell-gather",
+      "spell-explode",
+      "spell-freeze",
+      "spell-split",
+      "spell-ricochet",
+      "weapon-damage",
+      "weapon-rate",
+      "weapon-speed",
+      "survive-hp",
+      "stat-damage",
+      "stat-rate",
+    ].includes(buff.id);
+  }
+
+  private isFoundationDraftBuff(buff: Buff): boolean {
+    return [
+      "weapon-guard-turret",
+      "weapon-blade",
+      "stat-energy",
+      "stat-explode-radius",
+      "stat-explode-damage",
+      "stat-explode-duration",
+      "stat-freeze-duration",
+      "stat-freeze-radius",
+      "stat-split-count",
+      "stat-split-angle",
+      "stat-split-duration",
+      "stat-split-speed",
+      "stat-ricochet-count",
+      "stat-ricochet-range",
+      "weapon-guard-damage",
+      "weapon-guard-rate",
+      "weapon-guard-range",
+      "weapon-blade-count",
+      "weapon-blade-radius",
+      "weapon-blade-damage",
+    ].includes(buff.id);
+  }
+
+  private isFunFragmentBuff(buff: Buff): boolean {
+    return [
+      "spell-bang",
+      "spell-card-check",
+      "spell-woqu",
+      "spell-too-late",
+      "spell-no-talk",
+      "spell-received",
+      "spell-unknown",
+      "spell-body-shape",
+      "spell-graceful",
+      "spell-internal-drain",
+      "spell-external-drain",
+      "spell-old-self",
+      "spell-see-tomorrow",
+      "spell-urgent-cry",
+    ].includes(buff.id);
+  }
+
+  private isHighImpactBranchBuff(buff: Buff): boolean {
+    return ["weapon-fan", "stat-cannon", "stat-bang-plus"].includes(buff.id);
   }
 
   private buffMaxStacks(buff: Buff): number {
